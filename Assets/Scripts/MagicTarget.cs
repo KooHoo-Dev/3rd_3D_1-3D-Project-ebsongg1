@@ -1,8 +1,10 @@
+using System;
 using UnityEngine;
+using UnityEngine.Events;
 
 namespace WardShift
 {
-    /// <summary>마법 대상의 설정과 감지 강조를 관리. 시전과 완료 처리는 다음 단계에 추가.</summary>
+    /// <summary>대상 설정, 감지 강조, 시전 진행도와 한 번만 발생하는 완료를 관리.</summary>
     [DisallowMultipleComponent]
     public sealed class MagicTarget : MonoBehaviour
     {
@@ -11,12 +13,62 @@ namespace WardShift
         [SerializeField] private string displayName = "테스트 봉인점";
         [SerializeField] private MagicType requiredMagic = MagicType.Seal;
         [SerializeField, Min(0.1f)] private float castDuration = 2f;
+        [Tooltip("완료 후 이 오브젝트와 자식을 비활성화. 현재 테스트 구체에 사용.")]
+        [SerializeField] private bool deactivateOnComplete = true;
+        [Tooltip("봉인점 완료 후 균열 처리나 효과를 연결할 수 있는 이벤트.")]
+        [SerializeField] private UnityEvent onCompleted = new UnityEvent();
+
+        [Header("시전 상태 (실행 중 확인용)")]
+        [SerializeField, Range(0f, 1f)] private float progress;
+        [SerializeField] private bool isCompleted;
 
         public string DisplayName => displayName;
         public MagicType RequiredMagic => requiredMagic;
         public float CastDuration => castDuration;
-        public bool IsAvailable => isActiveAndEnabled;
+        public bool IsAvailable => isActiveAndEnabled && !isCompleted;
         public bool IsDetected { get; private set; }
+        public float Progress => progress;
+        public bool IsCompleted => isCompleted;
+        public bool IsCasting { get; private set; }
+        public event Action CastStarted;
+        public event Action CastStopped;
+        public event Action<MagicTarget> Completed;
+
+        // 시전자는 입력과 조준을 검사하고, 대상은 마법 종류와 진행도 및 완료를 관리.
+        public bool AdvanceCast(MagicType magic, float deltaTime)
+        {
+            if (!IsAvailable || magic != requiredMagic || deltaTime <= 0f) return false;
+            if (!IsCasting)
+            {
+                IsCasting = true;
+                CastStarted?.Invoke();
+            }
+            progress = Mathf.Clamp01(progress + deltaTime / Mathf.Max(0.1f, castDuration));
+            if (progress < 1f) return false;
+
+            // 이벤트나 오브젝트 비활성화보다 먼저 완료를 기록하여 중복 처리를 막음.
+            isCompleted = true;
+            StopCasting();
+            SetDetected(false, Color.white);
+            // 완료 효과가 위치를 읽고 생성될 수 있도록 비활성화 전에 이벤트를 전달.
+            Completed?.Invoke(this);
+            onCompleted.Invoke();
+            if (deactivateOnComplete) gameObject.SetActive(false);
+            return true;
+        }
+
+        public void CancelCast()
+        {
+            if (!isCompleted) progress = 0f;
+            StopCasting();
+        }
+
+        private void StopCasting()
+        {
+            if (!IsCasting) return;
+            IsCasting = false;
+            CastStopped?.Invoke();
+        }
 
         private Renderer[] highlightedRenderers;
         private MaterialPropertyBlock[] originalBlocks;
@@ -36,7 +88,9 @@ namespace WardShift
                 return;
             }
 
-            highlightedRenderers = GetComponentsInChildren<Renderer>();
+            // 감지 색상이 시전 파티클의 보라색을 덮어쓰지 않도록 파티클은 제외.
+            highlightedRenderers = Array.FindAll(GetComponentsInChildren<Renderer>(),
+                renderer => !(renderer is ParticleSystemRenderer));
             originalBlocks = new MaterialPropertyBlock[highlightedRenderers.Length];
             for (int i = 0; i < highlightedRenderers.Length; i++)
             {
@@ -65,6 +119,7 @@ namespace WardShift
 
         private void OnDisable()
         {
+            CancelCast();
             IsDetected = false;
             RestoreAppearance();
         }
