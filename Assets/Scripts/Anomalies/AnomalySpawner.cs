@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -16,17 +17,37 @@ namespace WardShift
         [SerializeField, Min(0)] private int selectedPointIndex;
         [SerializeField] private bool spawnOnStart = true;
         private GameObject activeRift;
+        private bool spawningEnabled = true;
+
+        /// <summary>새 균열이 만들어졌을 때 발생합니다.</summary>
+        public event Action<ManaRift> RiftSpawned;
+        public bool SpawningEnabled => spawningEnabled;
+        public ManaRift ActiveRift => activeRift != null ? activeRift.GetComponent<ManaRift>() : null;
+        public bool HasSpawnConfiguration => riftPrefab != null && spawnPoints != null && spawnPoints.Length > 0;
 
         private void Start()
         {
-            if (spawnOnStart) SpawnRift();
+            if (spawnOnStart && spawningEnabled) SpawnRift();
+        }
+
+        /// <summary>DAY 진행에 맞춰 균열 생성 허용 여부를 바꿉니다.</summary>
+        public void SetSpawningEnabled(bool enabled)
+        {
+            spawningEnabled = enabled;
+        }
+
+        /// <summary>스포너가 만든 활성 균열을 제거하고 참조를 비웁니다.</summary>
+        public void ClearActiveRift()
+        {
+            if (activeRift != null) Destroy(activeRift);
+            activeRift = null;
         }
 
         /// <summary>Play 중 Inspector 컨텍스트 메뉴 또는 다른 코드에서 생성 요청.</summary>
         [ContextMenu("Spawn Rift (Play Mode)")]
         public void SpawnRift()
         {
-            if (!Application.isPlaying || !isActiveAndEnabled) return;
+            if (!Application.isPlaying || !isActiveAndEnabled || !spawningEnabled) return;
             WardStatus status = FindFirstObjectByType<WardStatus>();
             if (status != null && status.HasFailed) return;
             if (activeRift != null)
@@ -43,6 +64,7 @@ namespace WardShift
             if (point.TrySpawn(riftPrefab, out ManaRift instance))
             {
                 activeRift = instance.gameObject;
+                RiftSpawned?.Invoke(instance);
                 Debug.Log($"마력 균열 생성: {point.name}", this);
             }
         }
@@ -59,7 +81,7 @@ namespace WardShift
             var available = new List<AnomalySpawnPoint>();
             foreach (AnomalySpawnPoint point in spawnPoints)
                 if (CanUse(point) && !available.Contains(point)) available.Add(point);
-            return available.Count == 0 ? null : available[Random.Range(0, available.Count)];
+                return available.Count == 0 ? null : available[UnityEngine.Random.Range(0, available.Count)];
         }
 
         private static bool CanUse(AnomalySpawnPoint point)

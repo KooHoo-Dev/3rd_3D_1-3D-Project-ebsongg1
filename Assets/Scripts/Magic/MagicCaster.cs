@@ -66,6 +66,17 @@ namespace WardShift
             if (blocked) { CancelCast(); waitingForRelease = true; }
         }
 
+        /// <summary>새 DAY를 시작할 때 이전 시전 결과와 대상을 지웁니다.</summary>
+        public void ResetForNewDay()
+        {
+            CancelCast();
+            LastResult = MagicCastResult.None;
+            ResultProgress = 0f;
+            CompletedTargetName = null;
+            resultUntil = 0f;
+            waitingForRelease = castAction.IsPressed();
+        }
+
         /// <summary>선택 마법을 변경하며 진행 중 시전을 취소.</summary>
         public void SelectMagic(MagicType magic)
         {

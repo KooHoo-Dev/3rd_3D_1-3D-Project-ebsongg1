@@ -15,6 +15,12 @@ namespace WardShift
         [SerializeField] private Image contaminationFill;
         [SerializeField] private GameObject failurePanel;
         [SerializeField] private TMP_Text failureText;
+        private DayFlowManager dayFlow;
+
+        private void Awake()
+        {
+            dayFlow = FindFirstObjectByType<DayFlowManager>();
+        }
 
         private void LateUpdate()
         {
@@ -29,7 +35,7 @@ namespace WardShift
             if (warningText != null)
             {
                 warningText.color = Color.red;
-                warningText.text = status.HasFailed ? "게임 실패"
+                warningText.text = status.HasFailed ? "근무 실패"
                     : player.Value >= 80f ? "위험: 오염도 80 이상! 안전 구역으로 이동하세요."
                     : status.Stability <= 20f ? "위험: 시설 안정도 20 이하!"
                     : status.HasOverloadedRift ? "폭주한 균열이 남아 있습니다! 봉인하세요."
@@ -38,9 +44,11 @@ namespace WardShift
                     : status.HighestStage == 2 ? "균열이 2단계로 성장했습니다." : "";
             }
             if (failurePanel != null && failurePanel != gameObject)
-                failurePanel.SetActive(status.HasFailed);
+                failurePanel.SetActive(status.HasFailed && dayFlow == null);
             if (failureText != null && status.HasFailed)
-                failureText.text = $"게임 실패\n{status.FailureReason}\nPlay 모드를 종료한 뒤 다시 시작하세요.";
+                failureText.text = dayFlow != null
+                    ? $"근무 실패\n{dayFlow.CurrentDay}일차\n{status.FailureReason}\n플레이 모드를 종료한 뒤 다시 시작하세요."
+                    : $"게임 실패\n{status.FailureReason}\n플레이 모드를 종료한 뒤 다시 시작하세요.";
         }
     }
 }

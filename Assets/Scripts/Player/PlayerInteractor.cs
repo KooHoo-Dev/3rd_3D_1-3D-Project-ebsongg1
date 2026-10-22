@@ -29,6 +29,7 @@ namespace WardShift
         [SerializeField] private bool drawDebugRay = true;
 
         public MagicTarget CurrentTarget => currentTarget;
+        public Transform PlayerRoot => playerRoot;
         public Collider CurrentCollider { get; private set; }
         public event Action<MagicTarget> TargetChanged;
 

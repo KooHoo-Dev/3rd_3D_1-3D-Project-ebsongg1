@@ -1,5 +1,8 @@
+using System;
 using System.Collections.Generic;
+using StarterAssets;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace WardShift
 {
@@ -24,6 +27,11 @@ namespace WardShift
         private bool previousInputBlocked;
         private CursorLockMode previousCursorLock;
         private bool previousCursorVisible;
+        private bool controlsPaused;
+        private bool hasPauseSnapshot;
+
+        /// <summary>시설 또는 플레이어 조건으로 하루가 실패했을 때 발생합니다.</summary>
+        public event Action<string> Failed;
 
         private void Awake()
         {
@@ -65,35 +73,109 @@ namespace WardShift
             if (HasFailed) return;
             HasFailed = true;
             FailureReason = reason;
-            previousTimeScale = Time.timeScale;
-            previousCursorLock = Cursor.lockState;
-            previousCursorVisible = Cursor.visible;
-            previousInputBlocked = caster.InputBlocked;
-            caster.SetInputBlocked(true);
-            if (disableOnFailure != null)
-                foreach (Behaviour behaviour in disableOnFailure)
-                    if (behaviour != null && behaviour != this && behaviour.enabled)
-                    {
-                        stopped.Add(behaviour);
-                        behaviour.enabled = false;
-                    }
+            PauseGameForUI();
+            Debug.Log($"임시 게임 실패: {reason}. Play 모드를 종료 후 다시 시작하세요.", this);
+            Failed?.Invoke(reason);
+        }
+
+        /// <summary>인벤토리 또는 DAY 종료 화면을 표시하며 게임플레이를 일시정지합니다.</summary>
+        public void PauseGameForUI()
+        {
+            if (!hasPauseSnapshot)
+            {
+                previousTimeScale = Time.timeScale;
+                previousCursorLock = Cursor.lockState;
+                previousCursorVisible = Cursor.visible;
+                previousInputBlocked = caster != null && caster.InputBlocked;
+                hasPauseSnapshot = true;
+            }
+            if (caster != null) caster.SetInputBlocked(true);
+            SetGameplayControlsEnabled(false);
             Time.timeScale = 0f;
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
-            Debug.Log($"임시 게임 실패: {reason}. Play 모드를 종료 후 다시 시작하세요.", this);
         }
 
-        private void OnDisable()
+        /// <summary>일시정지를 해제하고 진입 전의 시간 및 커서 상태를 복원합니다.</summary>
+        public void ResumeGameFromUI()
         {
-            if (!HasFailed) return;
-            // 실패 담당 오브젝트 제거/씬 종료 시 전역 일시정지가 남지 않게 복원.
+            if (HasFailed) return;
+            RestorePauseSnapshot();
+        }
+
+        /// <summary>새 게임 테스트를 위해 실패, 안정도와 플레이어 오염도를 초기화합니다.</summary>
+        public void ResetForNewRun()
+        {
+            RestorePauseSnapshot();
+            HasFailed = false;
+            FailureReason = null;
+            HighestStage = 0;
+            HasOverloadedRift = false;
+            stability = 100f;
+            if (player != null) player.ResetForNewRun();
+        }
+
+        /// <summary>DAY 전환 때 임시 위험 표시만 지웁니다. 안정도와 오염도 값은 유지합니다.</summary>
+        public void ResetDayHazardDisplay()
+        {
+            HighestStage = 0;
+            HasOverloadedRift = false;
+            if (player != null) player.ResetExposureDisplay();
+        }
+
+        private void SetGameplayControlsEnabled(bool enabled)
+        {
+            if (!enabled)
+            {
+                if (controlsPaused) return;
+                controlsPaused = true;
+                if (disableOnFailure != null)
+                    foreach (Behaviour behaviour in disableOnFailure)
+                        StopBehaviour(behaviour);
+                if (player != null)
+                {
+                    foreach (PlayerInput input in player.GetComponentsInChildren<PlayerInput>(true))
+                        StopBehaviour(input);
+                    foreach (StarterAssetsInputs input in player.GetComponentsInChildren<StarterAssetsInputs>(true))
+                    {
+                        input.MoveInput(Vector2.zero);
+                        input.LookInput(Vector2.zero);
+                        input.JumpInput(false);
+                        input.SprintInput(false);
+                    }
+                }
+                return;
+            }
+
+            if (!controlsPaused) return;
+            controlsPaused = false;
+            foreach (Behaviour behaviour in stopped)
+                if (behaviour != null) behaviour.enabled = true;
+            stopped.Clear();
+        }
+
+        private void StopBehaviour(Behaviour behaviour)
+        {
+            if (behaviour == null || behaviour == this || !behaviour.enabled) return;
+            if (!stopped.Contains(behaviour)) stopped.Add(behaviour);
+            behaviour.enabled = false;
+        }
+
+        private void RestorePauseSnapshot()
+        {
+            if (!hasPauseSnapshot) return;
             Time.timeScale = previousTimeScale;
             Cursor.lockState = previousCursorLock;
             Cursor.visible = previousCursorVisible;
             if (caster != null) caster.SetInputBlocked(previousInputBlocked);
-            foreach (Behaviour behaviour in stopped)
-                if (behaviour != null) behaviour.enabled = true;
-            stopped.Clear();
+            SetGameplayControlsEnabled(true);
+            hasPauseSnapshot = false;
+        }
+
+        private void OnDisable()
+        {
+            // 씬 종료나 매니저 제거 때 전역 일시정지가 남지 않도록 복원합니다.
+            RestorePauseSnapshot();
         }
     }
 }
