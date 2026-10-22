@@ -27,6 +27,8 @@ namespace WardShift
         public void SpawnRift()
         {
             if (!Application.isPlaying || !isActiveAndEnabled) return;
+            WardStatus status = FindFirstObjectByType<WardStatus>();
+            if (status != null && status.HasFailed) return;
             if (activeRift != null)
             {
                 Debug.Log("AnomalySpawner: 기존 균열이 남아 있어 추가 생성하지 않습니다.", this);
