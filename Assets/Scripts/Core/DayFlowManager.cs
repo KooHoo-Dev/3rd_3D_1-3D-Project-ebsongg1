@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Serialization;
 
 namespace WardShift
 {
@@ -12,8 +13,8 @@ namespace WardShift
     {
         [Header("DAY 설정")]
         [SerializeField, Min(1f)] private float dayDurationSeconds = 180f;
-        [SerializeField, Min(0)] private int minimumRiftReward = 1;
-        [SerializeField, Min(0)] private int maximumRiftReward = 2;
+        [FormerlySerializedAs("minimumRiftReward"), SerializeField, Min(0)] private int minimumAnomalyReward = 1;
+        [FormerlySerializedAs("maximumRiftReward"), SerializeField, Min(0)] private int maximumAnomalyReward = 2;
         [Header("씬 참조")]
         [SerializeField] private WardStatus wardStatus;
         [SerializeField] private AnomalySpawner anomalySpawner;
@@ -30,8 +31,8 @@ namespace WardShift
 
         private readonly InputAction inventoryAction = new InputAction(
             "Toggle Inventory", InputActionType.Button, "<Keyboard>/b");
-        private readonly HashSet<int> rewardedRiftIds = new HashSet<int>();
-        private readonly List<ManaRift> subscribedRifts = new List<ManaRift>();
+        private readonly HashSet<int> rewardedAnomalyIds = new HashSet<int>();
+        private readonly List<AnomalyBehaviour> subscribedAnomalies = new List<AnomalyBehaviour>();
         private bool inventoryOpen;
 
         public int CurrentDay => currentDay;
@@ -62,7 +63,7 @@ namespace WardShift
         {
             inventoryAction.Enable();
             if (wardStatus != null) wardStatus.Failed += OnDayFailed;
-            if (anomalySpawner != null) anomalySpawner.RiftSpawned += OnRiftSpawned;
+            if (anomalySpawner != null) anomalySpawner.AnomalySpawned += OnAnomalySpawned;
         }
 
         private void Start()
@@ -120,7 +121,7 @@ namespace WardShift
         {
             if (state != DayState.DayFailed) return;
             if (anomalySpawner != null) anomalySpawner.SetSpawningEnabled(false);
-            UnsubscribeFromRifts();
+            UnsubscribeFromAnomalies();
             ClearAllAnomalies();
             currentDay = 1;
             state = DayState.Preparing;
@@ -155,15 +156,15 @@ namespace WardShift
         public void ConfigureDaySettings(float durationSeconds, int minReward, int maxReward)
         {
             dayDurationSeconds = Mathf.Max(1f, durationSeconds);
-            minimumRiftReward = Mathf.Max(0, minReward);
-            maximumRiftReward = Mathf.Max(minimumRiftReward, maxReward);
+            minimumAnomalyReward = Mathf.Max(0, minReward);
+            maximumAnomalyReward = Mathf.Max(minimumAnomalyReward, maxReward);
         }
 
         private void BeginDay()
         {
             inventoryOpen = false;
-            rewardedRiftIds.Clear();
-            UnsubscribeFromRifts();
+            rewardedAnomalyIds.Clear();
+            UnsubscribeFromAnomalies();
             if (anomalySpawner != null) anomalySpawner.SetSpawningEnabled(false);
             ClearAllAnomalies();
             TeleportPlayerToStart();
@@ -180,10 +181,7 @@ namespace WardShift
                 magicCaster.SetInputBlocked(false);
             }
             if (anomalySpawner != null)
-            {
                 anomalySpawner.SetSpawningEnabled(true);
-                anomalySpawner.SpawnRift();
-            }
         }
 
         private void CompleteDay()
@@ -207,38 +205,38 @@ namespace WardShift
             if (wardStatus != null) wardStatus.PauseGameForUI();
         }
 
-        private void OnRiftSpawned(ManaRift rift)
+        private void OnAnomalySpawned(AnomalyBehaviour anomaly)
         {
-            if (rift == null || subscribedRifts.Contains(rift)) return;
-            rift.Resolved += OnRiftResolved;
-            subscribedRifts.Add(rift);
+            if (anomaly == null || subscribedAnomalies.Contains(anomaly)) return;
+            anomaly.ResolutionCompleted += OnAnomalyResolved;
+            subscribedAnomalies.Add(anomaly);
         }
 
-        private void OnRiftResolved(ManaRift rift)
+        private void OnAnomalyResolved(AnomalyBehaviour anomaly)
         {
-            if (rift == null || state != DayState.Playing) return;
-            int id = rift.GetInstanceID();
-            if (!rewardedRiftIds.Add(id)) return;
-            int min = Mathf.Max(0, minimumRiftReward);
-            int max = Mathf.Max(min, maximumRiftReward);
+            if (anomaly == null || state != DayState.Playing) return;
+            int id = anomaly.GetInstanceID();
+            if (!rewardedAnomalyIds.Add(id)) return;
+            int min = Mathf.Max(0, minimumAnomalyReward);
+            int max = Mathf.Max(min, maximumAnomalyReward);
             inventory.AddManaCrystals(Random.Range(min, max + 1));
-            rift.Resolved -= OnRiftResolved;
-            subscribedRifts.Remove(rift);
+            anomaly.ResolutionCompleted -= OnAnomalyResolved;
+            subscribedAnomalies.Remove(anomaly);
         }
 
         private bool HasActiveAnomalies()
         {
-            foreach (ManaRift rift in FindObjectsByType<ManaRift>(FindObjectsSortMode.None))
-                if (rift != null && rift.IsHazardActive) return true;
+            foreach (AnomalyBehaviour anomaly in AnomalyBehaviour.ActiveAnomalies)
+                if (anomaly != null && anomaly.IsHazardActive) return true;
             return false;
         }
 
         private void ClearAllAnomalies()
         {
-            foreach (ManaRift rift in FindObjectsByType<ManaRift>(FindObjectsInactive.Include,
+            foreach (AnomalyBehaviour anomaly in FindObjectsByType<AnomalyBehaviour>(FindObjectsInactive.Include,
                          FindObjectsSortMode.None))
-                if (rift != null) Destroy(rift.gameObject);
-            if (anomalySpawner != null) anomalySpawner.ClearActiveRift();
+                if (anomaly != null) Destroy(anomaly.gameObject);
+            if (anomalySpawner != null) anomalySpawner.ClearActiveAnomalies();
         }
 
         private void TeleportPlayerToStart()
@@ -257,19 +255,19 @@ namespace WardShift
             BeginDay();
         }
 
-        private void UnsubscribeFromRifts()
+        private void UnsubscribeFromAnomalies()
         {
-            foreach (ManaRift rift in subscribedRifts)
-                if (rift != null) rift.Resolved -= OnRiftResolved;
-            subscribedRifts.Clear();
+            foreach (AnomalyBehaviour anomaly in subscribedAnomalies)
+                if (anomaly != null) anomaly.ResolutionCompleted -= OnAnomalyResolved;
+            subscribedAnomalies.Clear();
         }
 
         private void OnDisable()
         {
             inventoryAction.Disable();
             if (wardStatus != null) wardStatus.Failed -= OnDayFailed;
-            if (anomalySpawner != null) anomalySpawner.RiftSpawned -= OnRiftSpawned;
-            UnsubscribeFromRifts();
+            if (anomalySpawner != null) anomalySpawner.AnomalySpawned -= OnAnomalySpawned;
+            UnsubscribeFromAnomalies();
         }
 
         private void OnDestroy() => inventoryAction.Dispose();

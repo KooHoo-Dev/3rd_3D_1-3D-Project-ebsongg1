@@ -99,8 +99,11 @@ namespace WardShift.Editor
             if (dayFlow != null && !dayFlow.IsConfigured) missing.Add("DayFlowManager 씬 참조");
             AnomalySpawner spawner = Object.FindFirstObjectByType<AnomalySpawner>();
             if (spawner != null && !spawner.HasSpawnConfiguration) missing.Add("AnomalySpawner 프리팹/생성 지점");
-            // EventSystem.current is only guaranteed to be populated at runtime. The validator
-            // also runs in Edit Mode, so inspect the scene object directly instead.
+            if (spawner != null && spawner.MaximumConcurrentAnomalies > 1
+                && !spawner.HasAtLeastTwoCompatibleSpawnPoints)
+                missing.Add("동시 발생 수에 맞는 서로 다른 이상현상 생성 지점 2개 이상");
+            // - EventSystem.current는 런타임에 보장
+            // - Edit Mode 검증에서는 씬 오브젝트를 직접 확인
             EventSystem eventSystem = Object.FindFirstObjectByType<EventSystem>(FindObjectsInactive.Include);
             InputSystemUIInputModule uiInputModule = eventSystem != null
                 ? eventSystem.GetComponent<InputSystemUIInputModule>()
@@ -121,11 +124,52 @@ namespace WardShift.Editor
             SetupActiveScene();
         }
 
+        [MenuItem("Tools/WARD SHIFT/Setup Multi Anomaly Spawning")]
+        public static void SetupMultiAnomalySpawning()
+        {
+            AnomalySpawner spawner = Object.FindFirstObjectByType<AnomalySpawner>(FindObjectsInactive.Include);
+            if (spawner == null)
+            {
+                EditorUtility.DisplayDialog("WARD SHIFT 이상현상 설정",
+                    "현재 씬에서 AnomalySpawner를 찾을 수 없습니다.", "확인");
+                return;
+            }
+
+            ConfigureSpawner(spawner);
+            EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+            if (EditorSceneManager.SaveScene(SceneManager.GetActiveScene()))
+                Debug.Log("WARD SHIFT multi-anomaly spawning setup completed.", spawner);
+        }
+
+        /// <summary>Unity batch mode에서 MainGame의 반복 스폰 설정만 자동 연결합니다.</summary>
+        public static void SetupMainGameAnomaliesForBatch()
+        {
+            EditorSceneManager.OpenScene(MainGamePath, OpenSceneMode.Single);
+            SetupMultiAnomalySpawning();
+            EditorApplication.Exit(0);
+        }
+
         private static void ConfigureSpawner(AnomalySpawner spawner)
         {
             SerializedObject serialized = new SerializedObject(spawner);
             SerializedProperty spawnOnStart = serialized.FindProperty("spawnOnStart");
             if (spawnOnStart != null) spawnOnStart.boolValue = false;
+            SerializedProperty spawnInterval = serialized.FindProperty("spawnIntervalSeconds");
+            if (spawnInterval != null) spawnInterval.floatValue = 6f;
+            SerializedProperty maximumConcurrent = serialized.FindProperty("maximumConcurrentAnomalies");
+            if (maximumConcurrent != null) maximumConcurrent.intValue = 2;
+            SerializedProperty firstDelay = serialized.FindProperty("firstSpawnDelaySeconds");
+            if (firstDelay != null) firstDelay.floatValue = 1f;
+
+            AnomalySpawnPoint[] scenePoints = Object.FindObjectsByType<AnomalySpawnPoint>(
+                FindObjectsInactive.Include, FindObjectsSortMode.None).OrderBy(point => point.name).ToArray();
+            SerializedProperty spawnPoints = serialized.FindProperty("spawnPoints");
+            if (spawnPoints != null)
+            {
+                spawnPoints.arraySize = scenePoints.Length;
+                for (int i = 0; i < scenePoints.Length; i++)
+                    spawnPoints.GetArrayElementAtIndex(i).objectReferenceValue = scenePoints[i];
+            }
             serialized.ApplyModifiedProperties();
             EditorUtility.SetDirty(spawner);
         }

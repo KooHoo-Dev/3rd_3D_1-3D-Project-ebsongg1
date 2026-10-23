@@ -17044,13 +17044,17 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WardShift.AnomalySpawner
   riftPrefab: {fileID: 1253605351275401882, guid: 7d61cc85041550e4d98323c29b9523cb, type: 3}
+  additionalAnomalyPrefabs: []
   spawnPoints:
+  - {fileID: 576474276}
   - {fileID: 743474888}
   - {fileID: 928681733}
-  - {fileID: 576474276}
-  randomizePoint: 0
+  randomizePoint: 1
   selectedPointIndex: 0
   spawnOnStart: 0
+  spawnIntervalSeconds: 20
+  maximumConcurrentAnomalies: 2
+  firstSpawnDelaySeconds: 3
 --- !u!114 &411442693
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -17063,9 +17067,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d0749cf20249c6c4fbf9fa3f1e2012fd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WardShift.DayFlowManager
-  dayDurationSeconds: 30
-  minimumRiftReward: 1
-  maximumRiftReward: 2
+  dayDurationSeconds: 90
+  minimumAnomalyReward: 1
+  maximumAnomalyReward: 2
   wardStatus: {fileID: 1545351164}
   anomalySpawner: {fileID: 411442692}
   inventory: {fileID: 411442694}
@@ -24900,7 +24904,7 @@ Transform:
   m_GameObject: {fileID: 576474274}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.93, y: -4.41, z: -52.66}
+  m_LocalPosition: {x: -0.93, y: -14.89, z: -52.66}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

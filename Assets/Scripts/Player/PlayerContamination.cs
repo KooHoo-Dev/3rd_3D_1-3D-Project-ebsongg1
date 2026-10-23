@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace WardShift
@@ -35,15 +36,15 @@ namespace WardShift
             ExposurePerSecond = 0f;
         }
 
-        public void Advance(float deltaTime, ManaRift[] rifts, SafeZone[] zones)
+        public void Advance(float deltaTime, IReadOnlyList<AnomalyBehaviour> anomalies, SafeZone[] zones)
         {
             InSafeZone = false;
             foreach (SafeZone zone in zones)
                 if (zone != null && zone.Contains(transform.position)) { InSafeZone = true; break; }
             ExposurePerSecond = 0f;
             if (!InSafeZone)
-                foreach (ManaRift rift in rifts)
-                    if (rift != null) ExposurePerSecond += rift.ContaminationRateAt(transform.position);
+                foreach (AnomalyBehaviour anomaly in anomalies)
+                    if (anomaly != null) ExposurePerSecond += anomaly.ContaminationRateAt(transform.position);
             float rate = InSafeZone ? -Mathf.Max(0f, recoveryPerSecond) : ExposurePerSecond;
             contamination = Mathf.Clamp(contamination + rate * Mathf.Max(0f, deltaTime), 0f, 100f);
         }

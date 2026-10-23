@@ -7,7 +7,7 @@ namespace WardShift
     /// <summary>두 봉인점이 모두 완료되면 효과와 완료 이벤트를 한 번 발생시키고 균열을 제거.</summary>
     [DisallowMultipleComponent]
     [DefaultExecutionOrder(10003)]
-    public sealed class ManaRift : MonoBehaviour
+    public sealed class ManaRift : AnomalyBehaviour
     {
         [Header("봉인점 (서로 다른 자식 MagicTarget)")]
         [SerializeField] private MagicTarget sealPoint01;
@@ -39,12 +39,14 @@ namespace WardShift
         [SerializeField] private int dangerStage = 1;
         [SerializeField] private bool hasOverloaded;
 
-        public int DangerStage => dangerStage;
-        public bool HasOverloaded => hasOverloaded;
-        public bool IsHazardActive => isActiveAndEnabled && !isResolved && CompletedSealCount < 2;
+        public float Age => age;
+        public override int DangerStage => dangerStage;
+        public override bool HasOverloaded => hasOverloaded;
+        public override AnomalySpawnPoint.SurfaceType SpawnSurface => AnomalySpawnPoint.SurfaceType.Wall;
+        public override bool IsHazardActive => isActiveAndEnabled && !isResolved && CompletedSealCount < 2;
 
         // WardStatus가 시전/봉인 처리 이후 호출. 피해를 반환하므로 폭주당 한 번만 적용됨.
-        public float AdvanceHazard(float deltaTime)
+        public override float AdvanceHazard(float deltaTime)
         {
             if (!IsHazardActive || deltaTime <= 0f) return 0f;
             age += deltaTime;
@@ -58,7 +60,7 @@ namespace WardShift
             return Mathf.Max(0f, overloadDamage);
         }
 
-        public float ContaminationRateAt(Vector3 position)
+        public override float ContaminationRateAt(Vector3 position)
         {
             if (!IsHazardActive || (position - transform.position).sqrMagnitude > dangerRadius * dangerRadius)
                 return 0f;
@@ -79,8 +81,9 @@ namespace WardShift
         /// <summary>균열 전체 진압 시 한 번 발생. 이후 보상/시설 시스템에서 구독 가능.</summary>
         public event Action<ManaRift> Resolved;
 
-        private void OnEnable()
+        protected override void OnEnable()
         {
+            base.OnEnable();
             if (!ValidateSealPoints())
             {
                 Debug.LogError("ManaRift: 서로 다른 자식 봉인점 두 개를 연결하세요. 각 대상은 Seal 및 Use Timing Cast 설정이 필요합니다.", this);
@@ -123,6 +126,7 @@ namespace WardShift
             {
                 Resolved?.Invoke(this);
                 onResolved.Invoke();
+                NotifyResolved();
             }
             finally
             {
@@ -141,11 +145,12 @@ namespace WardShift
             Destroy(effect, Mathf.Max(0.1f, completeVFXLifetime));
         }
 
-        private void OnDisable()
+        protected override void OnDisable()
         {
             if (sealPoint01 != null) sealPoint01.Completed -= OnSealCompleted;
             if (sealPoint02 != null) sealPoint02.Completed -= OnSealCompleted;
             completionPending = false;
+            base.OnDisable();
         }
     }
 }

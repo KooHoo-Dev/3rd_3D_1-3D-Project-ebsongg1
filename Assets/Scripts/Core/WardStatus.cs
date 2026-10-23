@@ -21,7 +21,8 @@ namespace WardShift
         public bool HasFailed { get; private set; }
         public string FailureReason { get; private set; }
         public int HighestStage { get; private set; }
-        public bool HasOverloadedRift { get; private set; }
+        public bool HasOverloadedAnomaly { get; private set; }
+        public bool HasOverloadedRift => HasOverloadedAnomaly;
         private readonly List<Behaviour> stopped = new List<Behaviour>();
         private float previousTimeScale;
         private bool previousInputBlocked;
@@ -51,19 +52,18 @@ namespace WardShift
         private void LateUpdate()
         {
             if (HasFailed || Time.timeScale <= 0f || player == null) return;
-            // 소규모 프로토타입: 수동 배치/런타임 생성/삭제 모두 반영. 규모가 커지면 등록 목록으로 교체.
-            ManaRift[] rifts = FindObjectsByType<ManaRift>(FindObjectsSortMode.None);
+            IReadOnlyList<AnomalyBehaviour> anomalies = AnomalyBehaviour.ActiveAnomalies;
             HighestStage = 0;
-            HasOverloadedRift = false;
-            foreach (ManaRift rift in rifts)
+            HasOverloadedAnomaly = false;
+            foreach (AnomalyBehaviour anomaly in anomalies)
             {
-                stability = Mathf.Clamp(stability - rift.AdvanceHazard(Time.deltaTime), 0f, 100f);
-                if (!rift.IsHazardActive) continue;
-                HighestStage = Mathf.Max(HighestStage, rift.DangerStage);
-                HasOverloadedRift |= rift.HasOverloaded;
+                stability = Mathf.Clamp(stability - anomaly.AdvanceHazard(Time.deltaTime), 0f, 100f);
+                if (!anomaly.IsHazardActive) continue;
+                HighestStage = Mathf.Max(HighestStage, anomaly.DangerStage);
+                HasOverloadedAnomaly |= anomaly.HasOverloaded;
             }
             if (player.isActiveAndEnabled)
-                player.Advance(Time.deltaTime, rifts, FindObjectsByType<SafeZone>(FindObjectsSortMode.None));
+                player.Advance(Time.deltaTime, anomalies, FindObjectsByType<SafeZone>(FindObjectsSortMode.None));
             if (stability <= 0f || player.Value >= 100f)
                 Fail(stability <= 0f ? "시설 안정도 0" : "마력 오염도 100");
         }
@@ -110,7 +110,7 @@ namespace WardShift
             HasFailed = false;
             FailureReason = null;
             HighestStage = 0;
-            HasOverloadedRift = false;
+            HasOverloadedAnomaly = false;
             stability = 100f;
             if (player != null) player.ResetForNewRun();
         }
@@ -119,7 +119,7 @@ namespace WardShift
         public void ResetDayHazardDisplay()
         {
             HighestStage = 0;
-            HasOverloadedRift = false;
+            HasOverloadedAnomaly = false;
             if (player != null) player.ResetExposureDisplay();
         }
 

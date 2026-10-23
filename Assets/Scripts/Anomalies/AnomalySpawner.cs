@@ -4,90 +4,305 @@ using UnityEngine;
 
 namespace WardShift
 {
-    /// <summary>지정한 벽 또는 빈 벽 중 무작위 지점에 균열 하나 생성.</summary>
+    /// <summary>
+    /// - 활성 이상현상 목록 관리
+    /// - 호환되는 비점유 지점에 이상현상 반복 생성
+    /// - DAY 상태에 따라 생성 재개·중단
+    /// </summary>
     [DisallowMultipleComponent]
     public sealed class AnomalySpawner : MonoBehaviour
     {
-        [Header("프리팹과 벽 생성 지점")]
-        [Tooltip("Hierarchy의 테스트 오브젝트가 아닌 Project 창의 프리팹을 연결.")]
+        [Header("프리팹과 생성 지점")]
+        [Tooltip("기존 ManaRift 프리팹. 기존 씬 참조를 유지합니다.")]
         [SerializeField] private ManaRift riftPrefab;
+        [Tooltip("새 이상현상 프리팹은 공통 AnomalyBehaviour를 구현해 추가합니다.")]
+        [SerializeField] private AnomalyBehaviour[] additionalAnomalyPrefabs = new AnomalyBehaviour[0];
         [SerializeField] private AnomalySpawnPoint[] spawnPoints = new AnomalySpawnPoint[0];
         [SerializeField] private bool randomizePoint;
-        [Tooltip("Randomize Point가 꺼져 있을 때 사용할 배열 번호. 첫 항목은 0.")]
+        [Tooltip("Randomize Point가 꺼져 있을 때 우선 사용할 배열 번호. 점유 중이면 다른 호환 지점을 사용합니다.")]
         [SerializeField, Min(0)] private int selectedPointIndex;
-        [SerializeField] private bool spawnOnStart = true;
-        private GameObject activeRift;
-        private bool spawningEnabled = true;
 
-        /// <summary>새 균열이 만들어졌을 때 발생합니다.</summary>
+        [Header("반복 생성")]
+        [SerializeField] private bool spawnOnStart = true;
+        [SerializeField, Min(0.1f)] private float spawnIntervalSeconds = 6f;
+        [SerializeField, Min(1)] private int maximumConcurrentAnomalies = 2;
+        [SerializeField, Min(0f)] private float firstSpawnDelaySeconds = 1f;
+
+        private readonly List<AnomalyBehaviour> activeAnomalies = new List<AnomalyBehaviour>();
+        private float spawnCountdown;
+        private bool spawningEnabled;
+        private WardStatus wardStatus;
+
+        /// <summary>- ManaRift 전용 기존 리스너 호환 이벤트</summary>
         public event Action<ManaRift> RiftSpawned;
+        public event Action<AnomalyBehaviour> AnomalySpawned;
+
         public bool SpawningEnabled => spawningEnabled;
-        public ManaRift ActiveRift => activeRift != null ? activeRift.GetComponent<ManaRift>() : null;
-        public bool HasSpawnConfiguration => riftPrefab != null && spawnPoints != null && spawnPoints.Length > 0;
+        public int ActiveAnomalyCount
+        {
+            get
+            {
+                PruneEndedAnomalies();
+                return activeAnomalies.Count;
+            }
+        }
+        public IReadOnlyList<AnomalyBehaviour> ActiveAnomalies => activeAnomalies;
+        public ManaRift ActiveRift
+        {
+            get
+            {
+                foreach (AnomalyBehaviour anomaly in activeAnomalies)
+                    if (anomaly is ManaRift rift) return rift;
+                return null;
+            }
+        }
+        public bool HasSpawnConfiguration => GetConfiguredPrefabs().Count > 0
+            && spawnPoints != null && spawnPoints.Length > 0;
+        public bool HasAtLeastTwoCompatibleSpawnPoints
+        {
+            get
+            {
+                if (spawnPoints == null) return false;
+                List<AnomalyBehaviour> prefabs = GetConfiguredPrefabs();
+                var compatiblePoints = new HashSet<AnomalySpawnPoint>();
+                foreach (AnomalySpawnPoint point in spawnPoints)
+                {
+                    if (point == null || !point.isActiveAndEnabled) continue;
+                    foreach (AnomalyBehaviour prefab in prefabs)
+                        if (prefab.SpawnSurface == point.Surface) { compatiblePoints.Add(point); break; }
+                }
+                return compatiblePoints.Count >= 2;
+            }
+        }
+        public int MaximumConcurrentAnomalies => Mathf.Max(1, maximumConcurrentAnomalies);
+        public float SpawnIntervalSeconds => Mathf.Max(0.1f, spawnIntervalSeconds);
+        public float FirstSpawnDelaySeconds => Mathf.Max(0f, firstSpawnDelaySeconds);
+
+        private void Awake()
+        {
+            wardStatus = FindFirstObjectByType<WardStatus>();
+        }
 
         private void Start()
         {
-            if (spawnOnStart && spawningEnabled) SpawnRift();
+            if (spawnOnStart && !spawningEnabled) SetSpawningEnabled(true);
         }
 
-        /// <summary>DAY 진행에 맞춰 균열 생성 허용 여부를 바꿉니다.</summary>
+        private void Update()
+        {
+            if (!Application.isPlaying || !isActiveAndEnabled || !spawningEnabled) return;
+            if (wardStatus == null) wardStatus = FindFirstObjectByType<WardStatus>();
+            if (wardStatus != null && wardStatus.HasFailed)
+            {
+                SetSpawningEnabled(false);
+                return;
+            }
+
+            if (spawnCountdown > 0f)
+            {
+                spawnCountdown -= Time.deltaTime;
+                if (spawnCountdown > 0f) return;
+            }
+
+            if (ActiveAnomalyCount < MaximumConcurrentAnomalies) TrySpawnNextAnomaly();
+            spawnCountdown = SpawnIntervalSeconds;
+        }
+
+        /// <summary>DAY 진행에 맞춰 생성 주기를 시작하거나 중단합니다.</summary>
         public void SetSpawningEnabled(bool enabled)
         {
+            if (spawningEnabled == enabled) return;
             spawningEnabled = enabled;
+            spawnCountdown = enabled ? FirstSpawnDelaySeconds : 0f;
         }
 
-        /// <summary>스포너가 만든 활성 균열을 제거하고 참조를 비웁니다.</summary>
-        public void ClearActiveRift()
+        /// <summary>기존 호출부 호환용 별칭. 이제 모든 스포너 관리 이상현상을 정리합니다.</summary>
+        public void ClearActiveRift() => ClearActiveAnomalies();
+
+        public void ClearActiveAnomalies()
         {
-            if (activeRift != null) Destroy(activeRift);
-            activeRift = null;
+            foreach (AnomalyBehaviour anomaly in activeAnomalies)
+            {
+                if (anomaly == null) continue;
+                anomaly.Ended -= OnAnomalyEnded;
+                Destroy(anomaly.gameObject);
+            }
+            activeAnomalies.Clear();
         }
 
-        /// <summary>Play 중 Inspector 컨텍스트 메뉴 또는 다른 코드에서 생성 요청.</summary>
+        /// <summary>기존 Inspector 메뉴와 호출부에서 즉시 Rift 생성을 요청할 수 있습니다.</summary>
         [ContextMenu("Spawn Rift (Play Mode)")]
         public void SpawnRift()
         {
-            if (!Application.isPlaying || !isActiveAndEnabled || !spawningEnabled) return;
-            WardStatus status = FindFirstObjectByType<WardStatus>();
-            if (status != null && status.HasFailed) return;
-            if (activeRift != null)
+            if (riftPrefab != null) TrySpawnPrefab(riftPrefab);
+        }
+
+        [ContextMenu("Spawn Anomaly (Play Mode)")]
+        public void SpawnAnomaly()
+        {
+            TrySpawnNextAnomaly();
+        }
+
+        private bool TrySpawnNextAnomaly()
+        {
+            if (!Application.isPlaying || !isActiveAndEnabled || !spawningEnabled) return false;
+            if (wardStatus != null && wardStatus.HasFailed) return false;
+            PruneEndedAnomalies();
+            if (activeAnomalies.Count >= MaximumConcurrentAnomalies) return false;
+            if (spawnPoints == null || spawnPoints.Length == 0)
             {
-                Debug.Log("AnomalySpawner: 기존 균열이 남아 있어 추가 생성하지 않습니다.", this);
-                return;
+                Debug.LogWarning("AnomalySpawner: 생성 지점을 연결하세요.", this);
+                return false;
             }
-            AnomalySpawnPoint point = SelectPoint();
+
+            List<AnomalyBehaviour> prefabs = GetConfiguredPrefabs();
+            if (prefabs.Count == 0)
+            {
+                Debug.LogWarning("AnomalySpawner: 활성 AnomalyBehaviour 프리팹을 연결하세요.", this);
+                return false;
+            }
+
+            // - 고정 지점 모드에서는 선택한 지점을 우선 사용
+            // - 점유 중이면 비어 있는 호환 지점을 사용해 동시 생성 지점 분리
+            if (!randomizePoint && spawnPoints != null
+                && selectedPointIndex >= 0 && selectedPointIndex < spawnPoints.Length)
+            {
+                AnomalySpawnPoint preferred = spawnPoints[selectedPointIndex];
+                foreach (AnomalyBehaviour prefab in prefabs)
+                    if (IsValidPrefab(prefab) && CanUse(preferred, prefab.SpawnSurface))
+                        return TrySpawnAt(preferred, prefab);
+            }
+
+            var choices = new List<SpawnChoice>();
+            foreach (AnomalyBehaviour prefab in prefabs)
+            {
+                if (!IsValidPrefab(prefab)) continue;
+                foreach (AnomalySpawnPoint point in spawnPoints)
+                {
+                    if (!CanUse(point, prefab.SpawnSurface)) continue;
+                    bool duplicate = false;
+                    foreach (SpawnChoice choice in choices)
+                        if (choice.Prefab == prefab && choice.Point == point) { duplicate = true; break; }
+                    if (!duplicate) choices.Add(new SpawnChoice(prefab, point));
+                }
+            }
+
+            if (choices.Count == 0)
+            {
+                Debug.LogWarning("AnomalySpawner: 활성 상태이며 비어 있는 호환 생성 지점이 없습니다.", this);
+                return false;
+            }
+
+            SpawnChoice selected = choices[randomizePoint
+                ? UnityEngine.Random.Range(0, choices.Count)
+                : 0];
+            return TrySpawnAt(selected.Point, selected.Prefab);
+        }
+
+        private bool TrySpawnPrefab(AnomalyBehaviour prefab)
+        {
+            if (!Application.isPlaying || !isActiveAndEnabled || !spawningEnabled) return false;
+            if (wardStatus != null && wardStatus.HasFailed) return false;
+            PruneEndedAnomalies();
+            if (activeAnomalies.Count >= MaximumConcurrentAnomalies) return false;
+            if (!IsValidPrefab(prefab))
+            {
+                Debug.LogWarning("AnomalySpawner: Project 창의 활성 이상현상 프리팹을 연결하세요.", this);
+                return false;
+            }
+
+            AnomalySpawnPoint point = SelectPoint(prefab.SpawnSurface);
             if (point == null)
             {
-                Debug.LogWarning("AnomalySpawner: 선택한 지점이 없거나 비활성/점유 상태이거나 Wall이 아닙니다.", this);
-                return;
+                Debug.LogWarning("AnomalySpawner: 프리팹 표면과 맞는 빈 생성 지점이 없습니다.", this);
+                return false;
             }
-            if (point.TrySpawn(riftPrefab, out ManaRift instance))
-            {
-                activeRift = instance.gameObject;
-                RiftSpawned?.Invoke(instance);
-                Debug.Log($"마력 균열 생성: {point.name}", this);
-            }
+            return TrySpawnAt(point, prefab);
         }
 
-        private AnomalySpawnPoint SelectPoint()
+        private AnomalySpawnPoint SelectPoint(AnomalySpawnPoint.SurfaceType surface)
         {
             if (spawnPoints == null) return null;
-            if (!randomizePoint)
-            {
-                if (selectedPointIndex < 0 || selectedPointIndex >= spawnPoints.Length) return null;
-                AnomalySpawnPoint point = spawnPoints[selectedPointIndex];
-                return CanUse(point) ? point : null;
-            }
+            if (!randomizePoint && selectedPointIndex >= 0 && selectedPointIndex < spawnPoints.Length
+                && CanUse(spawnPoints[selectedPointIndex], surface))
+                return spawnPoints[selectedPointIndex];
+
             var available = new List<AnomalySpawnPoint>();
             foreach (AnomalySpawnPoint point in spawnPoints)
-                if (CanUse(point) && !available.Contains(point)) available.Add(point);
-                return available.Count == 0 ? null : available[UnityEngine.Random.Range(0, available.Count)];
+                if (CanUse(point, surface) && !available.Contains(point)) available.Add(point);
+            if (available.Count == 0) return null;
+            return randomizePoint
+                ? available[UnityEngine.Random.Range(0, available.Count)]
+                : available[0];
         }
 
-        private static bool CanUse(AnomalySpawnPoint point)
+        private bool TrySpawnAt(AnomalySpawnPoint point, AnomalyBehaviour prefab)
         {
-            return point != null && point.isActiveAndEnabled && !point.IsOccupied
-                && point.Surface == AnomalySpawnPoint.SurfaceType.Wall;
+            if (!CanUse(point, prefab.SpawnSurface)) return false;
+            if (!point.TrySpawn(prefab, out AnomalyBehaviour instance)) return false;
+            activeAnomalies.Add(instance);
+            instance.Ended += OnAnomalyEnded;
+            AnomalySpawned?.Invoke(instance);
+            if (instance is ManaRift rift) RiftSpawned?.Invoke(rift);
+            Debug.Log($"이상현상 생성: {point.name} ({instance.GetType().Name})", this);
+            return true;
+        }
+
+        private void OnAnomalyEnded(AnomalyBehaviour anomaly, AnomalyEndReason reason)
+        {
+            if (anomaly == null) return;
+            anomaly.Ended -= OnAnomalyEnded;
+            activeAnomalies.Remove(anomaly);
+        }
+
+        private void PruneEndedAnomalies()
+        {
+            for (int i = activeAnomalies.Count - 1; i >= 0; i--)
+            {
+                AnomalyBehaviour anomaly = activeAnomalies[i];
+                if (anomaly != null && !anomaly.IsEnded) continue;
+                if (anomaly != null) anomaly.Ended -= OnAnomalyEnded;
+                activeAnomalies.RemoveAt(i);
+            }
+        }
+
+        private List<AnomalyBehaviour> GetConfiguredPrefabs()
+        {
+            var prefabs = new List<AnomalyBehaviour>();
+            if (IsValidPrefab(riftPrefab)) prefabs.Add(riftPrefab);
+            if (additionalAnomalyPrefabs == null) return prefabs;
+            foreach (AnomalyBehaviour prefab in additionalAnomalyPrefabs)
+                if (IsValidPrefab(prefab) && !prefabs.Contains(prefab)) prefabs.Add(prefab);
+            return prefabs;
+        }
+
+        private static bool IsValidPrefab(AnomalyBehaviour prefab)
+        {
+            return prefab != null && !prefab.gameObject.scene.IsValid()
+                && prefab.gameObject.activeSelf && prefab.enabled;
+        }
+
+        private static bool CanUse(AnomalySpawnPoint point, AnomalySpawnPoint.SurfaceType surface)
+        {
+            return point != null && point.isActiveAndEnabled && !point.IsOccupied && point.Surface == surface;
+        }
+
+        private void OnDestroy()
+        {
+            foreach (AnomalyBehaviour anomaly in activeAnomalies)
+                if (anomaly != null) anomaly.Ended -= OnAnomalyEnded;
+            activeAnomalies.Clear();
+        }
+
+        private readonly struct SpawnChoice
+        {
+            public readonly AnomalyBehaviour Prefab;
+            public readonly AnomalySpawnPoint Point;
+            public SpawnChoice(AnomalyBehaviour prefab, AnomalySpawnPoint point)
+            {
+                Prefab = prefab;
+                Point = point;
+            }
         }
     }
 }
