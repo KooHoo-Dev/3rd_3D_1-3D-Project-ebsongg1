@@ -13,6 +13,7 @@ namespace WardShift
 
         [Header("생성 위치")]
         [SerializeField] private SurfaceType surface = SurfaceType.Wall;
+        [SerializeField] private ZoneIdentity zoneIdentity;
         [Tooltip("플레이어 HUD에 표시할 구역명. 비워 두면 생성 지점 이름을 사용합니다.")]
         [SerializeField] private string locationName;
         [Tooltip("로컬 +Z 방향으로 표면에서 띄울 거리. 파란 화살표를 방 안쪽으로 향하게 설정.")]
@@ -21,6 +22,7 @@ namespace WardShift
         private bool spawning;
 
         public SurfaceType Surface => surface;
+        public ZoneIdentity Zone => zoneIdentity;
         public bool IsOccupied => spawning || occupant != null;
         public Vector3 SpawnPosition => transform.position + transform.forward * Mathf.Max(0f, surfaceOffset);
 
@@ -41,13 +43,20 @@ namespace WardShift
             {
                 // 부모의 Scale은 전달하지 않고 월드 위치/회전만 적용합니다.
                 instance = Instantiate(prefab, SpawnPosition, transform.rotation);
-                instance.SetSpawnLocationLabel(string.IsNullOrWhiteSpace(locationName)
-                    ? name.Replace("SP_", string.Empty) : locationName);
+                instance.SetZoneIdentity(zoneIdentity);
+                string label = zoneIdentity != null ? zoneIdentity.DisplayName
+                    : string.IsNullOrWhiteSpace(locationName) ? name.Replace("SP_", string.Empty) : locationName;
+                instance.SetSpawnLocationLabel(label);
                 occupant = instance;
                 occupant.Ended += OnOccupantEnded;
                 return true;
             }
             finally { spawning = false; }
+        }
+
+        public void ConfigureZoneIdentity(ZoneIdentity zone)
+        {
+            zoneIdentity = zone;
         }
 
         /// <summary>- 기존 ManaRift 호출부 호환용 오버로드</summary>

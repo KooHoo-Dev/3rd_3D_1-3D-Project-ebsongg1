@@ -17008,6 +17008,8 @@ GameObject:
   - component: {fileID: 411442694}
   - component: {fileID: 411442693}
   - component: {fileID: 411442695}
+  - component: {fileID: 411442696}
+  - component: {fileID: 1982756172}
   m_Layer: 0
   m_Name: GameSystems
   m_TagString: Untagged
@@ -17077,6 +17079,7 @@ MonoBehaviour:
   playerRoot: {fileID: 1359426617}
   startPoint: {fileID: 738035765}
   pickupInteractor: {fileID: 1720121542}
+  zoneTracker: {fileID: 1720121543}
   currentDay: 1
   state: 0
   remainingSeconds: 0
@@ -17118,6 +17121,27 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WardShift.Day5HUD
   dayFlow: {fileID: 411442693}
   inventory: {fileID: 411442694}
+  koreanFont: {fileID: 11400000, guid: 659ceb8947c683b4a9e1216df0a67515, type: 2}
+--- !u!114 &411442696
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 411442690}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2b175808eb37d6d46a75d8ec15e77022, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WardShift.FacilityMapHUD
+  dayFlow: {fileID: 411442693}
+  zoneTracker: {fileID: 1720121543}
+  zones:
+  - {fileID: 1033157047}
+  - {fileID: 1222883018}
+  - {fileID: 678404832}
+  - {fileID: 504838809}
+  - {fileID: 774959335}
   koreanFont: {fileID: 11400000, guid: 659ceb8947c683b4a9e1216df0a67515, type: 2}
 --- !u!1001 &413817289
 PrefabInstance:
@@ -21677,6 +21701,7 @@ GameObject:
   - component: {fileID: 504838806}
   - component: {fileID: 504838805}
   - component: {fileID: 504838804}
+  - component: {fileID: 504838809}
   m_Layer: 0
   m_Name: Room_03_Sealing
   m_TagString: Untagged
@@ -21906,6 +21931,21 @@ Transform:
   - {fileID: 791030201}
   m_Father: {fileID: 1871808378}
   m_LocalEulerAnglesHint: {x: 0, y: 270, z: 0}
+--- !u!114 &504838809
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 504838803}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0175633870fef6948a40c46705e04edc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WardShift.ZoneIdentity
+  zoneId: 3
+  displayName: "\uBD09\uC778\uC2E4"
+  mapPosition: {x: 0.18, y: 0.62}
 --- !u!1001 &510754041
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -24923,6 +24963,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WardShift.AnomalySpawnPoint
   surface: 0
+  zoneIdentity: {fileID: 774959335}
   locationName: 
   surfaceOffset: 0.03
 --- !u!1001 &577713612
@@ -28681,6 +28722,7 @@ GameObject:
   - component: {fileID: 678404829}
   - component: {fileID: 678404828}
   - component: {fileID: 678404827}
+  - component: {fileID: 678404832}
   m_Layer: 0
   m_Name: Room_02_Purification
   m_TagString: Untagged
@@ -28956,6 +28998,21 @@ Transform:
   - {fileID: 418137520}
   m_Father: {fileID: 1871808378}
   m_LocalEulerAnglesHint: {x: 0, y: 90, z: 0}
+--- !u!114 &678404832
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 678404826}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0175633870fef6948a40c46705e04edc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WardShift.ZoneIdentity
+  zoneId: 2
+  displayName: "\uC815\uD654\uC2E4"
+  mapPosition: {x: 0.82, y: 0.5}
 --- !u!1001 &680300171
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -33180,6 +33237,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WardShift.AnomalySpawnPoint
   surface: 0
+  zoneIdentity: {fileID: 678404832}
   locationName: 
   surfaceOffset: 0.03
 --- !u!1001 &743492877
@@ -34010,6 +34068,7 @@ GameObject:
   - component: {fileID: 774959332}
   - component: {fileID: 774959331}
   - component: {fileID: 774959330}
+  - component: {fileID: 774959335}
   m_Layer: 0
   m_Name: Room_04_ManaCore
   m_TagString: Untagged
@@ -34439,6 +34498,21 @@ Transform:
   - {fileID: 1589942259}
   m_Father: {fileID: 1871808378}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &774959335
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 774959329}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0175633870fef6948a40c46705e04edc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WardShift.ZoneIdentity
+  zoneId: 4
+  displayName: "\uB9C8\uB825\uD575\uC2E4"
+  mapPosition: {x: 0.5, y: 0.88}
 --- !u!1001 &775048508
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -40087,6 +40161,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WardShift.AnomalySpawnPoint
   surface: 0
+  zoneIdentity: {fileID: 504838809}
   locationName: 
   surfaceOffset: 0.03
 --- !u!1 &931822012 stripped
@@ -44333,6 +44408,7 @@ GameObject:
   - component: {fileID: 1033157044}
   - component: {fileID: 1033157043}
   - component: {fileID: 1033157042}
+  - component: {fileID: 1033157047}
   m_Layer: 0
   m_Name: Room_00_Start
   m_TagString: Untagged
@@ -44533,6 +44609,21 @@ Transform:
   - {fileID: 1098826109}
   m_Father: {fileID: 1871808378}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1033157047
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1033157041}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0175633870fef6948a40c46705e04edc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WardShift.ZoneIdentity
+  zoneId: 0
+  displayName: "\uC2DC\uC791\uBC29"
+  mapPosition: {x: 0.5, y: 0.12}
 --- !u!1001 &1035514204
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -52035,6 +52126,7 @@ GameObject:
   - component: {fileID: 1222883015}
   - component: {fileID: 1222883014}
   - component: {fileID: 1222883013}
+  - component: {fileID: 1222883018}
   m_Layer: 0
   m_Name: Room_01_ControlHall
   m_TagString: Untagged
@@ -52763,6 +52855,21 @@ Transform:
   - {fileID: 1157536170}
   m_Father: {fileID: 1871808378}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1222883018
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1222883012}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0175633870fef6948a40c46705e04edc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WardShift.ZoneIdentity
+  zoneId: 1
+  displayName: "\uC911\uC559 \uAD00\uC81C\uC2E4"
+  mapPosition: {x: 0.5, y: 0.5}
 --- !u!1001 &1223051323
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -73572,6 +73679,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 8616685848737228372, guid: c5efc39a8aaf6e64ea40e9ad573e9b47, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1720121542}
+    - targetCorrespondingSourceObject: {fileID: 8616685848737228372, guid: c5efc39a8aaf6e64ea40e9ad573e9b47, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1720121543}
   m_SourcePrefab: {fileID: 100100000, guid: c5efc39a8aaf6e64ea40e9ad573e9b47, type: 3}
 --- !u!114 &1720121536 stripped
 MonoBehaviour:
@@ -73623,6 +73733,25 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WardShift.PlayerPickupInteractor
   interactor: {fileID: 1359426623}
   inventory: {fileID: 411442694}
+  dayFlow: {fileID: 411442693}
+--- !u!114 &1720121543
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1359426616}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ab8522227b937a64bbc6796f8d102861, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WardShift.FacilityZoneTracker
+  zones:
+  - {fileID: 1033157047}
+  - {fileID: 1222883018}
+  - {fileID: 678404832}
+  - {fileID: 504838809}
+  - {fileID: 774959335}
   dayFlow: {fileID: 411442693}
 --- !u!1001 &1721467481
 PrefabInstance:
@@ -84484,6 +84613,26 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 440686, guid: 91eab330bac747f2b641a76c60bd8a03, type: 3}
   m_PrefabInstance: {fileID: 1980392652}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &1982756172
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 411442690}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 53a591664c824fe596f58b54f3cfa4b7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WardShift.AnomalyScreenPingHUD
+  dayFlow: {fileID: 411442693}
+  zones:
+  - {fileID: 1033157047}
+  - {fileID: 1222883018}
+  - {fileID: 678404832}
+  - {fileID: 504838809}
+  - {fileID: 774959335}
+  koreanFont: {fileID: 11400000, guid: 659ceb8947c683b4a9e1216df0a67515, type: 2}
 --- !u!1001 &1983760421
 PrefabInstance:
   m_ObjectHideFlags: 0

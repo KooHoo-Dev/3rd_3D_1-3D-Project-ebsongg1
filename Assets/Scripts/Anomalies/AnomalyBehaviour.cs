@@ -32,7 +32,13 @@ namespace WardShift
         public virtual int ResolutionReward => -1;
         public virtual float AdvanceHazard(float deltaTime) => 0f;
         public virtual float ContaminationRateAt(Vector3 position) => 0f;
+        public ZoneIdentity Zone { get; private set; }
         public string SpawnLocationLabel { get; private set; }
+
+        public void SetZoneIdentity(ZoneIdentity zone)
+        {
+            Zone = zone;
+        }
 
         public void SetSpawnLocationLabel(string label)
         {

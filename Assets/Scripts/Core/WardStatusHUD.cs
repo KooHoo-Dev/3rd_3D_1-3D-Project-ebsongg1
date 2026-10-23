@@ -17,10 +17,15 @@ namespace WardShift
         [SerializeField] private GameObject failurePanel;
         [SerializeField] private TMP_Text failureText;
         private DayFlowManager dayFlow;
+        private FacilityZoneTracker zoneTracker;
+        private ZoneIdentity[] zones;
+        public FacilityZoneTracker ZoneTracker => zoneTracker;
 
         private void Awake()
         {
             dayFlow = FindFirstObjectByType<DayFlowManager>();
+            zoneTracker = dayFlow != null ? dayFlow.ZoneTracker : FindFirstObjectByType<FacilityZoneTracker>();
+            zones = FindObjectsByType<ZoneIdentity>(FindObjectsSortMode.None);
         }
 
         private void LateUpdate()
@@ -33,12 +38,20 @@ namespace WardShift
                 lines.Append($"안정도 {status.Stability:F0} · 오염도 {player.Value:F0}\n");
                 lines.Append($"최고 위험 {status.HighestStage} · ");
                 lines.AppendLine(player.InSafeZone ? "안전 구역" : $"노출 +{player.ExposurePerSecond:F1}/초");
+                ZoneIdentity currentZone = zoneTracker != null ? zoneTracker.CurrentZone : null;
+                if (currentZone != null) lines.AppendLine($"현재 위치 · {currentZone.DisplayName}");
                 foreach (AnomalyBehaviour anomaly in AnomalyBehaviour.ActiveAnomalies)
                 {
-                    if (!(anomaly is ManaRift rift) || !rift.IsHazardActive) continue;
-                    string location = string.IsNullOrWhiteSpace(rift.SpawnLocationLabel)
-                        ? rift.name : rift.SpawnLocationLabel;
-                    lines.AppendLine($"{location} · {rift.DangerStage}단계 · {rift.NextStageLabel} {Mathf.CeilToInt(rift.SecondsUntilNextStage)}초");
+                    if (anomaly == null || !anomaly.IsHazardActive) continue;
+                    ZoneIdentity anomalyZone = anomaly.Zone != null ? anomaly.Zone
+                        : ZoneIdentity.FindNearest(anomaly.transform.position, zones);
+                    string location = anomalyZone != null ? anomalyZone.DisplayName
+                        : string.IsNullOrWhiteSpace(anomaly.SpawnLocationLabel) ? anomaly.name : anomaly.SpawnLocationLabel;
+                    string anomalyName = anomaly is ManaRift ? "마력 균열" : anomaly.name.Replace("(Clone)", "").Trim();
+                    if (anomaly is ManaRift rift)
+                        lines.AppendLine($"{location} · {anomalyName} {rift.DangerStage}단계 · {rift.NextStageLabel} {Mathf.CeilToInt(rift.SecondsUntilNextStage)}초");
+                    else
+                        lines.AppendLine($"{location} · {anomalyName} {anomaly.DangerStage}단계");
                 }
                 statusText.text = lines.ToString().TrimEnd();
             }
@@ -60,6 +73,11 @@ namespace WardShift
                 failureText.text = dayFlow != null
                     ? $"근무 실패\n{dayFlow.CurrentDay}일차\n{status.FailureReason}\n플레이 모드를 종료한 뒤 다시 시작하세요."
                     : $"게임 실패\n{status.FailureReason}\n플레이 모드를 종료한 뒤 다시 시작하세요.";
+        }
+
+        public void ConfigureZoneTracker(FacilityZoneTracker tracker)
+        {
+            zoneTracker = tracker;
         }
     }
 }
