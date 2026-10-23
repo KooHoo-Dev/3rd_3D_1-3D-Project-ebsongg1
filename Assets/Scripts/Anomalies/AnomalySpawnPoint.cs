@@ -18,6 +18,8 @@ namespace WardShift
         [SerializeField] private ZoneIdentity zoneIdentity;
         [Tooltip("플레이어 HUD에 표시할 구역명. 비워 두면 생성 지점 이름을 사용합니다.")]
         [SerializeField] private string locationName;
+        [Tooltip("Device 지점에 고정 배치된 장치 외형. 폭주 로직은 이 외형을 재사용해 진압 후에도 장치가 남습니다.")]
+        [SerializeField] private ManaDeviceVisuals deviceVisuals;
         [Tooltip("Wall/Device는 로컬 +Z, Floor는 로컬 +Y 방향으로 표면에서 띄울 거리.")]
         [SerializeField, Min(0f)] private float surfaceOffset = 0.03f;
         private AnomalyBehaviour occupant;
@@ -26,6 +28,7 @@ namespace WardShift
 
         public SurfaceType Surface => surface;
         public ZoneIdentity Zone => zoneIdentity;
+        public ManaDeviceVisuals DeviceVisuals => ResolveDeviceVisuals();
         public bool IsOccupied => spawning || occupant != null;
         public Vector3 SpawnPosition => transform.position
             + (surface == SurfaceType.Floor ? transform.up : transform.forward) * Mathf.Max(0f, surfaceOffset);
@@ -55,7 +58,14 @@ namespace WardShift
         {
             if (prefab == null || prefab.SpawnSurface != surface || !isActiveAndEnabled || IsOccupied)
                 return false;
-            return !(prefab is CurseAnomaly curse) || curse.CanConfigureFromSpawnPoint(GetCursePatchPoints().Length);
+            if (prefab is CurseAnomaly curse)
+                return curse.CanConfigureFromSpawnPoint(GetCursePatchPoints().Length);
+            if (prefab is ManaDeviceAnomaly)
+            {
+                ManaDeviceVisuals device = ResolveDeviceVisuals();
+                return device != null && device.CanBeginOverload;
+            }
+            return true;
         }
 
         /// <summary>PatchPoint 수가 부족한 경우 원인과 필요한 개수를 한 번 기록합니다.</summary>
@@ -91,6 +101,7 @@ namespace WardShift
                 WarnPatchPointShortage(cursePrefab);
                 return false;
             }
+            if (prefab is ManaDeviceAnomaly && !CanSpawnPrefab(prefab)) return false;
 
             spawning = true;
             try
@@ -98,6 +109,13 @@ namespace WardShift
                 // 부모의 Scale은 전달하지 않고 월드 위치/회전만 적용합니다.
                 instance = Instantiate(prefab, SpawnPosition, transform.rotation);
                 if (instance is CurseAnomaly curseInstance && !curseInstance.ConfigureFromSpawnPoint(this))
+                {
+                    Destroy(instance.gameObject);
+                    instance = null;
+                    return false;
+                }
+                if (instance is ManaDeviceAnomaly deviceInstance
+                    && !deviceInstance.ConfigureFromSpawnPoint(this))
                 {
                     Destroy(instance.gameObject);
                     instance = null;
@@ -117,6 +135,18 @@ namespace WardShift
         public void ConfigureZoneIdentity(ZoneIdentity zone)
         {
             zoneIdentity = zone;
+        }
+
+        public void ConfigureDeviceVisuals(ManaDeviceVisuals visuals)
+        {
+            deviceVisuals = visuals;
+        }
+
+        private ManaDeviceVisuals ResolveDeviceVisuals()
+        {
+            if (deviceVisuals != null && deviceVisuals.transform.IsChildOf(transform)) return deviceVisuals;
+            deviceVisuals = GetComponentInChildren<ManaDeviceVisuals>(true);
+            return deviceVisuals;
         }
 
         /// <summary>- 기존 ManaRift 호출부 호환용 오버로드</summary>

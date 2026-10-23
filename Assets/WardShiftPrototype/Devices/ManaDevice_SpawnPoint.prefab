@@ -1,0 +1,125 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &1318200313901185587
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8040518407893644194}
+  - component: {fileID: 8321550634349877384}
+  m_Layer: 0
+  m_Name: ManaDevice_SpawnPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8040518407893644194
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1318200313901185587}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 5096908438988816336}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &8321550634349877384
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1318200313901185587}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 143d9bc7b5af451ab1d22b519f98bd44, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WardShift.AnomalySpawnPoint
+  surface: 2
+  zoneIdentity: {fileID: 0}
+  locationName: "\uC7A5\uCE58 \uAD6C\uC5ED"
+  deviceVisuals: {fileID: 6529290594483464617}
+  surfaceOffset: 0
+--- !u!1001 &6799586979063832817
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 8040518407893644194}
+    m_Modifications:
+    - target: {fileID: 1794446323838541601, guid: e6d2160222e364344a0ce60e22e1be03, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1794446323838541601, guid: e6d2160222e364344a0ce60e22e1be03, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1794446323838541601, guid: e6d2160222e364344a0ce60e22e1be03, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1794446323838541601, guid: e6d2160222e364344a0ce60e22e1be03, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1794446323838541601, guid: e6d2160222e364344a0ce60e22e1be03, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1794446323838541601, guid: e6d2160222e364344a0ce60e22e1be03, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1794446323838541601, guid: e6d2160222e364344a0ce60e22e1be03, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1794446323838541601, guid: e6d2160222e364344a0ce60e22e1be03, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1794446323838541601, guid: e6d2160222e364344a0ce60e22e1be03, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1794446323838541601, guid: e6d2160222e364344a0ce60e22e1be03, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1914387107183393724, guid: e6d2160222e364344a0ce60e22e1be03, type: 3}
+      propertyPath: m_Name
+      value: ManaDevice_Test
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: e6d2160222e364344a0ce60e22e1be03, type: 3}
+--- !u!4 &5096908438988816336 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 1794446323838541601, guid: e6d2160222e364344a0ce60e22e1be03, type: 3}
+  m_PrefabInstance: {fileID: 6799586979063832817}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &6529290594483464617 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 342360877040978264, guid: e6d2160222e364344a0ce60e22e1be03, type: 3}
+  m_PrefabInstance: {fileID: 6799586979063832817}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 20ca0d0af2b6fe543910486618c78710, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WardShift.ManaDeviceVisuals

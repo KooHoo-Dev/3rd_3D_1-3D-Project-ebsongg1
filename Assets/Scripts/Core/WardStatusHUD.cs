@@ -52,6 +52,8 @@ namespace WardShift
                         lines.AppendLine($"{location} · {anomalyName} {rift.DangerStage}단계 · {rift.NextStageLabel} {Mathf.CeilToInt(rift.SecondsUntilNextStage)}초");
                     else if (anomaly is CurseAnomaly curse)
                         lines.AppendLine($"{location} · {anomalyName} {curse.DangerStage}단계 · {curse.NextStageLabel} {Mathf.CeilToInt(curse.SecondsUntilNextStage)}초");
+                    else if (anomaly is ManaDeviceAnomaly device)
+                        lines.AppendLine($"{location} · {anomalyName} {device.DangerStage}단계 · {device.NextStageLabel} {Mathf.CeilToInt(device.SecondsUntilNextStage)}초");
                     else
                         lines.AppendLine($"{location} · {anomalyName} {anomaly.DangerStage}단계");
                 }

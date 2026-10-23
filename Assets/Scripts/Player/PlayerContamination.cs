@@ -21,6 +21,13 @@ namespace WardShift
             return true;
         }
 
+        /// <summary>장치 방출 등 한 번의 직접 피격으로 오염도를 올립니다.</summary>
+        public void AddContamination(float amount)
+        {
+            if (amount <= 0f) return;
+            contamination = Mathf.Clamp(contamination + amount, 0f, 100f);
+        }
+
         /// <summary>새 게임 초기화에만 사용.</summary>
         public void ResetForNewRun()
         {

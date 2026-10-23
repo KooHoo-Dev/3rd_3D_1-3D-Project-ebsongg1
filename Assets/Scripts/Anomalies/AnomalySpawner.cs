@@ -148,6 +148,18 @@ namespace WardShift
             TrySpawnNextAnomaly();
         }
 
+        [ContextMenu("Spawn Device Anomaly (Play Mode)")]
+        public void SpawnDeviceAnomaly()
+        {
+            foreach (AnomalyBehaviour prefab in GetConfiguredPrefabs())
+            {
+                if (!(prefab is ManaDeviceAnomaly)) continue;
+                TrySpawnPrefab(prefab);
+                return;
+            }
+            Debug.LogWarning("AnomalySpawner: 장치형 마력 폭주 프리팹이 연결되지 않았습니다.", this);
+        }
+
         private bool TrySpawnNextAnomaly()
         {
             if (!Application.isPlaying || !isActiveAndEnabled || !spawningEnabled) return false;

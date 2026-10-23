@@ -45,6 +45,14 @@ namespace WardShift
                     float range = Mathf.Max(0.1f, cursePatchPurifyRange);
                     if (offset.sqrMagnitude > range * range) return null;
                 }
+                if (selectedMagic == MagicType.Stabilize
+                    && target.GetComponentInParent<ManaDeviceVisuals>() is ManaDeviceVisuals device)
+                {
+                    Vector3 offset = target.transform.position - transform.position;
+                    offset.y = 0f;
+                    float range = Mathf.Max(0.1f, device.StabilizeRange);
+                    if (offset.sqrMagnitude > range * range) return null;
+                }
                 return target;
             }
         }

@@ -16,6 +16,8 @@ namespace WardShift
         [Header("타이밍 판정")]
         [Tooltip("켜면 버튼을 놓을 때 판정. 끄면 기존처럼 100%에서 자동 성공.")]
         [SerializeField] private bool useTimingCast = true;
+        [Tooltip("취소하거나 조준을 놓아도 이 대상의 누적 진행도를 유지합니다. 장치 안정화에 사용합니다.")]
+        [SerializeField] private bool preserveProgressOnCancel;
         [Tooltip("정화 마법에만 적용. 마우스를 누른 채 다음 정화 대상으로 옮겨 시전을 이어갑니다.")]
         [SerializeField] private bool allowHeldPurifyChain;
         [SerializeField, Range(0f, 1f)] private float stableStart = 0.6f;
@@ -28,17 +30,19 @@ namespace WardShift
         [Header("시전 상태 (실행 중 확인용)")]
         [SerializeField, Range(0f, 1f)] private float progress;
         [SerializeField] private bool isCompleted;
+        private bool runtimeAvailable = true;
 
         public string DisplayName => displayName;
         public MagicType RequiredMagic => requiredMagic;
         public float CastDuration => castDuration;
         public bool UseTimingCast => useTimingCast;
+        public bool PreserveProgressOnCancel => preserveProgressOnCancel;
         public bool AllowHeldPurifyChain => allowHeldPurifyChain
             && requiredMagic == MagicType.Purify && !useTimingCast;
         public float StableStart => Mathf.Clamp(stableStart, 0f, StableEnd);
         public float StableEnd => Mathf.Clamp(stableEnd, 0f, 0.99f);
         public MagicCastResult LastResult { get; private set; }
-        public bool IsAvailable => isActiveAndEnabled && !isCompleted;
+        public bool IsAvailable => isActiveAndEnabled && !isCompleted && runtimeAvailable;
         public bool IsDetected { get; private set; }
         public float Progress => progress;
         public bool IsCompleted => isCompleted;
@@ -48,6 +52,31 @@ namespace WardShift
         public event Action<MagicTarget> Completed;
         /// <summary>성공, 실패 또는 취소가 확정될 때 한 번 발생.</summary>
         public event Action<MagicTarget, MagicCastResult> CastResolved;
+
+        /// <summary>장치 폭주가 시작되거나 DAY가 초기화될 때 대상을 새 시전용으로 준비합니다.</summary>
+        public void ResetForNewUse(bool available = true)
+        {
+            if (IsCasting) CancelCast();
+            progress = 0f;
+            isCompleted = false;
+            LastResult = MagicCastResult.None;
+            runtimeAvailable = available;
+            if (IsDetected) SetDetected(false, Color.white);
+            else RestoreAppearance();
+        }
+
+        /// <summary>영구 장치의 안정화 대상을 폭주 중에만 조준 가능하게 합니다.</summary>
+        public void SetRuntimeAvailable(bool available)
+        {
+            if (runtimeAvailable == available) return;
+            if (!available)
+            {
+                if (IsCasting) CancelCast();
+                if (IsDetected) SetDetected(false, Color.white);
+                else RestoreAppearance();
+            }
+            runtimeAvailable = available;
+        }
 
         // 시전자는 입력과 조준을 검사하고, 대상은 마법 종류와 진행도 및 완료를 관리.
         /// <summary>충전을 진행하고 자동 성공인 경우 true를 반환.</summary>
@@ -81,7 +110,8 @@ namespace WardShift
             LastResult = result;
             if (result != MagicCastResult.Success)
             {
-                progress = 0f;
+                if (!preserveProgressOnCancel || result != MagicCastResult.Canceled)
+                    progress = 0f;
                 StopCasting();
                 if (result == MagicCastResult.Undercharged || result == MagicCastResult.Overcharged)
                     Debug.Log($"{displayName}: {result}", this);
@@ -104,7 +134,7 @@ namespace WardShift
         public void CancelCast()
         {
             if (IsCasting) Resolve(MagicCastResult.Canceled);
-            if (!isCompleted) progress = 0f;
+            if (!isCompleted && !preserveProgressOnCancel) progress = 0f;
             StopCasting();
         }
 

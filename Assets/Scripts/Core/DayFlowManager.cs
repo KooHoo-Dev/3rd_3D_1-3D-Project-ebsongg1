@@ -197,6 +197,7 @@ namespace WardShift
             UnsubscribeFromAnomalies();
             if (anomalySpawner != null) anomalySpawner.SetSpawningEnabled(false);
             ClearAllAnomalies();
+            ResetSceneManaDevicesForNewDay();
             TeleportPlayerToStart();
             inventory.BeginDay();
             if (wardStatus != null) wardStatus.ResetDayHazardDisplay();
@@ -286,6 +287,14 @@ namespace WardShift
                          FindObjectsSortMode.None))
                 if (anomaly != null) Destroy(anomaly.gameObject);
             if (anomalySpawner != null) anomalySpawner.ClearActiveAnomalies();
+        }
+
+        private static void ResetSceneManaDevicesForNewDay()
+        {
+            ManaDeviceVisuals[] devices = FindObjectsByType<ManaDeviceVisuals>(
+                FindObjectsInactive.Include, FindObjectsSortMode.None);
+            foreach (ManaDeviceVisuals device in devices)
+                if (device != null) device.ResetForNewDay();
         }
 
         private void TeleportPlayerToStart()
