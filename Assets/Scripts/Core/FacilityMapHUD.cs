@@ -24,6 +24,7 @@ namespace WardShift
         private TMP_Text currentLocationText;
         private RectTransform mapArea;
         private readonly List<Image> corridorImages = new List<Image>();
+        private readonly ActiveAnomalyZoneSnapshot activeAnomalies = new ActiveAnomalyZoneSnapshot();
 
         private static readonly Color PanelColor = new Color(0.045f, 0.07f, 0.11f, 0.98f);
         private static readonly Color RoomColor = new Color(0.10f, 0.15f, 0.21f, 0.98f);
@@ -112,7 +113,7 @@ namespace WardShift
                 new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f),
                 new Vector2(0f, 25f), new Vector2(-100f, 45f), 20f,
                 TextAlignmentOptions.Center, new Color(0.75f, 0.82f, 0.88f)).text =
-                "◆ 이상현상과 위험 단계  ·  위치 안내용 간이도(거리·동선 비례 아님)  ·  방문 기록은 DAY 전환 후에도 유지";
+                "이상현상과 위험 단계  ·  위치 안내용 간이도(거리·동선 비례 아님)  ·  방문 기록은 DAY 전환 후에도 유지";
             overlayRoot.SetActive(false);
         }
 
@@ -171,24 +172,7 @@ namespace WardShift
                 currentLocationText.text = current != null
                     ? $"현재 위치  ·  {current.DisplayName}" : "현재 위치 확인 중";
 
-            var anomaliesByZone = new Dictionary<FacilityZoneId, List<AnomalyBehaviour>>();
-            var highestStageByZone = new Dictionary<FacilityZoneId, int>();
-            foreach (AnomalyBehaviour anomaly in AnomalyBehaviour.ActiveAnomalies)
-            {
-                if (anomaly == null || !anomaly.IsHazardActive) continue;
-                ZoneIdentity anomalyZone = anomaly.Zone != null ? anomaly.Zone
-                    : ZoneIdentity.FindNearest(anomaly.transform.position, zones);
-                if (anomalyZone == null) continue;
-                if (!anomaliesByZone.TryGetValue(anomalyZone.Id, out List<AnomalyBehaviour> zoneAnomalies))
-                {
-                    zoneAnomalies = new List<AnomalyBehaviour>();
-                    anomaliesByZone.Add(anomalyZone.Id, zoneAnomalies);
-                }
-                zoneAnomalies.Add(anomaly);
-                highestStageByZone[anomalyZone.Id] = Mathf.Max(
-                    highestStageByZone.TryGetValue(anomalyZone.Id, out int previousStage) ? previousStage : 0,
-                    anomaly.DangerStage);
-            }
+            activeAnomalies.Refresh(zones);
 
             foreach (ZoneIdentity zone in zones)
             {
@@ -199,15 +183,16 @@ namespace WardShift
 
                 var contents = new StringBuilder();
                 contents.Append(zone.DisplayName);
-                contents.Append(isCurrent ? "\n◆ 현재 위치" : "\n");
-                if (zoneTracker != null && zoneTracker.HasVisited(zone.Id)) contents.Append("✓ 방문");
+                contents.Append(isCurrent ? "\n- 현재 위치" : "\n");
+                if (zoneTracker != null && zoneTracker.HasVisited(zone.Id)) contents.Append("방문");
 
-                if (anomaliesByZone.TryGetValue(zone.Id, out List<AnomalyBehaviour> zoneAnomalies))
+                if (activeAnomalies.TryGetActivity(zone.Id,
+                        out ActiveAnomalyZoneSnapshot.ZoneActivity zoneActivity))
                 {
-                    foreach (AnomalyBehaviour anomaly in zoneAnomalies)
+                    foreach (AnomalyBehaviour anomaly in zoneActivity.Anomalies)
                     {
                         string anomalyName = anomaly is ManaRift ? "마력 균열" : anomaly.name.Replace("(Clone)", "").Trim();
-                        contents.Append("\n◆ ");
+                        contents.Append("\n- ");
                         contents.Append(anomalyName);
                         contents.Append(" · 위험 ");
                         contents.Append(anomaly.DangerStage);
@@ -216,7 +201,9 @@ namespace WardShift
                 }
 
                 label.text = contents.ToString();
-                int highestStage = highestStageByZone.TryGetValue(zone.Id, out int value) ? value : 0;
+                int highestStage = activeAnomalies.TryGetActivity(zone.Id,
+                    out ActiveAnomalyZoneSnapshot.ZoneActivity activity)
+                    ? activity.HighestDangerStage : 0;
                 label.color = highestStage >= 3 ? new Color(1f, 0.48f, 0.44f)
                     : highestStage == 2 ? new Color(1f, 0.76f, 0.38f)
                     : highestStage == 1 ? new Color(1f, 0.9f, 0.5f) : Color.white;

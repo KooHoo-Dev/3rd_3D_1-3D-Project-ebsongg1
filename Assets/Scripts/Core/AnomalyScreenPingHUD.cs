@@ -1,10 +1,11 @@
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace WardShift
 {
-    /// <summary>하루에 하나의 활성 이상현상을 고정 추적하는 화면 방향 핑입니다.</summary>
+    /// <summary>활성 이상현상이 있는 각 구역의 화면 방향 핑을 표시합니다.</summary>
     [DisallowMultipleComponent]
     [DefaultExecutionOrder(10009)]
     public sealed class AnomalyScreenPingHUD : MonoBehaviour
@@ -13,76 +14,94 @@ namespace WardShift
         [SerializeField] private ZoneIdentity[] zones = new ZoneIdentity[0];
         [SerializeField] private TMP_FontAsset koreanFont;
 
-        private AnomalyBehaviour trackedAnomaly;
+        private readonly Dictionary<FacilityZoneId, PingView> pingViews =
+            new Dictionary<FacilityZoneId, PingView>();
+        private readonly List<FacilityZoneId> staleViewIds = new List<FacilityZoneId>();
+        private readonly ActiveAnomalyZoneSnapshot snapshot = new ActiveAnomalyZoneSnapshot();
+
         private Camera playerCamera;
-        private Canvas canvas;
         private RectTransform canvasRect;
         private GameObject pingRoot;
-        private RectTransform markerRect;
-        private TMP_Text markerText;
-        private TMP_Text infoText;
-        private Image infoBackground;
-        private bool targetChosenForDay;
+        private Sprite diamondSprite;
+        private Sprite arrowSprite;
+        private Texture2D diamondTexture;
+        private Texture2D arrowTexture;
         private int observedDay = int.MinValue;
-        private int skipTargetAcquisitionThroughFrame;
+        private DayState observedState = (DayState)(-1);
 
-        public AnomalyBehaviour TrackedAnomaly => trackedAnomaly;
-        public bool IsConfigured => dayFlow != null && zones != null && zones.Length == 5;
+        public bool IsConfigured
+        {
+            get
+            {
+                if (dayFlow == null || zones == null || zones.Length != 5) return false;
+                var ids = new HashSet<FacilityZoneId>();
+                foreach (ZoneIdentity zone in zones)
+                    if (zone == null || !ids.Add(zone.Id)) return false;
+                return true;
+            }
+        }
 
         private void Awake()
         {
             ResolveReferences();
             BuildUI();
-            if (dayFlow != null) observedDay = dayFlow.CurrentDay;
-            HidePing();
+            if (dayFlow != null)
+            {
+                observedDay = dayFlow.CurrentDay;
+                observedState = dayFlow.State;
+            }
+            HideAllPings();
         }
 
         private void Update()
         {
-            if (dayFlow == null) ResolveReferences();
-            if (dayFlow == null || pingRoot == null) return;
-
-            if (observedDay != dayFlow.CurrentDay)
+            if (dayFlow == null || zones == null || zones.Length == 0) ResolveReferences();
+            if (pingRoot == null) BuildUI();
+            if (dayFlow == null || pingRoot == null)
             {
-                ResetTrackedTarget();
+                HideAllPings();
+                return;
+            }
+
+            if (observedDay != dayFlow.CurrentDay || observedState != dayFlow.State)
+            {
+                HideAllPings();
+                snapshot.Clear();
                 observedDay = dayFlow.CurrentDay;
-                skipTargetAcquisitionThroughFrame = Time.frameCount + 1;
+                observedState = dayFlow.State;
             }
 
-            if (dayFlow.State != DayState.Playing)
+            if (dayFlow.State != DayState.Playing || dayFlow.IsMapOpen || dayFlow.InventoryOpen)
             {
-                ResetTrackedTarget();
-                HidePing();
+                HideAllPings();
                 return;
             }
 
-            // 지도와 인벤토리가 열린 동안에는 표시만 숨기며 추적 대상은 유지합니다.
-            if (dayFlow.IsMapOpen || dayFlow.InventoryOpen)
+            if (playerCamera == null || !playerCamera.isActiveAndEnabled)
+                playerCamera = Camera.main != null ? Camera.main : FindFirstObjectByType<Camera>();
+            if (playerCamera == null)
             {
-                HidePing();
+                HideAllPings();
                 return;
             }
 
-            if (trackedAnomaly != null && (!trackedAnomaly || trackedAnomaly.IsEnded
-                || !trackedAnomaly.isActiveAndEnabled || !trackedAnomaly.IsHazardActive))
-                ReleaseTrackedTarget();
-
-            if (trackedAnomaly == null && !targetChosenForDay
-                && Time.frameCount > skipTargetAcquisitionThroughFrame)
-                TryChooseInitialTarget();
-
-            if (trackedAnomaly == null)
+            EnsurePingViews();
+            snapshot.Refresh(zones);
+            foreach (ActiveAnomalyZoneSnapshot.ZoneActivity activity in snapshot.Activities)
             {
-                HidePing();
-                return;
+                if (!pingViews.TryGetValue(activity.Zone.Id, out PingView view)) continue;
+                if (activity.ActiveCount == 0)
+                {
+                    view.Root.SetActive(false);
+                    continue;
+                }
+                RefreshPing(view, activity);
             }
-
-            RefreshPing();
         }
 
         private void OnEnable()
         {
-            if (trackedAnomaly != null) trackedAnomaly.Ended += OnTrackedAnomalyEnded;
+            HideAllPings();
         }
 
         public void Configure(DayFlowManager manager, ZoneIdentity[] configuredZones, TMP_FontAsset uiFont)
@@ -90,19 +109,7 @@ namespace WardShift
             dayFlow = manager;
             zones = configuredZones ?? new ZoneIdentity[0];
             if (uiFont != null) koreanFont = uiFont;
-        }
-
-        /// <summary>지도 UI에서 추적 대상을 연결할 때 사용할 수 있는 선택 지점입니다.</summary>
-        public bool SetTarget(AnomalyBehaviour anomaly)
-        {
-            if (anomaly == null || anomaly.IsEnded || !anomaly.isActiveAndEnabled || !anomaly.IsHazardActive)
-                return false;
-
-            UnsubscribeFromTarget();
-            trackedAnomaly = anomaly;
-            trackedAnomaly.Ended += OnTrackedAnomalyEnded;
-            targetChosenForDay = true;
-            return true;
+            EnsurePingViews();
         }
 
         private void ResolveReferences()
@@ -112,94 +119,45 @@ namespace WardShift
                 zones = FindObjectsByType<ZoneIdentity>(FindObjectsSortMode.None);
         }
 
-        private void TryChooseInitialTarget()
+        private void EnsurePingViews()
         {
-            AnomalyBehaviour candidate = null;
-            float closest = float.PositiveInfinity;
-            Vector3 origin = dayFlow.Player != null ? dayFlow.Player.transform.position : transform.position;
-            foreach (AnomalyBehaviour anomaly in AnomalyBehaviour.ActiveAnomalies)
+            if (pingRoot == null || zones == null) return;
+
+            staleViewIds.Clear();
+            foreach (KeyValuePair<FacilityZoneId, PingView> pair in pingViews)
             {
-                if (anomaly == null || anomaly.IsEnded || !anomaly.IsHazardActive) continue;
-                float distance = (anomaly.transform.position - origin).sqrMagnitude;
-                if (distance >= closest) continue;
-                candidate = anomaly;
-                closest = distance;
+                bool found = false;
+                foreach (ZoneIdentity zone in zones)
+                    if (zone != null && zone.Id == pair.Key && zone == pair.Value.Zone)
+                    {
+                        found = true;
+                        break;
+                    }
+                if (!found) staleViewIds.Add(pair.Key);
             }
 
-            if (candidate != null) SetTarget(candidate);
-        }
-
-        private void RefreshPing()
-        {
-            if (playerCamera == null || !playerCamera.isActiveAndEnabled)
-                playerCamera = Camera.main != null ? Camera.main : FindFirstObjectByType<Camera>();
-            if (playerCamera == null)
+            foreach (FacilityZoneId id in staleViewIds)
             {
-                HidePing();
-                return;
+                PingView stale = pingViews[id];
+                if (stale.Root != null) Destroy(stale.Root);
+                pingViews.Remove(id);
             }
 
-            ZoneIdentity zone = trackedAnomaly.Zone != null ? trackedAnomaly.Zone
-                : ZoneIdentity.FindNearest(trackedAnomaly.transform.position, zones);
-            string location = zone != null ? zone.DisplayName
-                : string.IsNullOrWhiteSpace(trackedAnomaly.SpawnLocationLabel)
-                    ? "알 수 없는 구역" : trackedAnomaly.SpawnLocationLabel;
-            string anomalyName = trackedAnomaly is ManaRift
-                ? "마력 균열" : trackedAnomaly.name.Replace("(Clone)", "").Trim();
-            float distance = Vector3.Distance(playerCamera.transform.position, trackedAnomaly.transform.position);
-            string distanceText = distance >= 10f ? $"{distance:F0} m" : $"{distance:F1} m";
-            infoText.text = $"추적 목표 · {location} · {anomalyName} · 위험 {trackedAnomaly.DangerStage}단계 · 직선거리 {distanceText}";
-            markerText.color = DangerColor(trackedAnomaly.DangerStage);
-
-            Vector3 screen = playerCamera.WorldToScreenPoint(trackedAnomaly.transform.position);
-            bool inFront = screen.z > playerCamera.nearClipPlane;
-            float inset = 42f;
-            bool onScreen = inFront && screen.x >= inset && screen.x <= Screen.width - inset
-                && screen.y >= inset && screen.y <= Screen.height - inset;
-
-            if (onScreen)
+            foreach (ZoneIdentity zone in zones)
             {
-                markerText.text = "◆";
-                markerRect.localRotation = Quaternion.identity;
-                SetMarkerPosition(new Vector2(screen.x, screen.y));
+                if (zone == null || pingViews.ContainsKey(zone.Id)) continue;
+                pingViews.Add(zone.Id, CreatePingView(zone));
             }
-            else
-            {
-                markerText.text = "▲";
-                Vector2 direction = new Vector2(screen.x - Screen.width * 0.5f,
-                    screen.y - Screen.height * 0.5f);
-                if (!inFront) direction = -direction;
-                if (direction.sqrMagnitude < 0.0001f)
-                {
-                    Vector3 localTarget = playerCamera.transform.InverseTransformPoint(trackedAnomaly.transform.position);
-                    direction = new Vector2(localTarget.x, localTarget.y);
-                    if (localTarget.z < 0f) direction = -direction;
-                }
-                if (direction.sqrMagnitude < 0.0001f) direction = Vector2.down;
-                direction.Normalize();
-
-                float halfWidth = Mathf.Max(1f, Screen.width * 0.5f - inset);
-                float halfHeight = Mathf.Max(1f, Screen.height * 0.5f - inset);
-                float xScale = Mathf.Abs(direction.x) > 0.0001f ? halfWidth / Mathf.Abs(direction.x) : float.PositiveInfinity;
-                float yScale = Mathf.Abs(direction.y) > 0.0001f ? halfHeight / Mathf.Abs(direction.y) : float.PositiveInfinity;
-                float edgeScale = Mathf.Min(xScale, yScale);
-                Vector2 edgePoint = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f)
-                    + direction * edgeScale;
-                SetMarkerPosition(edgePoint);
-                markerRect.localRotation = Quaternion.Euler(0f, 0f,
-                    Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg - 90f);
-            }
-
-            if (!pingRoot.activeSelf) pingRoot.SetActive(true);
         }
 
         private void BuildUI()
         {
             if (pingRoot != null) return;
+
             GameObject canvasObject = new GameObject("AnomalyPing_Canvas",
                 typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler));
             canvasObject.transform.SetParent(transform, false);
-            canvas = canvasObject.GetComponent<Canvas>();
+            Canvas canvas = canvasObject.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvas.sortingOrder = 50;
             CanvasScaler scaler = canvasObject.GetComponent<CanvasScaler>();
@@ -216,43 +174,168 @@ namespace WardShift
             rootRect.offsetMin = Vector2.zero;
             rootRect.offsetMax = Vector2.zero;
 
-            GameObject backgroundObject = new GameObject("Target_Info_Background",
-                typeof(RectTransform), typeof(Image));
-            backgroundObject.transform.SetParent(pingRoot.transform, false);
-            RectTransform backgroundRect = backgroundObject.GetComponent<RectTransform>();
-            backgroundRect.anchorMin = backgroundRect.anchorMax = new Vector2(0.5f, 1f);
-            backgroundRect.pivot = new Vector2(0.5f, 1f);
-            backgroundRect.anchoredPosition = new Vector2(0f, -112f);
-            backgroundRect.sizeDelta = new Vector2(1000f, 54f);
-            infoBackground = backgroundObject.GetComponent<Image>();
-            infoBackground.color = new Color(0.025f, 0.045f, 0.065f, 0.88f);
-            infoBackground.raycastTarget = false;
+            diamondSprite = CreateShapeSprite("AnomalyPing_Diamond", false, out diamondTexture);
+            arrowSprite = CreateShapeSprite("AnomalyPing_Arrow", true, out arrowTexture);
+            EnsurePingViews();
+        }
 
-            infoText = CreateText("Target_Info", backgroundObject.transform,
-                Vector2.zero, Vector2.one, new Vector2(18f, 0f),
-                new Vector2(-18f, 0f), 21f, TextAlignmentOptions.Center, Color.white);
-            infoText.textWrappingMode = TextWrappingModes.NoWrap;
+        private PingView CreatePingView(ZoneIdentity zone)
+        {
+            GameObject root = new GameObject("Ping_" + zone.Id, typeof(RectTransform));
+            root.transform.SetParent(pingRoot.transform, false);
+            RectTransform rootRect = root.GetComponent<RectTransform>();
+            rootRect.anchorMin = rootRect.anchorMax = new Vector2(0.5f, 0.5f);
+            rootRect.pivot = new Vector2(0.5f, 0.5f);
+            rootRect.sizeDelta = Vector2.zero;
 
-            GameObject markerObject = new GameObject("Target_Direction_Marker",
-                typeof(RectTransform), typeof(TextMeshProUGUI));
-            markerObject.transform.SetParent(pingRoot.transform, false);
-            markerRect = markerObject.GetComponent<RectTransform>();
+            GameObject markerObject = new GameObject("Direction_Icon", typeof(RectTransform), typeof(Image));
+            markerObject.transform.SetParent(root.transform, false);
+            RectTransform markerRect = markerObject.GetComponent<RectTransform>();
             markerRect.anchorMin = markerRect.anchorMax = new Vector2(0.5f, 0.5f);
             markerRect.pivot = new Vector2(0.5f, 0.5f);
-            markerRect.sizeDelta = new Vector2(58f, 58f);
-            markerText = markerObject.GetComponent<TMP_Text>();
-            markerText.font = koreanFont != null ? koreanFont : TMP_Settings.defaultFontAsset;
-            markerText.fontSize = 40f;
-            markerText.alignment = TextAlignmentOptions.Center;
-            markerText.raycastTarget = false;
-            markerText.textWrappingMode = TextWrappingModes.NoWrap;
+            markerRect.sizeDelta = new Vector2(38f, 38f);
+            Image markerImage = markerObject.GetComponent<Image>();
+            markerImage.sprite = diamondSprite;
+            markerImage.preserveAspect = true;
+            markerImage.raycastTarget = false;
+
+            GameObject infoObject = new GameObject("Zone_Info_Background",
+                typeof(RectTransform), typeof(Image));
+            infoObject.transform.SetParent(root.transform, false);
+            RectTransform infoRect = infoObject.GetComponent<RectTransform>();
+            infoRect.anchorMin = infoRect.anchorMax = new Vector2(0.5f, 0.5f);
+            infoRect.pivot = new Vector2(0.5f, 0.5f);
+            infoRect.sizeDelta = new Vector2(400f, 68f);
+            Image background = infoObject.GetComponent<Image>();
+            background.color = new Color(0.018f, 0.035f, 0.052f, 0.93f);
+            background.raycastTarget = false;
+
+            TMP_Text zoneNameText = CreateText("Zone_Name", infoObject.transform,
+                new Vector2(0f, 0.5f), new Vector2(1f, 1f),
+                new Vector2(12f, 0f), new Vector2(-12f, -4f), 18f,
+                TextAlignmentOptions.Center, Color.white);
+            TMP_Text detailText = CreateText("Zone_Details", infoObject.transform,
+                new Vector2(0f, 0f), new Vector2(1f, 0.5f),
+                new Vector2(10f, 4f), new Vector2(-10f, 0f), 14f,
+                TextAlignmentOptions.Center, Color.white);
+            detailText.enableAutoSizing = true;
+            detailText.fontSizeMin = 11f;
+            detailText.fontSizeMax = 14f;
+            detailText.textWrappingMode = TextWrappingModes.NoWrap;
+
+            root.SetActive(false);
+            return new PingView(zone, root, markerRect, markerImage, infoRect, background,
+                zoneNameText, detailText);
+        }
+
+        private void RefreshPing(PingView view, ActiveAnomalyZoneSnapshot.ZoneActivity activity)
+        {
+            Vector3 worldPosition = view.Zone.transform.position;
+            Vector3 screen = playerCamera.WorldToScreenPoint(worldPosition);
+            bool inFront = screen.z > playerCamera.nearClipPlane;
+            const float edgeInset = 58f;
+            bool onScreen = inFront && screen.x >= edgeInset && screen.x <= Screen.width - edgeInset
+                && screen.y >= edgeInset && screen.y <= Screen.height - edgeInset;
+
+            Vector2 direction = DirectionToTarget(worldPosition, screen, inFront);
+            Vector2 markerScreen = onScreen
+                ? new Vector2(screen.x, screen.y)
+                : ScreenEdgePoint(direction, edgeInset);
+            if (onScreen)
+            {
+                view.MarkerImage.sprite = diamondSprite;
+                view.MarkerRect.localRotation = Quaternion.identity;
+            }
+            else
+            {
+                view.MarkerImage.sprite = arrowSprite;
+                view.MarkerRect.localRotation = Quaternion.Euler(0f, 0f,
+                    Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg - 90f);
+            }
+
+            SetScreenPosition(view.MarkerRect, markerScreen);
+            PositionInfo(view, markerScreen, direction, onScreen);
+
+            float distance = Vector3.Distance(playerCamera.transform.position, worldPosition);
+            string distanceText = distance >= 10f ? $"{distance:F0} m" : $"{distance:F1} m";
+            view.ZoneNameText.text = view.Zone.DisplayName;
+            view.DetailsText.text = $"활성 {activity.ActiveCount}개  위험 {activity.HighestDangerStage}단계  직선거리 {distanceText}";
+            Color danger = DangerColor(activity.HighestDangerStage);
+            view.MarkerImage.color = danger;
+            view.ZoneNameText.color = danger;
+            view.Background.color = new Color(0.018f, 0.035f, 0.052f, 0.93f);
+            if (!view.Root.activeSelf) view.Root.SetActive(true);
+        }
+
+        private Vector2 DirectionToTarget(Vector3 worldPosition, Vector3 screen, bool inFront)
+        {
+            Vector2 direction;
+            if (inFront)
+            {
+                direction = new Vector2(screen.x - Screen.width * 0.5f,
+                    screen.y - Screen.height * 0.5f);
+            }
+            else
+            {
+                Vector3 localTarget = playerCamera.transform.InverseTransformPoint(worldPosition);
+                direction = new Vector2(localTarget.x, localTarget.y);
+            }
+
+            if (direction.sqrMagnitude < 0.0001f) direction = Vector2.down;
+            return direction.normalized;
+        }
+
+        private static Vector2 ScreenEdgePoint(Vector2 direction, float inset)
+        {
+            float halfWidth = Mathf.Max(1f, Screen.width * 0.5f - inset);
+            float halfHeight = Mathf.Max(1f, Screen.height * 0.5f - inset);
+            float xScale = Mathf.Abs(direction.x) > 0.0001f
+                ? halfWidth / Mathf.Abs(direction.x) : float.PositiveInfinity;
+            float yScale = Mathf.Abs(direction.y) > 0.0001f
+                ? halfHeight / Mathf.Abs(direction.y) : float.PositiveInfinity;
+            float edgeScale = Mathf.Min(xScale, yScale);
+            return new Vector2(Screen.width * 0.5f, Screen.height * 0.5f) + direction * edgeScale;
+        }
+
+        private void PositionInfo(PingView view, Vector2 markerScreen, Vector2 direction, bool onScreen)
+        {
+            if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                    canvasRect, markerScreen, null, out Vector2 markerLocal))
+                return;
+
+            Vector2 infoLocal;
+            if (onScreen)
+            {
+                float verticalOffset = markerLocal.y > canvasRect.rect.height * 0.28f ? -76f : 76f;
+                infoLocal = markerLocal + new Vector2(0f, verticalOffset);
+            }
+            else
+            {
+                infoLocal = markerLocal - direction * 178f;
+            }
+
+            float halfWidth = view.InfoRect.sizeDelta.x * 0.5f;
+            float halfHeight = view.InfoRect.sizeDelta.y * 0.5f;
+            infoLocal.x = Mathf.Clamp(infoLocal.x, -canvasRect.rect.width * 0.5f + halfWidth + 10f,
+                canvasRect.rect.width * 0.5f - halfWidth - 10f);
+            infoLocal.y = Mathf.Clamp(infoLocal.y, -canvasRect.rect.height * 0.5f + halfHeight + 10f,
+                canvasRect.rect.height * 0.5f - halfHeight - 10f);
+            view.InfoRect.anchoredPosition = infoLocal;
+        }
+
+        private void SetScreenPosition(RectTransform rect, Vector2 screenPosition)
+        {
+            if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                    canvasRect, screenPosition, null, out Vector2 localPosition))
+                rect.anchoredPosition = localPosition;
         }
 
         private TMP_Text CreateText(string objectName, Transform parent, Vector2 anchorMin,
             Vector2 anchorMax, Vector2 offsetMin, Vector2 offsetMax, float fontSize,
             TextAlignmentOptions alignment, Color color)
         {
-            GameObject textObject = new GameObject(objectName, typeof(RectTransform), typeof(TextMeshProUGUI));
+            GameObject textObject = new GameObject(objectName,
+                typeof(RectTransform), typeof(TextMeshProUGUI));
             textObject.transform.SetParent(parent, false);
             RectTransform rect = textObject.GetComponent<RectTransform>();
             rect.anchorMin = anchorMin;
@@ -265,58 +348,110 @@ namespace WardShift
             text.alignment = alignment;
             text.color = color;
             text.raycastTarget = false;
+            text.textWrappingMode = TextWrappingModes.NoWrap;
             return text;
         }
 
-        private void SetMarkerPosition(Vector2 screenPosition)
+        private static Sprite CreateShapeSprite(string spriteName, bool triangle, out Texture2D texture)
         {
-            if (canvasRect != null && RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                    canvasRect, screenPosition, null, out Vector2 localPosition))
-                markerRect.anchoredPosition = localPosition;
+            const int size = 64;
+            const int samples = 4;
+            texture = new Texture2D(size, size, TextureFormat.RGBA32, false, true)
+            {
+                name = spriteName + "_Texture",
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp,
+                hideFlags = HideFlags.DontSave
+            };
+
+            var pixels = new Color32[size * size];
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    int covered = 0;
+                    for (int sy = 0; sy < samples; sy++)
+                    for (int sx = 0; sx < samples; sx++)
+                    {
+                        float px = ((x + (sx + 0.5f) / samples) / size) * 2f - 1f;
+                        float py = ((y + (sy + 0.5f) / samples) / size) * 2f - 1f;
+                        bool inside = triangle
+                            ? py >= -0.92f && py <= 0.92f && Mathf.Abs(px) <= (py + 1f) * 0.5f
+                            : Mathf.Abs(px) + Mathf.Abs(py) <= 0.94f;
+                        if (inside) covered++;
+                    }
+                    byte alpha = (byte)(covered * 255 / (samples * samples));
+                    pixels[y * size + x] = new Color32(255, 255, 255, alpha);
+                }
+            }
+
+            texture.SetPixels32(pixels);
+            texture.Apply(false, true);
+            Sprite sprite = Sprite.Create(texture, new Rect(0f, 0f, size, size),
+                new Vector2(0.5f, 0.5f), size);
+            sprite.name = spriteName;
+            return sprite;
         }
 
         private static Color DangerColor(int stage)
         {
             if (stage >= 3) return new Color(1f, 0.34f, 0.28f);
             if (stage == 2) return new Color(1f, 0.68f, 0.28f);
-            return new Color(0.55f, 0.88f, 1f);
+            if (stage == 1) return new Color(0.55f, 0.88f, 1f);
+            return Color.white;
         }
 
-        private void OnTrackedAnomalyEnded(AnomalyBehaviour anomaly, AnomalyEndReason reason)
+        private void HideAllPings()
         {
-            if (trackedAnomaly != anomaly) return;
-            ReleaseTrackedTarget();
-        }
-
-        private void ReleaseTrackedTarget()
-        {
-            UnsubscribeFromTarget();
-            trackedAnomaly = null;
-            targetChosenForDay = true;
-            HidePing();
-        }
-
-        private void ResetTrackedTarget()
-        {
-            UnsubscribeFromTarget();
-            trackedAnomaly = null;
-            targetChosenForDay = false;
-            HidePing();
-        }
-
-        private void UnsubscribeFromTarget()
-        {
-            if (trackedAnomaly != null) trackedAnomaly.Ended -= OnTrackedAnomalyEnded;
-        }
-
-        private void HidePing()
-        {
-            if (pingRoot != null && pingRoot.activeSelf) pingRoot.SetActive(false);
+            foreach (PingView view in pingViews.Values)
+                if (view.Root != null && view.Root.activeSelf) view.Root.SetActive(false);
         }
 
         private void OnDisable()
         {
-            UnsubscribeFromTarget();
+            HideAllPings();
+            snapshot.Clear();
+        }
+
+        private void OnDestroy()
+        {
+            DestroyGeneratedObject(diamondSprite);
+            DestroyGeneratedObject(arrowSprite);
+            DestroyGeneratedObject(diamondTexture);
+            DestroyGeneratedObject(arrowTexture);
+        }
+
+        private static void DestroyGeneratedObject(Object generated)
+        {
+            if (generated == null) return;
+            if (Application.isPlaying) Destroy(generated);
+            else DestroyImmediate(generated);
+        }
+
+        private sealed class PingView
+        {
+            public readonly ZoneIdentity Zone;
+            public readonly GameObject Root;
+            public readonly RectTransform MarkerRect;
+            public readonly Image MarkerImage;
+            public readonly RectTransform InfoRect;
+            public readonly Image Background;
+            public readonly TMP_Text ZoneNameText;
+            public readonly TMP_Text DetailsText;
+
+            public PingView(ZoneIdentity zone, GameObject root, RectTransform markerRect,
+                Image markerImage, RectTransform infoRect, Image background,
+                TMP_Text zoneNameText, TMP_Text detailsText)
+            {
+                Zone = zone;
+                Root = root;
+                MarkerRect = markerRect;
+                MarkerImage = markerImage;
+                InfoRect = infoRect;
+                Background = background;
+                ZoneNameText = zoneNameText;
+                DetailsText = detailsText;
+            }
         }
     }
 }
