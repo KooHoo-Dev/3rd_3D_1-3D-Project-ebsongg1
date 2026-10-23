@@ -9566,7 +9566,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 15, y: -120}
+  m_AnchoredPosition: {x: 15, y: -131}
   m_SizeDelta: {x: 420, y: 60}
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &247745838
@@ -17052,7 +17052,7 @@ MonoBehaviour:
   randomizePoint: 1
   selectedPointIndex: 0
   spawnOnStart: 0
-  spawnIntervalSeconds: 20
+  spawnIntervalSeconds: 30
   maximumConcurrentAnomalies: 2
   firstSpawnDelaySeconds: 3
 --- !u!114 &411442693
@@ -24923,6 +24923,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WardShift.AnomalySpawnPoint
   surface: 0
+  locationName: 
   surfaceOffset: 0.03
 --- !u!1001 &577713612
 PrefabInstance:
@@ -33179,6 +33180,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WardShift.AnomalySpawnPoint
   surface: 0
+  locationName: 
   surfaceOffset: 0.03
 --- !u!1001 &743492877
 PrefabInstance:
@@ -40085,6 +40087,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WardShift.AnomalySpawnPoint
   surface: 0
+  locationName: 
   surfaceOffset: 0.03
 --- !u!1 &931822012 stripped
 GameObject:
@@ -79166,7 +79169,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 15, y: -10}
-  m_SizeDelta: {x: 420, y: 110}
+  m_SizeDelta: {x: 420, y: 170}
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &1856086080
 MonoBehaviour:

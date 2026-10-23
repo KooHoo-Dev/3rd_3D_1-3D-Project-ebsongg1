@@ -6,7 +6,7 @@ using UnityEngine.UI;
 
 namespace WardShift
 {
-    /// <summary>DAY 표시, 인벤토리, DAY CLEAR/FAILED 창을 기본 Unity UI로 만듭니다.</summary>
+    /// <summary>DAY 표시, 인벤토리, DAY CLEAR/FAILED 창을 기본 Unity UI로 만듬.</summary>
     [DisallowMultipleComponent]
     [DefaultExecutionOrder(10007)]
     public sealed class Day5HUD : MonoBehaviour

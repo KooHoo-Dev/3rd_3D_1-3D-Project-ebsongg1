@@ -13,6 +13,8 @@ namespace WardShift
 
         [Header("생성 위치")]
         [SerializeField] private SurfaceType surface = SurfaceType.Wall;
+        [Tooltip("플레이어 HUD에 표시할 구역명. 비워 두면 생성 지점 이름을 사용합니다.")]
+        [SerializeField] private string locationName;
         [Tooltip("로컬 +Z 방향으로 표면에서 띄울 거리. 파란 화살표를 방 안쪽으로 향하게 설정.")]
         [SerializeField, Min(0f)] private float surfaceOffset = 0.03f;
         private AnomalyBehaviour occupant;
@@ -39,6 +41,8 @@ namespace WardShift
             {
                 // 부모의 Scale은 전달하지 않고 월드 위치/회전만 적용합니다.
                 instance = Instantiate(prefab, SpawnPosition, transform.rotation);
+                instance.SetSpawnLocationLabel(string.IsNullOrWhiteSpace(locationName)
+                    ? name.Replace("SP_", string.Empty) : locationName);
                 occupant = instance;
                 occupant.Ended += OnOccupantEnded;
                 return true;

@@ -262,8 +262,10 @@ namespace WardShift.Editor
         {
             SetPrivateField(rift, "stageTwoAt", 2f);
             SetPrivateField(rift, "stageThreeAt", 4f);
-            SetPrivateField(rift, "overloadAt", 100f);
-            SetPrivateField(rift, "overloadDamage", 0f);
+            SetPrivateField(rift, "ruptureAt", 100f);
+            SetPrivateField(rift, "stageTwoStabilityLossPerSecond", 0f);
+            SetPrivateField(rift, "stageThreeStabilityLossPerSecond", 0f);
+            SetPrivateField(rift, "ruptureStabilityDamage", 0f);
         }
 
         private static bool Resolve(ManaRift rift)

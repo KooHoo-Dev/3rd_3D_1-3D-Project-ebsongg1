@@ -66,7 +66,7 @@ namespace WardShift
             if (blocked) { CancelCast(); waitingForRelease = true; }
         }
 
-        /// <summary>새 DAY를 시작할 때 이전 시전 결과와 대상을 지웁니다.</summary>
+        /// <summary>새 DAY를 시작할 때 이전 시전 결과와 대상을 지움.</summary>
         public void ResetForNewDay()
         {
             CancelCast();

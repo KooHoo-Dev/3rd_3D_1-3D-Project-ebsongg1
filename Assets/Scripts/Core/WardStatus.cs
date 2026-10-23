@@ -31,7 +31,7 @@ namespace WardShift
         private bool controlsPaused;
         private bool hasPauseSnapshot;
 
-        /// <summary>시설 또는 플레이어 조건으로 하루가 실패했을 때 발생합니다.</summary>
+        /// <summary>시설 또는 플레이어 조건으로 하루가 실패했을 때 발생.</summary>
         public event Action<string> Failed;
 
         private void Awake()
@@ -78,7 +78,7 @@ namespace WardShift
             Failed?.Invoke(reason);
         }
 
-        /// <summary>인벤토리 또는 DAY 종료 화면을 표시하며 게임플레이를 일시정지합니다.</summary>
+        /// <summary>인벤토리 또는 DAY 종료 화면을 표시하며 게임플레이를 일시정지.</summary>
         public void PauseGameForUI()
         {
             if (!hasPauseSnapshot)
@@ -96,14 +96,14 @@ namespace WardShift
             Cursor.visible = true;
         }
 
-        /// <summary>일시정지를 해제하고 진입 전의 시간 및 커서 상태를 복원합니다.</summary>
+        /// <summary>일시정지를 해제하고 진입 전의 시간 및 커서 상태를 복원.</summary>
         public void ResumeGameFromUI()
         {
             if (HasFailed) return;
             RestorePauseSnapshot();
         }
 
-        /// <summary>새 게임 테스트를 위해 실패, 안정도와 플레이어 오염도를 초기화합니다.</summary>
+        /// <summary>새 게임 테스트를 위해 실패, 안정도와 플레이어 오염도를 초기화.</summary>
         public void ResetForNewRun()
         {
             RestorePauseSnapshot();
@@ -115,7 +115,7 @@ namespace WardShift
             if (player != null) player.ResetForNewRun();
         }
 
-        /// <summary>DAY 전환 때 임시 위험 표시만 지웁니다. 안정도와 오염도 값은 유지합니다.</summary>
+        /// <summary>DAY 전환 때 임시 위험 표시만 지움. 안정도와 오염도 값은 유지.</summary>
         public void ResetDayHazardDisplay()
         {
             HighestStage = 0;
@@ -174,7 +174,7 @@ namespace WardShift
 
         private void OnDisable()
         {
-            // 씬 종료나 매니저 제거 때 전역 일시정지가 남지 않도록 복원합니다.
+            // 씬 종료나 매니저 제거 때 전역 일시정지가 남지 않도록 복원.
             RestorePauseSnapshot();
         }
     }

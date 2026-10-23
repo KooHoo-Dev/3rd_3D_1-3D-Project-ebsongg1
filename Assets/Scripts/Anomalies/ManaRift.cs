@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.Serialization;
 
 namespace WardShift
 {
@@ -25,11 +26,14 @@ namespace WardShift
         [SerializeField] private bool isResolved;
         private bool completionPending;
 
-        [Header("DAY 4 성장 (생성 후 누적 초)")]
-        [SerializeField, Min(0.1f)] private float stageTwoAt = 10f;
-        [SerializeField, Min(0.2f)] private float stageThreeAt = 20f;
-        [SerializeField, Min(0.3f)] private float overloadAt = 30f;
-        [SerializeField, Min(0f)] private float overloadDamage = 20f;
+        [Header("성장·파열 (생성 후 누적 초)")]
+        [SerializeField, Min(0.1f)] private float stageTwoAt = 20f;
+        [SerializeField, Min(0.2f)] private float stageThreeAt = 40f;
+        [FormerlySerializedAs("overloadAt"), SerializeField, Min(0.3f)] private float ruptureAt = 60f;
+        [Header("시설 안정도 손실")]
+        [SerializeField, Min(0f)] private float stageTwoStabilityLossPerSecond = 0.5f;
+        [SerializeField, Min(0f)] private float stageThreeStabilityLossPerSecond = 1f;
+        [FormerlySerializedAs("overloadDamage"), SerializeField, Min(0f)] private float ruptureStabilityDamage = 20f;
         [Header("주변 오염")]
         [SerializeField, Min(0f)] private float dangerRadius = 3f;
         [SerializeField, Min(0f)] private float stageTwoContamination = 3f;
@@ -37,27 +41,53 @@ namespace WardShift
         [Header("위험 상태 (실행 중 확인용)")]
         [SerializeField] private float age;
         [SerializeField] private int dangerStage = 1;
-        [SerializeField] private bool hasOverloaded;
+        [FormerlySerializedAs("hasOverloaded"), SerializeField] private bool hasRuptured;
 
         public float Age => age;
         public override int DangerStage => dangerStage;
-        public override bool HasOverloaded => hasOverloaded;
+        public override bool HasOverloaded => hasRuptured;
+        public override int ResolutionReward => dangerStage;
         public override AnomalySpawnPoint.SurfaceType SpawnSurface => AnomalySpawnPoint.SurfaceType.Wall;
-        public override bool IsHazardActive => isActiveAndEnabled && !isResolved && CompletedSealCount < 2;
+        public override bool IsHazardActive => isActiveAndEnabled && !isResolved && !hasRuptured && CompletedSealCount < 2;
+        public float SecondsUntilNextStage
+        {
+            get
+            {
+                float second = Mathf.Max(0.1f, stageTwoAt);
+                float third = Mathf.Max(second + 0.1f, stageThreeAt);
+                float rupture = Mathf.Max(third + 0.1f, ruptureAt);
+                float target = dangerStage >= 3 ? rupture : dangerStage == 2 ? third : second;
+                return Mathf.Max(0f, target - age);
+            }
+        }
+        public string NextStageLabel => dangerStage >= 3 ? "파열까지" : $"{dangerStage + 1}단계까지";
 
-        // WardStatus가 시전/봉인 처리 이후 호출. 피해를 반환하므로 폭주당 한 번만 적용됨.
+        // WardStatus가 프레임별 손실을 합산해 적용. 단계 경계와 프레임이 겹쳐도 초당 손실을 정확히 적분한다.
         public override float AdvanceHazard(float deltaTime)
         {
             if (!IsHazardActive || deltaTime <= 0f) return 0f;
-            age += deltaTime;
+            float previousAge = Mathf.Max(0f, age);
             float second = Mathf.Max(0.1f, stageTwoAt);
             float third = Mathf.Max(second + 0.1f, stageThreeAt);
-            float overload = Mathf.Max(third + 0.1f, overloadAt);
-            dangerStage = age >= third ? 3 : age >= second ? 2 : 1;
-            if (hasOverloaded || age < overload) return 0f;
-            hasOverloaded = true;
-            Debug.Log("마력 균열 폭주: 시설 안정도 피해", this);
-            return Mathf.Max(0f, overloadDamage);
+            float rupture = Mathf.Max(third + 0.1f, ruptureAt);
+            float nextAge = previousAge + deltaTime;
+            bool ruptureReached = nextAge >= rupture;
+            float currentAge = Mathf.Min(nextAge, rupture);
+            age = currentAge;
+            dangerStage = currentAge >= third ? 3 : currentAge >= second ? 2 : 1;
+
+            float stageTwoSeconds = Mathf.Max(0f, Mathf.Min(currentAge, third) - Mathf.Max(previousAge, second));
+            float stageThreeSeconds = Mathf.Max(0f, Mathf.Min(currentAge, rupture) - Mathf.Max(previousAge, third));
+            float stabilityLoss = stageTwoSeconds * Mathf.Max(0f, stageTwoStabilityLossPerSecond)
+                + stageThreeSeconds * Mathf.Max(0f, stageThreeStabilityLossPerSecond);
+
+            if (!ruptureReached) return stabilityLoss;
+            hasRuptured = true;
+            stabilityLoss += Mathf.Max(0f, ruptureStabilityDamage);
+            Debug.Log("마력 균열 파열: 시설 안정도 피해 후 제거", this);
+            NotifyRuptured();
+            Destroy(gameObject);
+            return stabilityLoss;
         }
 
         public override float ContaminationRateAt(Vector3 position)
@@ -114,7 +144,7 @@ namespace WardShift
 
         private void LateUpdate()
         {
-            if (!completionPending || isResolved) return;
+            if (!completionPending || isResolved || hasRuptured || HasEnded) return;
             completionPending = false;
             if (CompletedSealCount != 2) return;
             // 봉인점 Completed 콜백 내부에서 부모를 끄지 않음.

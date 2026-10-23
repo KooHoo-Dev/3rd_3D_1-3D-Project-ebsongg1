@@ -217,9 +217,14 @@ namespace WardShift
             if (anomaly == null || state != DayState.Playing) return;
             int id = anomaly.GetInstanceID();
             if (!rewardedAnomalyIds.Add(id)) return;
-            int min = Mathf.Max(0, minimumAnomalyReward);
-            int max = Mathf.Max(min, maximumAnomalyReward);
-            inventory.AddManaCrystals(Random.Range(min, max + 1));
+            int reward = anomaly.ResolutionReward;
+            if (reward < 0)
+            {
+                int min = Mathf.Max(0, minimumAnomalyReward);
+                int max = Mathf.Max(min, maximumAnomalyReward);
+                reward = Random.Range(min, max + 1);
+            }
+            inventory.AddManaCrystals(Mathf.Max(0, reward));
             anomaly.ResolutionCompleted -= OnAnomalyResolved;
             subscribedAnomalies.Remove(anomaly);
         }

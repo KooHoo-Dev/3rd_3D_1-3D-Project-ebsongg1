@@ -28,8 +28,16 @@ namespace WardShift
         public bool IsEnded => hasEnded;
         public virtual int DangerStage => 0;
         public virtual bool HasOverloaded => false;
+        /// <summary>Normal-resolution reward amount. A negative value uses the DAY fallback range.</summary>
+        public virtual int ResolutionReward => -1;
         public virtual float AdvanceHazard(float deltaTime) => 0f;
         public virtual float ContaminationRateAt(Vector3 position) => 0f;
+        public string SpawnLocationLabel { get; private set; }
+
+        public void SetSpawnLocationLabel(string label)
+        {
+            SpawnLocationLabel = string.IsNullOrWhiteSpace(label) ? name : label.Trim();
+        }
 
         /// <summary>- 정상 진압 보상 처리를 위한 공통 이벤트</summary>
         public event Action<AnomalyBehaviour> ResolutionCompleted;
