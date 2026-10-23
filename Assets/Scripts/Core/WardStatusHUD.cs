@@ -47,9 +47,11 @@ namespace WardShift
                         : ZoneIdentity.FindNearest(anomaly.transform.position, zones);
                     string location = anomalyZone != null ? anomalyZone.DisplayName
                         : string.IsNullOrWhiteSpace(anomaly.SpawnLocationLabel) ? anomaly.name : anomaly.SpawnLocationLabel;
-                    string anomalyName = anomaly is ManaRift ? "마력 균열" : anomaly.name.Replace("(Clone)", "").Trim();
+                    string anomalyName = anomaly.DisplayName;
                     if (anomaly is ManaRift rift)
                         lines.AppendLine($"{location} · {anomalyName} {rift.DangerStage}단계 · {rift.NextStageLabel} {Mathf.CeilToInt(rift.SecondsUntilNextStage)}초");
+                    else if (anomaly is CurseAnomaly curse)
+                        lines.AppendLine($"{location} · {anomalyName} {curse.DangerStage}단계 · {curse.NextStageLabel} {Mathf.CeilToInt(curse.SecondsUntilNextStage)}초");
                     else
                         lines.AppendLine($"{location} · {anomalyName} {anomaly.DangerStage}단계");
                 }
@@ -63,9 +65,9 @@ namespace WardShift
                 warningText.text = status.HasFailed ? "근무 실패"
                     : player.Value >= 80f ? "위험: 오염도 80 이상! 안전 구역으로 이동하세요."
                     : status.Stability <= 20f ? "위험: 시설 안정도 20 이하!"
-                    : status.HighestStage >= 3 ? "3단계 균열: 파열 임박!"
-                    : player.ExposurePerSecond > 0f ? "위험 균열 근처: 오염도 증가 중"
-                    : status.HighestStage == 2 ? "균열이 2단계로 성장했습니다." : "";
+                    : status.HighestStage >= 3 ? "3단계 이상현상: 파열 임박!"
+                    : player.ExposurePerSecond > 0f ? "위험 영역 근처: 오염도 증가 중"
+                    : status.HighestStage == 2 ? "이상현상이 2단계로 성장했습니다." : "";
             }
             if (failurePanel != null && failurePanel != gameObject)
                 failurePanel.SetActive(status.HasFailed && dayFlow == null);

@@ -191,7 +191,7 @@ namespace WardShift
                 {
                     foreach (AnomalyBehaviour anomaly in zoneActivity.Anomalies)
                     {
-                        string anomalyName = anomaly is ManaRift ? "마력 균열" : anomaly.name.Replace("(Clone)", "").Trim();
+                        string anomalyName = anomaly.DisplayName;
                         contents.Append("\n- ");
                         contents.Append(anomalyName);
                         contents.Append(" · 위험 ");

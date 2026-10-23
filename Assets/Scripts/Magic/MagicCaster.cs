@@ -12,6 +12,7 @@ namespace WardShift
     {
         [Header("연결")]
         [SerializeField] private PlayerInteractor interactor;
+        [SerializeField, Min(0.1f)] private float cursePatchPurifyRange = 2.25f;
         [Header("입력")]
         [SerializeField] private InputAction castAction = new InputAction("Cast", InputActionType.Button, "<Mouse>/leftButton");
         [SerializeField] private InputAction sealAction = new InputAction("SelectSeal", InputActionType.Button, "<Keyboard>/1");
@@ -23,13 +24,30 @@ namespace WardShift
         [SerializeField] private MagicType selectedMagic = MagicType.Seal;
         [SerializeField] private MagicTarget castingTarget;
         private bool waitingForRelease;
+        private bool continuousPurifySession;
         private bool hasFocus = true;
         private bool inputEnabled;
         private float resultUntil;
         public MagicType SelectedMagic => selectedMagic;
         public MagicTarget CastingTarget => castingTarget;
-        public MagicTarget AimedTarget => interactor != null && interactor.isActiveAndEnabled
-            && interactor.CurrentTarget != null && interactor.CurrentTarget.IsAvailable ? interactor.CurrentTarget : null;
+        /// <summary>저주 오염 패치는 선택한 정화 마법의 짧은 사거리 안에서만 조준 대상으로 반환합니다.</summary>
+        public MagicTarget AimedTarget
+        {
+            get
+            {
+                if (interactor == null || !interactor.isActiveAndEnabled) return null;
+                MagicTarget target = interactor.CurrentTarget;
+                if (target == null || !target.IsAvailable) return null;
+                if (selectedMagic == MagicType.Purify && target.GetComponent<CursePatch>() != null)
+                {
+                    Vector3 offset = target.transform.position - transform.position;
+                    offset.y = 0f;
+                    float range = Mathf.Max(0.1f, cursePatchPurifyRange);
+                    if (offset.sqrMagnitude > range * range) return null;
+                }
+                return target;
+            }
+        }
         public float Progress => castingTarget != null ? castingTarget.Progress : 0f;
         public bool ShowingResult => Time.unscaledTime < resultUntil;
         public bool ShowingCompletion => ShowingResult && LastResult == MagicCastResult.Success;
@@ -63,13 +81,19 @@ namespace WardShift
         public void SetInputBlocked(bool blocked)
         {
             inputBlocked = blocked;
-            if (blocked) { CancelCast(); waitingForRelease = true; }
+            if (blocked)
+            {
+                CancelCast();
+                continuousPurifySession = false;
+                waitingForRelease = true;
+            }
         }
 
         /// <summary>새 DAY를 시작할 때 이전 시전 결과와 대상을 지움.</summary>
         public void ResetForNewDay()
         {
             CancelCast();
+            continuousPurifySession = false;
             LastResult = MagicCastResult.None;
             ResultProgress = 0f;
             CompletedTargetName = null;
@@ -82,6 +106,7 @@ namespace WardShift
         {
             if (InputBlocked || selectedMagic == magic) return;
             CancelCast();
+            continuousPurifySession = false;
             selectedMagic = magic;
             resultUntil = 0f;
             waitingForRelease = castAction.IsPressed();
@@ -99,6 +124,16 @@ namespace WardShift
             if (sealAction.WasPressedThisFrame()) SelectMagic(MagicType.Seal);
             if (purifyAction.WasPressedThisFrame()) SelectMagic(MagicType.Purify);
             if (stabilizeAction.WasPressedThisFrame()) SelectMagic(MagicType.Stabilize);
+
+            // Only explicitly configured non-timing Purify targets may chain while held.
+            MagicTarget aimed = AimedTarget;
+            if (selectedMagic == MagicType.Purify
+                && (continuousPurifySession || (aimed != null && aimed.AllowHeldPurifyChain)))
+            {
+                UpdateContinuousPurify(pressed, aimed);
+                return;
+            }
+            continuousPurifySession = false;
 
             // 해제도 Raycast 갱신 이후 처리: 같은 프레임의 조준 이탈을 성공으로 판정하지 않음.
             if (castingTarget != null)
@@ -129,11 +164,66 @@ namespace WardShift
                 return;
             }
             if (!pressed || !castAction.WasPressedThisFrame()) return;
-            MagicTarget aimed = AimedTarget;
             if (aimed == null || aimed.RequiredMagic != selectedMagic) return;
             castingTarget = aimed;
             resultUntil = 0f;
             Charge(aimed);
+        }
+
+        private void UpdateContinuousPurify(bool pressed, MagicTarget aimed)
+        {
+            if (!pressed)
+            {
+                if (castingTarget != null)
+                {
+                    MagicTarget target = castingTarget;
+                    castingTarget = null;
+                    CaptureFeedback(target);
+                    ShowResult(target.ReleaseCast());
+                }
+                continuousPurifySession = false;
+                waitingForRelease = false;
+                return;
+            }
+
+            if (castingTarget != null && (aimed != castingTarget || !castingTarget.IsCasting))
+            {
+                MagicTarget previous = castingTarget;
+                castingTarget = null;
+                if (previous.IsCasting)
+                {
+                    CaptureFeedback(previous);
+                    previous.CancelCast();
+                    ShowResult(MagicCastResult.Canceled);
+                }
+            }
+
+            if (castingTarget != null)
+            {
+                ChargeContinuousPurify(castingTarget);
+                return;
+            }
+
+            if (aimed == null || !aimed.AllowHeldPurifyChain) return;
+            castingTarget = aimed;
+            continuousPurifySession = true;
+            resultUntil = 0f;
+            ChargeContinuousPurify(aimed);
+        }
+
+        private void ChargeContinuousPurify(MagicTarget target)
+        {
+            CaptureFeedback(target);
+            ResultProgress = Mathf.Clamp01(target.Progress + Time.deltaTime / Mathf.Max(0.1f, target.CastDuration));
+            target.AdvanceCast(MagicType.Purify, Time.deltaTime);
+            if (target == null)
+            {
+                castingTarget = null;
+                return;
+            }
+            if (target.IsCasting) return;
+            castingTarget = null;
+            ShowResult(target.LastResult);
         }
 
         private void Charge(MagicTarget target)
@@ -184,6 +274,7 @@ namespace WardShift
         {
             inputEnabled = false;
             CancelCast();
+            continuousPurifySession = false;
             waitingForRelease = true;
             // canceled 콜백으로 판정하지 않으므로 액션 비활성화가 성공을 발생시키지 않음.
             castAction.Disable(); sealAction.Disable(); purifyAction.Disable(); stabilizeAction.Disable();

@@ -26,6 +26,8 @@ namespace WardShift
         public abstract AnomalySpawnPoint.SurfaceType SpawnSurface { get; }
         public abstract bool IsHazardActive { get; }
         public bool IsEnded => hasEnded;
+        /// <summary>지도와 상태 HUD에 표시할 이상현상 이름입니다.</summary>
+        public virtual string DisplayName => name.Replace("(Clone)", string.Empty).Trim();
         public virtual int DangerStage => 0;
         public virtual bool HasOverloaded => false;
         /// <summary>Normal-resolution reward amount. A negative value uses the DAY fallback range.</summary>

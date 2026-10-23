@@ -44,6 +44,7 @@ namespace WardShift
         [FormerlySerializedAs("hasOverloaded"), SerializeField] private bool hasRuptured;
 
         public float Age => age;
+        public override string DisplayName => "마력 균열";
         public override int DangerStage => dangerStage;
         public override bool HasOverloaded => hasRuptured;
         public override int ResolutionReward => dangerStage;

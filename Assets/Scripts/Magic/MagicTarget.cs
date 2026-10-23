@@ -16,6 +16,8 @@ namespace WardShift
         [Header("타이밍 판정")]
         [Tooltip("켜면 버튼을 놓을 때 판정. 끄면 기존처럼 100%에서 자동 성공.")]
         [SerializeField] private bool useTimingCast = true;
+        [Tooltip("정화 마법에만 적용. 마우스를 누른 채 다음 정화 대상으로 옮겨 시전을 이어갑니다.")]
+        [SerializeField] private bool allowHeldPurifyChain;
         [SerializeField, Range(0f, 1f)] private float stableStart = 0.6f;
         [SerializeField, Range(0f, 0.99f)] private float stableEnd = 0.85f;
         [Tooltip("완료 후 이 오브젝트와 자식을 비활성화. 현재 테스트 구체에 사용.")]
@@ -31,6 +33,8 @@ namespace WardShift
         public MagicType RequiredMagic => requiredMagic;
         public float CastDuration => castDuration;
         public bool UseTimingCast => useTimingCast;
+        public bool AllowHeldPurifyChain => allowHeldPurifyChain
+            && requiredMagic == MagicType.Purify && !useTimingCast;
         public float StableStart => Mathf.Clamp(stableStart, 0f, StableEnd);
         public float StableEnd => Mathf.Clamp(stableEnd, 0f, 0.99f);
         public MagicCastResult LastResult { get; private set; }

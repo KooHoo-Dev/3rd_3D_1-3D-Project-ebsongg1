@@ -108,6 +108,8 @@ namespace WardShift.Editor
             SetPrivateField(spawner, "maximumConcurrentAnomalies", 2);
             SetPrivateField(spawner, "selectedPointIndex", 0);
             SetPrivateField(spawner, "randomizePoint", false);
+            // This check isolates the ManaRift scheduler rules; the curse-specific check covers mixed types.
+            SetPrivateField(spawner, "additionalAnomalyPrefabs", Array.Empty<AnomalyBehaviour>());
             SetPrivateField(spawner, "spawnOnStart", false);
             SetPrivateField(spawner, "spawnCountdown", 0.2f);
             phase = 0;

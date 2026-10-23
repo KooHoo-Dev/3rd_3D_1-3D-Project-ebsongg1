@@ -67,6 +67,7 @@ namespace WardShift
 
             CurrentCollider = null;
             float nearestDistance = float.PositiveInfinity;
+            RaycastHit nearestHit = default;
             foreach (RaycastHit hit in hits)
             {
                 if (playerRoot != null && hit.collider.transform.IsChildOf(playerRoot))
@@ -74,7 +75,66 @@ namespace WardShift
                 if (hit.distance < nearestDistance)
                 {
                     nearestDistance = hit.distance;
+                    nearestHit = hit;
                     CurrentCollider = hit.collider;
+                }
+            }
+
+            // Coplanar CursePatch aim boxes can still overlap at their edges. RaycastAll
+            // does not guarantee hit order, so keep the closest patch center as the winner.
+            MagicTarget nearestTarget = CurrentCollider != null
+                ? CurrentCollider.GetComponentInParent<MagicTarget>()
+                : null;
+            if (nearestTarget != null && nearestTarget.GetComponent<CursePatch>() != null)
+            {
+                const float coplanarTieDistance = 0.02f;
+                bool keptCurrentTarget = false;
+                if (currentTarget != null && currentTarget.IsAvailable
+                    && currentTarget.GetComponent<CursePatch>() != null)
+                {
+                    foreach (RaycastHit hit in hits)
+                    {
+                        if (hit.collider == null || Mathf.Abs(hit.distance - nearestDistance) > coplanarTieDistance)
+                            continue;
+                        if (playerRoot != null && hit.collider.transform.IsChildOf(playerRoot))
+                            continue;
+                        if (hit.collider.GetComponentInParent<MagicTarget>() != currentTarget)
+                            continue;
+
+                        nearestTarget = currentTarget;
+                        CurrentCollider = hit.collider;
+                        keptCurrentTarget = true;
+                        break;
+                    }
+                }
+
+                // Keep a still-hit current patch during a cast; otherwise choose the nearest center.
+                if (!keptCurrentTarget)
+                {
+                    float bestCenterDistance = PlanarDistanceSqr(nearestHit.point, nearestTarget.transform.position);
+                    int bestInstanceId = nearestTarget.GetInstanceID();
+                    foreach (RaycastHit hit in hits)
+                    {
+                        if (hit.collider == null || Mathf.Abs(hit.distance - nearestDistance) > coplanarTieDistance)
+                            continue;
+                        if (playerRoot != null && hit.collider.transform.IsChildOf(playerRoot))
+                            continue;
+
+                        MagicTarget patchTarget = hit.collider.GetComponentInParent<MagicTarget>();
+                        if (patchTarget == null || patchTarget.GetComponent<CursePatch>() == null)
+                            continue;
+
+                        float centerDistance = PlanarDistanceSqr(hit.point, patchTarget.transform.position);
+                        int instanceId = patchTarget.GetInstanceID();
+                        if (centerDistance > bestCenterDistance
+                            || (Mathf.Approximately(centerDistance, bestCenterDistance) && instanceId >= bestInstanceId))
+                            continue;
+
+                        bestCenterDistance = centerDistance;
+                        bestInstanceId = instanceId;
+                        nearestTarget = patchTarget;
+                        CurrentCollider = hit.collider;
+                    }
                 }
             }
 
@@ -100,6 +160,13 @@ namespace WardShift
             if (logTargetChanges)
                 Debug.Log(target != null ? $"조준 대상: {target.DisplayName}" : "조준 대상: 없음", this);
             TargetChanged?.Invoke(target);
+        }
+
+        private static float PlanarDistanceSqr(Vector3 point, Vector3 center)
+        {
+            point.y = 0f;
+            center.y = 0f;
+            return (point - center).sqrMagnitude;
         }
 
         private void RefreshCrosshair()

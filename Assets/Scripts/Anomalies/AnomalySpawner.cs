@@ -57,19 +57,24 @@ namespace WardShift
             }
         }
         public bool HasSpawnConfiguration => GetConfiguredPrefabs().Count > 0
-            && spawnPoints != null && spawnPoints.Length > 0;
+            && GetAllSpawnPoints().Count > 0;
         public bool HasAtLeastTwoCompatibleSpawnPoints
         {
             get
             {
-                if (spawnPoints == null) return false;
                 List<AnomalyBehaviour> prefabs = GetConfiguredPrefabs();
                 var compatiblePoints = new HashSet<AnomalySpawnPoint>();
-                foreach (AnomalySpawnPoint point in spawnPoints)
+                foreach (AnomalySpawnPoint point in GetAllSpawnPoints())
                 {
                     if (point == null || !point.isActiveAndEnabled) continue;
                     foreach (AnomalyBehaviour prefab in prefabs)
-                        if (prefab.SpawnSurface == point.Surface) { compatiblePoints.Add(point); break; }
+                    {
+                        if (prefab.SpawnSurface != point.Surface) continue;
+                        if (prefab is CurseAnomaly curse
+                            && !curse.CanConfigureFromSpawnPoint(point.GetCursePatchPoints().Length)) continue;
+                        compatiblePoints.Add(point);
+                        break;
+                    }
                 }
                 return compatiblePoints.Count >= 2;
             }
@@ -149,7 +154,8 @@ namespace WardShift
             if (wardStatus != null && wardStatus.HasFailed) return false;
             PruneEndedAnomalies();
             if (activeAnomalies.Count >= MaximumConcurrentAnomalies) return false;
-            if (spawnPoints == null || spawnPoints.Length == 0)
+            List<AnomalySpawnPoint> availableSpawnPoints = GetAllSpawnPoints();
+            if (availableSpawnPoints.Count == 0)
             {
                 Debug.LogWarning("AnomalySpawner: 생성 지점을 연결하세요.", this);
                 return false;
@@ -161,15 +167,15 @@ namespace WardShift
                 Debug.LogWarning("AnomalySpawner: 활성 AnomalyBehaviour 프리팹을 연결하세요.", this);
                 return false;
             }
+            WarnMissingCursePatchPoints(availableSpawnPoints, prefabs);
 
             // - 고정 지점 모드에서는 선택한 지점을 우선 사용
             // - 점유 중이면 비어 있는 호환 지점을 사용해 동시 생성 지점 분리
-            if (!randomizePoint && spawnPoints != null
-                && selectedPointIndex >= 0 && selectedPointIndex < spawnPoints.Length)
+            if (!randomizePoint && selectedPointIndex >= 0 && selectedPointIndex < availableSpawnPoints.Count)
             {
-                AnomalySpawnPoint preferred = spawnPoints[selectedPointIndex];
+                AnomalySpawnPoint preferred = availableSpawnPoints[selectedPointIndex];
                 foreach (AnomalyBehaviour prefab in prefabs)
-                    if (IsValidPrefab(prefab) && CanUse(preferred, prefab.SpawnSurface))
+                    if (IsValidPrefab(prefab) && CanUse(preferred, prefab))
                         return TrySpawnAt(preferred, prefab);
             }
 
@@ -177,9 +183,9 @@ namespace WardShift
             foreach (AnomalyBehaviour prefab in prefabs)
             {
                 if (!IsValidPrefab(prefab)) continue;
-                foreach (AnomalySpawnPoint point in spawnPoints)
+                foreach (AnomalySpawnPoint point in availableSpawnPoints)
                 {
-                    if (!CanUse(point, prefab.SpawnSurface)) continue;
+                    if (!CanUse(point, prefab)) continue;
                     bool duplicate = false;
                     foreach (SpawnChoice choice in choices)
                         if (choice.Prefab == prefab && choice.Point == point) { duplicate = true; break; }
@@ -211,7 +217,7 @@ namespace WardShift
                 return false;
             }
 
-            AnomalySpawnPoint point = SelectPoint(prefab.SpawnSurface);
+            AnomalySpawnPoint point = SelectPoint(prefab);
             if (point == null)
             {
                 Debug.LogWarning("AnomalySpawner: 프리팹 표면과 맞는 빈 생성 지점이 없습니다.", this);
@@ -220,16 +226,16 @@ namespace WardShift
             return TrySpawnAt(point, prefab);
         }
 
-        private AnomalySpawnPoint SelectPoint(AnomalySpawnPoint.SurfaceType surface)
+        private AnomalySpawnPoint SelectPoint(AnomalyBehaviour prefab)
         {
-            if (spawnPoints == null) return null;
-            if (!randomizePoint && selectedPointIndex >= 0 && selectedPointIndex < spawnPoints.Length
-                && CanUse(spawnPoints[selectedPointIndex], surface))
-                return spawnPoints[selectedPointIndex];
+            List<AnomalySpawnPoint> availableSpawnPoints = GetAllSpawnPoints();
+            if (!randomizePoint && selectedPointIndex >= 0 && selectedPointIndex < availableSpawnPoints.Count
+                && CanUse(availableSpawnPoints[selectedPointIndex], prefab))
+                return availableSpawnPoints[selectedPointIndex];
 
             var available = new List<AnomalySpawnPoint>();
-            foreach (AnomalySpawnPoint point in spawnPoints)
-                if (CanUse(point, surface) && !available.Contains(point)) available.Add(point);
+            foreach (AnomalySpawnPoint point in availableSpawnPoints)
+                if (CanUse(point, prefab) && !available.Contains(point)) available.Add(point);
             if (available.Count == 0) return null;
             return randomizePoint
                 ? available[UnityEngine.Random.Range(0, available.Count)]
@@ -238,7 +244,7 @@ namespace WardShift
 
         private bool TrySpawnAt(AnomalySpawnPoint point, AnomalyBehaviour prefab)
         {
-            if (!CanUse(point, prefab.SpawnSurface)) return false;
+            if (!CanUse(point, prefab)) return false;
             if (!point.TrySpawn(prefab, out AnomalyBehaviour instance)) return false;
             activeAnomalies.Add(instance);
             instance.Ended += OnAnomalyEnded;
@@ -282,9 +288,46 @@ namespace WardShift
                 && prefab.gameObject.activeSelf && prefab.enabled;
         }
 
-        private static bool CanUse(AnomalySpawnPoint point, AnomalySpawnPoint.SurfaceType surface)
+        private static bool CanUse(AnomalySpawnPoint point, AnomalyBehaviour prefab)
         {
-            return point != null && point.isActiveAndEnabled && !point.IsOccupied && point.Surface == surface;
+            return point != null && point.isActiveAndEnabled && !point.IsOccupied
+                && point.Surface == prefab.SpawnSurface && point.CanSpawnPrefab(prefab);
+        }
+
+        private List<AnomalySpawnPoint> GetAllSpawnPoints()
+        {
+            var points = new List<AnomalySpawnPoint>();
+            var seen = new HashSet<AnomalySpawnPoint>();
+            if (spawnPoints != null)
+                foreach (AnomalySpawnPoint point in spawnPoints)
+                    AddSpawnPoint(points, seen, point);
+
+            // Scene discovery lets a copied Floor anchor join the rotation without rewriting this serialized array.
+            foreach (AnomalySpawnPoint point in FindObjectsByType<AnomalySpawnPoint>(
+                         FindObjectsInactive.Include, FindObjectsSortMode.None))
+                if (point != null && point.gameObject.scene == gameObject.scene)
+                    AddSpawnPoint(points, seen, point);
+            return points;
+        }
+
+        private static void AddSpawnPoint(List<AnomalySpawnPoint> points,
+            HashSet<AnomalySpawnPoint> seen, AnomalySpawnPoint point)
+        {
+            if (point == null || !point.gameObject.scene.IsValid() || !seen.Add(point)) return;
+            points.Add(point);
+        }
+
+        private static void WarnMissingCursePatchPoints(List<AnomalySpawnPoint> points,
+            List<AnomalyBehaviour> prefabs)
+        {
+            foreach (AnomalyBehaviour anomalyPrefab in prefabs)
+            {
+                if (!(anomalyPrefab is CurseAnomaly cursePrefab)) continue;
+                foreach (AnomalySpawnPoint point in points)
+                    if (point != null && point.Surface == AnomalySpawnPoint.SurfaceType.Floor
+                        && point.GetCursePatchPoints().Length < cursePrefab.MinimumPatchPointCount)
+                        point.WarnPatchPointShortage(cursePrefab);
+            }
         }
 
         private void OnDestroy()
