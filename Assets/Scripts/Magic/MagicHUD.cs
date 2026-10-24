@@ -6,7 +6,7 @@ namespace WardShift
 {
     /// <summary>시전 상태를 읽어 선택 마법, 안내 문구와 진행도를 표시.</summary>
     [DisallowMultipleComponent]
-    [DefaultExecutionOrder(10003)]
+    [DefaultExecutionOrder(10011)]
     public sealed class MagicHUD : MonoBehaviour
     {
         [Header("플레이어와 UI 연결")]
@@ -15,6 +15,10 @@ namespace WardShift
         [SerializeField] private TMP_Text statusText;
         [SerializeField] private TMP_Text progressText;
         [SerializeField] private Image progressFill;
+        [SerializeField] private GameObject castPanel;
+        [SerializeField] private TMP_Text aimText;
+        [SerializeField] private TMP_Text castHint;
+        [SerializeField] private GameObject timingTrack;
         [Header("구간 표시 (ProgressBackground 아래의 별도 Image)")]
         [SerializeField] private Image stableZone;
         [SerializeField] private Image overchargeZone;
@@ -37,45 +41,73 @@ namespace WardShift
         private void LateUpdate()
         {
             if (caster == null) return;
-            if (selectionText != null)
-                selectionText.text = $"[1] 봉인   [2] 정화   [3] 안정화\n선택: {MagicName(caster.SelectedMagic)}   |   [Q 유지] 마력 감지";
+            if (selectionText != null) selectionText.text = MagicName(caster.SelectedMagic);
 
-            bool showingResult = caster.ShowingResult;
-            MagicTarget target = caster.CastingTarget != null ? caster.CastingTarget : caster.AimedTarget;
-            float start = showingResult ? caster.ResultStableStart : target != null ? target.StableStart : 0.6f;
-            float end = showingResult ? caster.ResultStableEnd : target != null ? target.StableEnd : 0.85f;
-            bool timing = showingResult ? caster.ResultUsesTiming : target == null || target.UseTimingCast;
+            bool blocked = !caster.isActiveAndEnabled || caster.InputBlocked;
+            MagicTarget target = caster.CastingTarget;
+            bool casting = !blocked && target != null && target.IsCasting && target.IsAvailable;
+            bool showingResult = !blocked && !casting && caster.ShowingResult;
+            // 결과는 짧은 텍스트로만 표시. 조준/결과 상태에서는 게이지를 남기지 않습니다.
+            if (castPanel != null) castPanel.SetActive(casting);
+            if (aimText != null)
+            {
+                MagicTarget aimed = caster.AimedTarget;
+                aimText.color = showingResult && caster.LastResult != MagicCastResult.Success
+                    ? failureColor : Color.white;
+                aimText.text = blocked || casting ? ""
+                    : showingResult ? $"{caster.CompletedTargetName} · {ResultName(caster.LastResult)}"
+                    : aimed == null ? ""
+                    : $"{aimed.DisplayName} · {MagicName(aimed.RequiredMagic)}";
+            }
+            if (!casting) return;
+            float start = target.StableStart;
+            float end = target.StableEnd;
+            bool timing = target.UseTimingCast;
+            if (timingTrack != null) timingTrack.SetActive(timing);
             SetZone(stableZone, start, end, successColor, timing);
             SetZone(overchargeZone, end, 1f, failureColor, timing);
-            float progress = showingResult ? caster.ResultProgress : caster.Progress;
+            float progress = caster.Progress;
             if (progressFill != null)
             {
                 progressFill.fillAmount = progress;
-                progressFill.color = showingResult
-                    ? (caster.LastResult == MagicCastResult.Success ? successColor : failureColor)
-                    : timing && progress > end ? failureColor
+                progressFill.color = timing && progress > end ? failureColor
                     : timing && progress >= start ? successColor : chargingColor;
             }
             if (progressText != null) progressText.text = $"{Mathf.FloorToInt(progress * 100f)}%";
 
-            if (statusText == null) return;
-            if (!caster.isActiveAndEnabled || caster.InputBlocked) statusText.text = "시전 중지";
-            else if (showingResult) statusText.text = $"{caster.CompletedTargetName} — {ResultName(caster.LastResult)}";
-            else if (caster.WaitingForRelease) statusText.text = "마우스를 놓은 뒤 다시 시전하세요";
-            else if (target == null) statusText.text = "시전 거리 안의 마법 대상을 조준하세요";
-            else if (target.RequiredMagic != caster.SelectedMagic)
-                statusText.text = $"{target.DisplayName} · {MagicName(target.RequiredMagic)} 마법이 필요합니다";
-            else if (caster.CastingTarget != null) statusText.text = timing
-                ? $"{target.DisplayName} · 녹색 구간에서 마우스를 놓으세요"
-                : $"{target.DisplayName} · 완료까지 유지하세요";
-            else statusText.text = $"{target.DisplayName} · 좌클릭으로 충전을 시작하세요";
+            if (statusText != null) statusText.text = $"{MagicName(caster.SelectedMagic)} · {target.DisplayName}";
+            if (castHint != null) castHint.text = timing ? "녹색 구간에서 좌클릭 해제"
+                : caster.SelectedMagic == MagicType.Stabilize ? "좌클릭 유지 · 중단해도 누적 진행도 보존"
+                : "좌클릭 유지 · 패치를 옮겨 연속 정화";
+        }
+
+        public void ConfigureView(GameObject panel, TMP_Text title, TMP_Text percent, Image fill,
+            Image stable, Image overcharge, TMP_Text aimed, TMP_Text hint, GameObject track)
+        {
+            selectionText = null;
+            castPanel = panel;
+            statusText = title;
+            progressText = percent;
+            progressFill = fill;
+            stableZone = stable;
+            overchargeZone = overcharge;
+            aimText = aimed;
+            castHint = hint;
+            timingTrack = track;
+            panel.SetActive(false);
+        }
+
+        private void OnDisable()
+        {
+            if (castPanel != null) castPanel.SetActive(false);
+            if (aimText != null) aimText.text = "";
         }
 
         private static string ResultName(MagicCastResult result)
         {
             switch (result)
             {
-                case MagicCastResult.Success: return "봉인 성공!";
+                case MagicCastResult.Success: return "시전 성공";
                 case MagicCastResult.Undercharged: return "충전 부족 · 다시 시도하세요";
                 case MagicCastResult.Overcharged: return "과충전 · 다시 시도하세요";
                 default: return "시전 취소";

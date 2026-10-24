@@ -65,12 +65,13 @@ namespace WardShift
         private void Update()
         {
             if (dayFlow == null || inventory == null) return;
-            dayStatusText.text = $"근무 {dayFlow.CurrentDay}일차\n남은 시간  {FormatTime(dayFlow.RemainingSeconds)}\n"
-                + $"마력 결정  {inventory.ManaCrystals}개\n[B] 인벤토리  [M] 지도"
-                + (dayFlow.DaySupplyPending ? "  [T] 보급" : "");
+            dayStatusText.text = $"<color=#E8C26E>DAY {dayFlow.CurrentDay}</color>   남은 {FormatTime(dayFlow.RemainingSeconds)}\n"
+                + $"마력 결정  {inventory.ManaCrystals}개"
+                + (dayFlow.DaySupplyPending ? "\n<size=20>T  보급 선택 가능</size>" : "");
             ItemPickup pickup = dayFlow.PickupInteractor != null
                 ? dayFlow.PickupInteractor.CurrentPickup : null;
             pickupPromptText.text = pickup != null && !dayFlow.InventoryOpen && !dayFlow.SupplyPanelOpen
+                && !dayFlow.IsMapOpen && dayFlow.State == DayState.Playing
                 ? $"[E] {GetItemName(pickup.Item)} 획득" : "";
             inventoryPanel.SetActive(dayFlow.State == DayState.Playing && dayFlow.InventoryOpen);
             clearPanel.SetActive(dayFlow.State == DayState.DayClear);
@@ -83,9 +84,11 @@ namespace WardShift
                 upgradeResult = string.Empty;
             }
             if (clearSummaryText != null)
-                clearSummaryText.text = $"{dayFlow.CurrentDay}일차 근무 완료\n"
-                    + $"이번 근무 획득 마력 결정: {inventory.CrystalsEarnedToday}개\n"
-                    + $"보유 마력 결정: {inventory.ManaCrystals}개";
+                clearSummaryText.text = $"DAY {dayFlow.CurrentDay} 근무 완료\n"
+                    + $"이번 근무 획득 결정 +{inventory.CrystalsEarnedToday}개  ·  현재 보유 {inventory.ManaCrystals}개\n"
+                    + (dayFlow.UpgradePurchasedThisClear
+                        ? "이번 근무 강화 구매 완료 · 추가 구매 불가"
+                        : "강화는 이번 근무에 한 종류만 구매할 수 있습니다.");
             if (clearConditionText != null)
             {
                 clearConditionText.text = dayFlow.CurrentDay < dayFlow.FinalDay
@@ -108,22 +111,16 @@ namespace WardShift
         private void BuildUI()
         {
             EnsureInputSystemEventSystem();
-            GameObject canvasObject = new GameObject("WardShift_Day5_Canvas",
-                typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
-            canvasObject.transform.SetParent(transform, false);
-            Canvas canvas = canvasObject.GetComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            CanvasScaler scaler = canvasObject.GetComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1920f, 1080f);
-            scaler.matchWidthOrHeight = 0.5f;
-
-            dayStatusText = CreateText("DayStatus", canvasObject.transform, new Vector2(1f, 1f),
-                new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-28f, -24f),
-                new Vector2(430f, 165f), 25, TextAlignmentOptions.TopRight, Color.white);
-            pickupPromptText = CreateText("PickupPrompt", canvasObject.transform, new Vector2(0.5f, 0.12f),
-                new Vector2(0.5f, 0.12f), new Vector2(0.5f, 0.5f), Vector2.zero,
-                new Vector2(500f, 55f), 28, TextAlignmentOptions.Center, Color.white);
+            WardShiftHUDLayout layout = WardShiftHUDLayout.Ensure(koreanFont);
+            if (layout == null)
+            {
+                Debug.LogError("WARD SHIFT: 기존 MagicHUD Canvas를 찾을 수 없습니다.", this);
+                enabled = false;
+                return;
+            }
+            dayStatusText = layout.DayStatusText;
+            pickupPromptText = layout.PickupText;
+            GameObject canvasObject = CreateRectTransformObject("DayOverlays", layout.transform);
 
             BuildInventory(canvasObject.transform);
             BuildClearPanel(canvasObject.transform);
@@ -197,14 +194,14 @@ namespace WardShift
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero,
                 new Vector2(1160f, 720f), new Color(0.035f, 0.055f, 0.09f, 0.98f));
             CreateText("Title", clearPanel.transform, new Vector2(0f, 1f), new Vector2(1f, 1f),
-                new Vector2(0.5f, 1f), new Vector2(0f, -46f), new Vector2(-50f, 76f),
-                46, TextAlignmentOptions.Center, new Color(0.65f, 0.92f, 1f)).text = "근무 완료 · 강화 선택";
+                new Vector2(0.5f, 1f), new Vector2(0f, -30f), new Vector2(-50f, 66f),
+                44, TextAlignmentOptions.Center, new Color(0.65f, 0.92f, 1f)).text = "근무 완료 · 강화 선택";
             clearSummaryText = CreateText("Summary", clearPanel.transform, new Vector2(0f, 1f),
-                new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -120f),
-                new Vector2(-60f, 82f), 20, TextAlignmentOptions.Center, Color.white);
+                new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -102f),
+                new Vector2(-60f, 78f), 19, TextAlignmentOptions.Center, Color.white);
             clearConditionText = CreateText("NextFloodCondition", clearPanel.transform,
                 new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f),
-                new Vector2(0f, -204f), new Vector2(-70f, 104f), 17,
+                new Vector2(0f, -188f), new Vector2(-70f, 100f), 16,
                 TextAlignmentOptions.Center, new Color(0.75f, 0.9f, 1f));
 
             DayUpgradeType[] types =
@@ -214,31 +211,32 @@ namespace WardShift
                 DayUpgradeType.FieldPurification
             };
             string[] titles = { "기동 조율", "오염 내성", "현장 정화" };
-            Vector2[] positions = { new Vector2(-365f, -12f), new Vector2(0f, -12f), new Vector2(365f, -12f) };
+            Vector2[] positions = { new Vector2(-365f, -96f), new Vector2(0f, -96f), new Vector2(365f, -96f) };
             for (int i = 0; i < types.Length; i++)
             {
                 int cardIndex = i;
                 GameObject card = CreatePanel($"Upgrade_{types[i]}", clearPanel.transform,
                     new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                    positions[i], new Vector2(330f, 310f), new Color(0.09f, 0.13f, 0.2f, 1f));
+                    positions[i], new Vector2(330f, 322f), new Color(0.09f, 0.13f, 0.2f, 1f));
                 CreateText("Name", card.transform, new Vector2(0f, 1f), new Vector2(1f, 1f),
-                    new Vector2(0.5f, 1f), new Vector2(0f, -25f), new Vector2(-30f, 52f),
+                    new Vector2(0.5f, 1f), new Vector2(0f, -16f), new Vector2(-30f, 44f),
                     30, TextAlignmentOptions.Center, Color.white).text = titles[i];
-                TMP_Text description = CreateText("Effect", card.transform, new Vector2(0.5f, 0.5f),
-                    new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -28f),
-                    new Vector2(296f, 145f), 22, TextAlignmentOptions.Center, new Color(0.82f, 0.89f, 1f));
-                Button button = CreateActionButton("Purchase", card.transform, new Vector2(0f, -108f),
-                    new Vector2(270f, 62f), "구매", () => OnUpgradeClicked(types[cardIndex]));
+                TMP_Text description = CreateText("Effect", card.transform, new Vector2(0f, 1f),
+                    new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -64f),
+                    new Vector2(-34f, 154f), 18.5f, TextAlignmentOptions.Top, new Color(0.82f, 0.89f, 1f));
+                Button button = CreateActionButton("Purchase", card.transform, new Vector2(0f, -110f),
+                    new Vector2(270f, 58f), "구매", () => OnUpgradeClicked(types[cardIndex]));
                 TMP_Text buttonLabel = button.GetComponentInChildren<TMP_Text>();
+                buttonLabel.fontSize = 19;
                 upgradeCards[i] = new UpgradeCardView(types[i], description, button,
                     buttonLabel, button.GetComponent<Image>());
             }
             upgradeResultText = CreateText("UpgradeResult", clearPanel.transform,
                 new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f),
-                new Vector2(0f, 128f), new Vector2(-50f, 38f), 20,
+                new Vector2(0f, 86f), new Vector2(-50f, 26f), 18,
                 TextAlignmentOptions.Center, new Color(0.76f, 0.92f, 1f));
-            CreateActionButton("NextDay", clearPanel.transform, new Vector2(0f, -320f),
-                new Vector2(300f, 62f), "다음 날 시작",
+            CreateActionButton("NextDay", clearPanel.transform, new Vector2(0f, -321f),
+                new Vector2(300f, 58f), "다음 날 시작",
                 () => { if (dayFlow != null) dayFlow.BeginNextDay(); });
             clearPanel.SetActive(false);
         }
@@ -246,9 +244,9 @@ namespace WardShift
         private void BuildSupplyPanel(Transform parent)
         {
             supplyReopenButton = CreateActionButton("OpenDaySupply", parent,
-                new Vector2(0f, 46f), new Vector2(250f, 56f), "[T] 보급 선택",
+                new Vector2(182f, 64f), new Vector2(250f, 56f), "[T] 보급 선택",
                 () => { if (dayFlow != null) dayFlow.OpenDaySupplyChoice(); }, true,
-                new Vector2(0.5f, 0f), new Vector2(0.5f, 0f));
+                new Vector2(0f, 0f), new Vector2(0f, 0f));
 
             supplyPanel = CreatePanel("DaySupplyPanel", parent, new Vector2(0.5f, 0.5f),
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero,
@@ -381,13 +379,17 @@ namespace WardShift
                 if (card == null) continue;
                 int level = dayFlow.GetUpgradeLevel(card.Type);
                 int price = dayFlow.GetNextUpgradePrice(card.Type);
-                card.Description.text = $"단계 {level}/2\n현재 효과: {dayFlow.GetUpgradeEffectText(card.Type, level)}"
-                    + (level < 2 ? $"\n다음 효과: {dayFlow.GetUpgradeEffectText(card.Type, level + 1)}" : "");
+                string nextEffect = level < 2
+                    ? dayFlow.GetUpgradeEffectText(card.Type, level + 1) : "최대 단계";
+                card.Description.text = $"단계 {level} / 2\n"
+                    + $"현재 효과: {dayFlow.GetUpgradeEffectText(card.Type, level)}\n"
+                    + $"구매 후: {nextEffect}\n"
+                    + $"필요 결정: {(price > 0 ? price + "개" : "구매 불가")}";
                 bool canPurchase = dayFlow.CanPurchaseUpgrade(card.Type);
                 card.Button.interactable = canPurchase;
                 card.ButtonLabel.text = level >= 2 ? "최대 단계"
                     : dayFlow.UpgradePurchasedThisClear ? "오늘 구매 완료"
-                    : inventory.ManaCrystals < price ? $"결정 부족 · {price}개 필요"
+                    : inventory.ManaCrystals < price ? $"결정 부족\n{price}개 필요"
                     : $"구매 · {price} 결정";
                 card.ButtonImage.color = canPurchase ? new Color(0.12f, 0.42f, 0.6f, 1f)
                     : new Color(0.22f, 0.25f, 0.3f, 1f);
@@ -402,7 +404,7 @@ namespace WardShift
             bool open = pending && dayFlow.SupplyPanelOpen;
             supplyPanel.SetActive(open);
             if (supplyReopenButton != null)
-                supplyReopenButton.gameObject.SetActive(pending && !open);
+                supplyReopenButton.gameObject.SetActive(pending && !open && !dayFlow.InventoryOpen && !dayFlow.IsMapOpen);
             bool exchanging = dayFlow.SupplyItemAwaitingExchange != ItemType.None;
             supplyOptionsRoot.SetActive(open && !exchanging);
             supplyExchangeRoot.SetActive(open && exchanging);

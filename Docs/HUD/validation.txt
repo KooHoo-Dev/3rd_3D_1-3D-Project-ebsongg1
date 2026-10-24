@@ -1,0 +1,275 @@
+PASS Aim-only gauge hidden 0
+PASS Casting gauge shown 0
+PASS Real target progress 0
+PASS Timing zones only for timing cast 0
+PASS Seal timing interval uses target configuration
+PASS Cancel/block hides gauge 0
+PASS Aim-only gauge hidden 1
+PASS Casting gauge shown 1
+PASS Real target progress 1
+PASS Timing zones only for timing cast 1
+PASS Patch switch updates without gauge gap
+PASS Cancel/block hides gauge 1
+PASS Aim-only gauge hidden 2
+PASS Casting gauge shown 2
+PASS Real target progress 2
+PASS Timing zones only for timing cast 2
+PASS Cancel/block hides gauge 2
+PASS Device accumulated progress survives cancellation
+PASS Resumed device gauge reads saved progress
+PASS Stability updates from WardStatus
+PASS Contamination updates from player
+PASS Crystals from actual inventory
+PASS Inventory slot data 0
+PASS Inventory slot data 1
+PASS Inventory slot data 2
+PASS Inventory slot data 3
+PASS Map keeps pause/input behavior and hides HUD
+PASS Map restores cursor/time
+PASS Inventory keeps input blocking
+PASS CLEAR has no stale gameplay HUD
+PASS DAY 2 hides the entire inactive flood panel
+PASS CLEAR has no stale gameplay HUD
+PASS DAY 3 hides the entire inactive flood panel
+PASS CLEAR has no stale gameplay HUD
+PASS Actual condition displayed DAY 4
+PASS DAY 4 hides the panel when no condition is active
+PASS Spawn presentation fixture 마력 균열
+PASS One independent alert card per visible anomaly after 1 spawns
+PASS Spawn presentation fixture 마력 균열
+PASS One independent alert card per visible anomaly after 2 spawns
+PASS Two anomalies in one zone retain separate cards
+PASS Spawn presentation fixture 저주 오염
+PASS One independent alert card per visible anomaly after 3 spawns
+PASS Spawn presentation fixture 장치형 마력 폭주
+PASS One independent alert card per visible anomaly after 4 spawns
+PASS Two separate rift instances are represented
+PASS Both presentation fixtures share one zone identity
+PASS Actual device anomaly spawned
+PASS Device warning survives stopping cast
+PASS Device world warning ring remains visible
+PASS Multiple active anomalies for bounded HUD
+PASS Anomaly alerts use one reusable vertical card layout
+PASS At most three full anomaly cards are visible
+PASS Overflow count points to the existing M map
+PASS New stage-three anomaly outranks an older stage-two anomaly
+PASS Equal stage and rupture time put the newer anomaly first
+PASS Shorter rupture time reorders cards without changing their display size
+PASS Stage growth refreshes the card stage and rupture countdown
+PASS Ruptured anomaly card is removed
+PASS AnomalyAlerts inside 1920x1080
+PASS AnomalyAlerts inside 1920x1080
+PASS AnomalyAlerts inside 1920x1080
+PASS AnomalyAlerts inside 1920x1080
+PASS CoreStatus inside 1920x1080
+PASS CoreStatus inside 1920x1080
+PASS CoreStatus inside 1920x1080
+PASS CoreStatus inside 1920x1080
+PASS DayResources inside 1920x1080
+PASS DayResources inside 1920x1080
+PASS DayResources inside 1920x1080
+PASS DayResources inside 1920x1080
+PASS FloodCondition inside 1920x1080
+PASS FloodCondition inside 1920x1080
+PASS FloodCondition inside 1920x1080
+PASS FloodCondition inside 1920x1080
+PASS MagicAndInventory inside 1920x1080
+PASS MagicAndInventory inside 1920x1080
+PASS MagicAndInventory inside 1920x1080
+PASS MagicAndInventory inside 1920x1080
+PASS Controls inside 1920x1080
+PASS Controls inside 1920x1080
+PASS Controls inside 1920x1080
+PASS Controls inside 1920x1080
+PASS Top panels separated at 1920x1080
+PASS Top panels separated at 1920x1080
+PASS Korean font reused: Heading
+PASS HUD text fits: Heading
+PASS Korean font reused: PriorityAndSummary
+PASS HUD text fits: PriorityAndSummary
+PASS Korean font reused: DangerWarning
+PASS HUD text fits: DangerWarning
+PASS Korean font reused: Details
+PASS HUD text fits: Details
+PASS Korean font reused: Details
+PASS HUD text fits: Details
+PASS Korean font reused: Details
+PASS HUD text fits: Details
+PASS Korean font reused: Details
+PASS HUD text fits: Details
+PASS Korean font reused: Details
+PASS HUD text fits: Details
+PASS Korean font reused: OverflowCount
+PASS HUD text fits: OverflowCount
+PASS Korean font reused: StabilityValue
+PASS HUD text fits: StabilityValue
+PASS Korean font reused: ContaminationValue
+PASS HUD text fits: ContaminationValue
+PASS Korean font reused: LocationAndExposure
+PASS HUD text fits: LocationAndExposure
+PASS Korean font reused: CastTitle
+PASS HUD text fits: CastTitle
+PASS Korean font reused: CastPercent
+PASS HUD text fits: CastPercent
+PASS Korean font reused: CastHint
+PASS HUD text fits: CastHint
+PASS Korean font reused: AimOrResult
+PASS HUD text fits: AimOrResult
+PASS Korean font reused: DayStatus
+PASS HUD text fits: DayStatus
+PASS Korean font reused: ActiveCondition
+PASS HUD text fits: ActiveCondition
+PASS Korean font reused: MagicHeading
+PASS HUD text fits: MagicHeading
+PASS Korean font reused: ItemHeading
+PASS HUD text fits: ItemHeading
+PASS Korean font reused: Name
+PASS HUD text fits: Name
+PASS Korean font reused: Name
+PASS HUD text fits: Name
+PASS Korean font reused: Name
+PASS HUD text fits: Name
+PASS Korean font reused: Contents
+PASS HUD text fits: Contents
+PASS Korean font reused: Contents
+PASS HUD text fits: Contents
+PASS Korean font reused: Contents
+PASS HUD text fits: Contents
+PASS Korean font reused: Contents
+PASS HUD text fits: Contents
+PASS Korean font reused: Keys
+PASS HUD text fits: Keys
+PASS Korean font reused: PickupPrompt
+PASS HUD text fits: PickupPrompt
+CAPTURE hud-anomaly-cards-1920x1080.png (1920x1080)
+PASS Inventory modal hides gameplay HUD
+CAPTURE hud-inventory.png (1920x1080)
+CAPTURE hud-map.png (1920x1080)
+PASS DAY transition refreshes actual condition
+PASS Day transition clears anomaly alert cards
+PASS FAILED hides gameplay/cast UI
+CAPTURE hud-failed.png (1920x1080)
+PASS Retry restores active condition
+PASS Retry has current condition and no stale cast
+PASS Late DAY condition refresh 6
+PASS Late DAY condition refresh 7
+PASS Ending panel without stale HUD
+CAPTURE hud-ending.png (1920x1080)
+PASS AnomalyAlerts inside 1920x1200
+PASS AnomalyAlerts inside 1920x1200
+PASS AnomalyAlerts inside 1920x1200
+PASS AnomalyAlerts inside 1920x1200
+PASS CoreStatus inside 1920x1200
+PASS CoreStatus inside 1920x1200
+PASS CoreStatus inside 1920x1200
+PASS CoreStatus inside 1920x1200
+PASS DayResources inside 1920x1200
+PASS DayResources inside 1920x1200
+PASS DayResources inside 1920x1200
+PASS DayResources inside 1920x1200
+PASS FloodCondition inside 1920x1200
+PASS FloodCondition inside 1920x1200
+PASS FloodCondition inside 1920x1200
+PASS FloodCondition inside 1920x1200
+PASS MagicAndInventory inside 1920x1200
+PASS MagicAndInventory inside 1920x1200
+PASS MagicAndInventory inside 1920x1200
+PASS MagicAndInventory inside 1920x1200
+PASS Controls inside 1920x1200
+PASS Controls inside 1920x1200
+PASS Controls inside 1920x1200
+PASS Controls inside 1920x1200
+PASS Top panels separated at 1920x1200
+PASS Top panels separated at 1920x1200
+CAPTURE hud-1920x1200-idle.png (1920x1200)
+PASS Clear panel is visible for 1080p layout check
+PASS Clear overlay rendered at 1920x1080
+PASS Title and reward summary do not overlap at 1920x1080
+PASS Reward summary and next-condition note do not overlap at 1920x1080
+PASS Condition note and first card do not overlap at 1920x1080
+PASS Condition note and second card do not overlap at 1920x1080
+PASS Condition note and third card do not overlap at 1920x1080
+PASS First and second upgrade cards do not overlap at 1920x1080
+PASS Second and third upgrade cards do not overlap at 1920x1080
+PASS First card and next-day button do not overlap at 1920x1080
+PASS Second card and next-day button do not overlap at 1920x1080
+PASS Third card and next-day button do not overlap at 1920x1080
+PASS Purchase result and next-day button do not overlap at 1920x1080
+PASS Upgrade cards share the same width and height
+PASS Upgrade_Mobility title and effect text do not overlap at 1920x1080
+PASS Upgrade_Mobility effect text and purchase button do not overlap at 1920x1080
+PASS Upgrade_Mobility purchase button remains inside card
+PASS Upgrade_ContaminationResistance title and effect text do not overlap at 1920x1080
+PASS Upgrade_ContaminationResistance effect text and purchase button do not overlap at 1920x1080
+PASS Upgrade_ContaminationResistance purchase button remains inside card
+PASS Upgrade_FieldPurification title and effect text do not overlap at 1920x1080
+PASS Upgrade_FieldPurification effect text and purchase button do not overlap at 1920x1080
+PASS Upgrade_FieldPurification purchase button remains inside card
+PASS Next-day button remains inside clear panel
+PASS Clear overlay uses its explicit RectTransform layout without layout-driven collisions
+PASS Clear header uses fixed readable TMP sizes
+PASS Clear text is not truncated: Title
+PASS Clear text is not truncated: Summary
+PASS Clear text is not truncated: NextFloodCondition
+PASS Clear text is not truncated: Name
+PASS Clear text is not truncated: Effect
+PASS Clear text is not truncated: Label
+PASS Clear text is not truncated: Name
+PASS Clear text is not truncated: Effect
+PASS Clear text is not truncated: Label
+PASS Clear text is not truncated: Name
+PASS Clear text is not truncated: Effect
+PASS Clear text is not truncated: Label
+PASS Clear text is not truncated: UpgradeResult
+PASS Clear text is not truncated: Label
+CAPTURE day-clear-1920x1080.png (1920x1080)
+PASS Upgrade purchase button is enabled when affordable
+PASS Upgrade button buys the level and spends its actual price
+PASS One-purchase-per-clear limit remains active
+PASS Next-day button advances the actual day
+PASS Clear overlay rendered at 1280x720
+PASS Title and reward summary do not overlap at 1280x720
+PASS Reward summary and next-condition note do not overlap at 1280x720
+PASS Condition note and first card do not overlap at 1280x720
+PASS Condition note and second card do not overlap at 1280x720
+PASS Condition note and third card do not overlap at 1280x720
+PASS First and second upgrade cards do not overlap at 1280x720
+PASS Second and third upgrade cards do not overlap at 1280x720
+PASS First card and next-day button do not overlap at 1280x720
+PASS Second card and next-day button do not overlap at 1280x720
+PASS Third card and next-day button do not overlap at 1280x720
+PASS Purchase result and next-day button do not overlap at 1280x720
+PASS Upgrade cards share the same width and height
+PASS Upgrade_Mobility title and effect text do not overlap at 1280x720
+PASS Upgrade_Mobility effect text and purchase button do not overlap at 1280x720
+PASS Upgrade_Mobility purchase button remains inside card
+PASS Upgrade_ContaminationResistance title and effect text do not overlap at 1280x720
+PASS Upgrade_ContaminationResistance effect text and purchase button do not overlap at 1280x720
+PASS Upgrade_ContaminationResistance purchase button remains inside card
+PASS Upgrade_FieldPurification title and effect text do not overlap at 1280x720
+PASS Upgrade_FieldPurification effect text and purchase button do not overlap at 1280x720
+PASS Upgrade_FieldPurification purchase button remains inside card
+PASS Next-day button remains inside clear panel
+PASS Clear overlay uses its explicit RectTransform layout without layout-driven collisions
+PASS Clear header uses fixed readable TMP sizes
+PASS Clear text is not truncated: Title
+PASS Clear text is not truncated: Summary
+PASS Clear text is not truncated: NextFloodCondition
+PASS Clear text is not truncated: Name
+PASS Clear text is not truncated: Effect
+PASS Clear text is not truncated: Label
+PASS Clear text is not truncated: Name
+PASS Clear text is not truncated: Effect
+PASS Clear text is not truncated: Label
+PASS Clear text is not truncated: Name
+PASS Clear text is not truncated: Effect
+PASS Clear text is not truncated: Label
+PASS Clear text is not truncated: UpgradeResult
+PASS Clear text is not truncated: Label
+CAPTURE day-clear-1280x720.png (1280x720)
+PASS Next-day button is enabled at 720p
+PASS Next-day button advances the actual day at 720p
+PASS Real mouse input and raycast drive visible seal gauge (blocked=False, waiting=False, aimed=봉인점, pressed=True)
+CAPTURE hud-seal-casting.png (1920x1080)
+PASS All HUD presentation checks passed.
+Assertions: 264

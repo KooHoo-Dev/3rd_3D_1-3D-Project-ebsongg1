@@ -46,6 +46,16 @@ namespace WardShift
         public float Age => age;
         public override string DisplayName => "마력 균열";
         public override int DangerStage => dangerStage;
+        public override float SecondsUntilRupture
+        {
+            get
+            {
+                float second = Mathf.Max(0.1f, stageTwoAt);
+                float third = Mathf.Max(second + 0.1f, stageThreeAt);
+                float rupture = Mathf.Max(third + 0.1f, ruptureAt);
+                return Mathf.Max(0f, rupture - age);
+            }
+        }
         public override bool HasOverloaded => hasRuptured;
         public override int ResolutionReward => dangerStage;
         public override AnomalySpawnPoint.SurfaceType SpawnSurface => AnomalySpawnPoint.SurfaceType.Wall;
@@ -108,6 +118,11 @@ namespace WardShift
         public bool IsResolved => isResolved;
         public int CompletedSealCount => (sealPoint01 != null && sealPoint01.IsCompleted ? 1 : 0)
             + (sealPoint02 != null && sealPoint02.IsCompleted ? 1 : 0);
+        public bool IsSealCastInProgress => (sealPoint01 != null && sealPoint01.IsCasting)
+            || (sealPoint02 != null && sealPoint02.IsCasting);
+        public float SealCastProgress => Mathf.Max(
+            sealPoint01 != null && sealPoint01.IsCasting ? sealPoint01.Progress : 0f,
+            sealPoint02 != null && sealPoint02.IsCasting ? sealPoint02.Progress : 0f);
 
         /// <summary>균열 전체 진압 시 한 번 발생. 이후 보상/시설 시스템에서 구독 가능.</summary>
         public event Action<ManaRift> Resolved;

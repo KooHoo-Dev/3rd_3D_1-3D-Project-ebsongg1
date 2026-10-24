@@ -52,6 +52,16 @@ namespace WardShift
         public float Age => age;
         /// <summary>성장 단계와 같은 수의 마력 결정을 진압 보상으로 지급합니다.</summary>
         public override int DangerStage => dangerStage;
+        public override float SecondsUntilRupture
+        {
+            get
+            {
+                float second = Mathf.Max(0.1f, stageTwoAt);
+                float third = Mathf.Max(second + 0.1f, stageThreeAt);
+                float rupture = Mathf.Max(third + 0.1f, ruptureAt);
+                return Mathf.Max(0f, rupture - age);
+            }
+        }
         /// <summary>파열 후 공통 시설 피해 처리가 이미 끝났는지 반환합니다.</summary>
         public override bool HasOverloaded => hasRuptured;
         /// <summary>정상 진압 시 지급할 마력 결정 수입니다.</summary>

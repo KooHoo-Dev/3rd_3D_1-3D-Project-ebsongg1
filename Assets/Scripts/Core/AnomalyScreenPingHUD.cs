@@ -17,6 +17,7 @@ namespace WardShift
         private readonly Dictionary<FacilityZoneId, PingView> pingViews =
             new Dictionary<FacilityZoneId, PingView>();
         private readonly List<FacilityZoneId> staleViewIds = new List<FacilityZoneId>();
+        private readonly List<Rect> placedLabels = new List<Rect>();
         private readonly ActiveAnomalyZoneSnapshot snapshot = new ActiveAnomalyZoneSnapshot();
 
         private Camera playerCamera;
@@ -71,7 +72,7 @@ namespace WardShift
                 observedState = dayFlow.State;
             }
 
-            if (dayFlow.State != DayState.Playing || dayFlow.IsMapOpen || dayFlow.InventoryOpen)
+            if (dayFlow.State != DayState.Playing || dayFlow.IsMapOpen || dayFlow.InventoryOpen || dayFlow.SupplyPanelOpen)
             {
                 HideAllPings();
                 return;
@@ -87,6 +88,7 @@ namespace WardShift
 
             EnsurePingViews();
             snapshot.Refresh(zones);
+            placedLabels.Clear();
             foreach (ActiveAnomalyZoneSnapshot.ZoneActivity activity in snapshot.Activities)
             {
                 if (!pingViews.TryGetValue(activity.Zone.Id, out PingView view)) continue;
@@ -205,22 +207,20 @@ namespace WardShift
             RectTransform infoRect = infoObject.GetComponent<RectTransform>();
             infoRect.anchorMin = infoRect.anchorMax = new Vector2(0.5f, 0.5f);
             infoRect.pivot = new Vector2(0.5f, 0.5f);
-            infoRect.sizeDelta = new Vector2(400f, 68f);
+            infoRect.sizeDelta = new Vector2(300f, 68f);
             Image background = infoObject.GetComponent<Image>();
             background.color = new Color(0.018f, 0.035f, 0.052f, 0.93f);
             background.raycastTarget = false;
 
             TMP_Text zoneNameText = CreateText("Zone_Name", infoObject.transform,
                 new Vector2(0f, 0.5f), new Vector2(1f, 1f),
-                new Vector2(12f, 0f), new Vector2(-12f, -4f), 18f,
+                new Vector2(12f, 0f), new Vector2(-12f, -4f), 22f,
                 TextAlignmentOptions.Center, Color.white);
             TMP_Text detailText = CreateText("Zone_Details", infoObject.transform,
                 new Vector2(0f, 0f), new Vector2(1f, 0.5f),
-                new Vector2(10f, 4f), new Vector2(-10f, 0f), 14f,
+                new Vector2(10f, 4f), new Vector2(-10f, 0f), 18f,
                 TextAlignmentOptions.Center, Color.white);
-            detailText.enableAutoSizing = true;
-            detailText.fontSizeMin = 11f;
-            detailText.fontSizeMax = 14f;
+            detailText.enableAutoSizing = false;
             detailText.textWrappingMode = TextWrappingModes.NoWrap;
 
             root.SetActive(false);
@@ -259,7 +259,7 @@ namespace WardShift
             float distance = Vector3.Distance(playerCamera.transform.position, worldPosition);
             string distanceText = distance >= 10f ? $"{distance:F0} m" : $"{distance:F1} m";
             view.ZoneNameText.text = view.Zone.DisplayName;
-            view.DetailsText.text = $"활성 {activity.ActiveCount}개  위험 {activity.HighestDangerStage}단계  직선거리 {distanceText}";
+            view.DetailsText.text = $"{activity.ActiveCount}개 · 위험 {activity.HighestDangerStage}단계 · {distanceText}";
             Color danger = DangerColor(activity.HighestDangerStage);
             view.MarkerImage.color = danger;
             view.ZoneNameText.color = danger;
@@ -318,8 +318,29 @@ namespace WardShift
             float halfHeight = view.InfoRect.sizeDelta.y * 0.5f;
             infoLocal.x = Mathf.Clamp(infoLocal.x, -canvasRect.rect.width * 0.5f + halfWidth + 10f,
                 canvasRect.rect.width * 0.5f - halfWidth - 10f);
-            infoLocal.y = Mathf.Clamp(infoLocal.y, -canvasRect.rect.height * 0.5f + halfHeight + 10f,
-                canvasRect.rect.height * 0.5f - halfHeight - 10f);
+            // HUD 모서리/하단 슬롯/시전 영역을 피해 라벨만 이동. 월드 방향 표식은 유지합니다.
+            float bottom = -canvasRect.rect.height * 0.5f + 290f;
+            float top = canvasRect.rect.height * 0.5f - 472f;
+            infoLocal.y = Mathf.Clamp(infoLocal.y, bottom, top);
+            if (Mathf.Abs(infoLocal.x) < 420f && infoLocal.y < 18f && infoLocal.y > -280f)
+                infoLocal.y = Mathf.Min(top, 60f);
+            Vector2 desired = infoLocal;
+            for (int attempt = 0; attempt < 20; attempt++)
+            {
+                Rect bounds = new Rect(infoLocal - new Vector2(halfWidth, halfHeight), view.InfoRect.sizeDelta);
+                bool overlap = false;
+                foreach (Rect placed in placedLabels)
+                    if (placed.Overlaps(bounds)) { overlap = true; break; }
+                if (!overlap) { placedLabels.Add(bounds); break; }
+                int column = (attempt + 1) % 5;
+                int row = (attempt + 1) / 5;
+                infoLocal = new Vector2(desired.x + (column - 2) * (halfWidth * 2 + 12), top - row * 78);
+                infoLocal.x = Mathf.Clamp(infoLocal.x, -canvasRect.rect.width * 0.5f + halfWidth + 16,
+                    canvasRect.rect.width * 0.5f - halfWidth - 16);
+                infoLocal.y = Mathf.Clamp(infoLocal.y, bottom, top);
+                if (Mathf.Abs(infoLocal.x) < 420f && infoLocal.y < 18f && infoLocal.y > -280f)
+                    infoLocal.x = infoLocal.x < 0 ? -440f : 440f;
+            }
             view.InfoRect.anchoredPosition = infoLocal;
         }
 

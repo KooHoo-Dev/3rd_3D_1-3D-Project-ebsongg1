@@ -39,6 +39,16 @@ namespace WardShift
 
         public override string DisplayName => "장치형 마력 폭주";
         public override int DangerStage => dangerStage;
+        public override float SecondsUntilRupture
+        {
+            get
+            {
+                float second = Mathf.Max(0.1f, stageTwoAt);
+                float third = Mathf.Max(second + 0.1f, stageThreeAt);
+                float rupture = Mathf.Max(third + 0.1f, ruptureAt);
+                return Mathf.Max(0f, rupture - age);
+            }
+        }
         public override bool HasOverloaded => hasRuptured;
         public override int ResolutionReward => dangerStage;
         public override AnomalySpawnPoint.SurfaceType SpawnSurface => AnomalySpawnPoint.SurfaceType.Device;
@@ -48,6 +58,8 @@ namespace WardShift
         public float BurstRadius => Mathf.Max(Mathf.Max(0.1f, burstRadius),
             deviceVisuals != null ? deviceVisuals.StabilizeRange + 1.25f : 0.1f);
         public bool IsBurstWarningActive => isBurstWarningActive;
+        /// <summary>HUD에서 읽는 기존 장치 대상의 누적 진행도.</summary>
+        public float StabilizationProgress => stabilizationTarget != null ? stabilizationTarget.Progress : 0f;
         public float SecondsUntilNextStage
         {
             get

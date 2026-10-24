@@ -29,6 +29,8 @@ namespace WardShift
         /// <summary>지도와 상태 HUD에 표시할 이상현상 이름입니다.</summary>
         public virtual string DisplayName => name.Replace("(Clone)", string.Empty).Trim();
         public virtual int DangerStage => 0;
+        /// <summary>UI에서 읽는 현재 단계 기준 파열까지 남은 초입니다.</summary>
+        public virtual float SecondsUntilRupture => float.PositiveInfinity;
         public virtual bool HasOverloaded => false;
         /// <summary>Normal-resolution reward amount. A negative value uses the DAY fallback range.</summary>
         public virtual int ResolutionReward => -1;
