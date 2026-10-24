@@ -12,6 +12,47 @@ namespace WardShift
     [DisallowMultipleComponent]
     public sealed class AnomalySpawner : MonoBehaviour
     {
+        [Serializable]
+        public sealed class DaySpawnProfile
+        {
+            [SerializeField, Min(1)] private int day = 1;
+            [SerializeField] private bool allowManaRift = true;
+            [SerializeField] private bool allowCurseContamination;
+            [SerializeField] private bool allowManaDeviceOverload;
+            [SerializeField] private bool allowOtherAnomalies;
+            [SerializeField, Min(1)] private int maximumConcurrentAnomalies = 1;
+            [SerializeField, Min(0.1f)] private float spawnIntervalSeconds = 8f;
+
+            public int Day => Mathf.Max(1, day);
+            public bool AllowManaRift => allowManaRift;
+            public bool AllowCurseContamination => allowCurseContamination;
+            public bool AllowManaDeviceOverload => allowManaDeviceOverload;
+            public bool AllowOtherAnomalies => allowOtherAnomalies;
+            public int MaximumConcurrentAnomalies => Mathf.Max(1, maximumConcurrentAnomalies);
+            public float SpawnIntervalSeconds => Mathf.Max(0.1f, spawnIntervalSeconds);
+
+            public DaySpawnProfile() { }
+
+            public DaySpawnProfile(int day, bool rift, bool curse, bool device,
+                int maximumConcurrent, float interval)
+            {
+                this.day = day;
+                allowManaRift = rift;
+                allowCurseContamination = curse;
+                allowManaDeviceOverload = device;
+                maximumConcurrentAnomalies = maximumConcurrent;
+                spawnIntervalSeconds = interval;
+            }
+
+            public bool Allows(AnomalyBehaviour anomaly)
+            {
+                if (anomaly is ManaRift) return allowManaRift;
+                if (anomaly is CurseAnomaly) return allowCurseContamination;
+                if (anomaly is ManaDeviceAnomaly) return allowManaDeviceOverload;
+                return allowOtherAnomalies;
+            }
+        }
+
         [Header("프리팹과 생성 지점")]
         [Tooltip("기존 ManaRift 프리팹. 기존 씬 참조를 유지합니다.")]
         [SerializeField] private ManaRift riftPrefab;
@@ -28,16 +69,24 @@ namespace WardShift
         [SerializeField, Min(1)] private int maximumConcurrentAnomalies = 2;
         [SerializeField, Min(0f)] private float firstSpawnDelaySeconds = 1f;
 
+        [Header("DAY별 생성 규칙")]
+        [SerializeField] private DaySpawnProfile[] daySpawnProfiles = CreateDefaultDayProfiles();
+
         private readonly List<AnomalyBehaviour> activeAnomalies = new List<AnomalyBehaviour>();
         private float spawnCountdown;
         private bool spawningEnabled;
+        private bool spawnWindowOpen = true;
         private WardStatus wardStatus;
+        private DayFlowManager dayFlow;
+        private DaySpawnProfile activeDayProfile;
+        private System.Random dayRandom;
 
         /// <summary>- ManaRift 전용 기존 리스너 호환 이벤트</summary>
         public event Action<ManaRift> RiftSpawned;
         public event Action<AnomalyBehaviour> AnomalySpawned;
 
         public bool SpawningEnabled => spawningEnabled;
+        public bool SpawnWindowOpen => spawnWindowOpen;
         public int ActiveAnomalyCount
         {
             get
@@ -79,13 +128,17 @@ namespace WardShift
                 return compatiblePoints.Count >= 2;
             }
         }
-        public int MaximumConcurrentAnomalies => Mathf.Max(1, maximumConcurrentAnomalies);
-        public float SpawnIntervalSeconds => Mathf.Max(0.1f, spawnIntervalSeconds);
+        public int MaximumConcurrentAnomalies => activeDayProfile != null
+            ? activeDayProfile.MaximumConcurrentAnomalies : Mathf.Max(1, maximumConcurrentAnomalies);
+        public float SpawnIntervalSeconds => activeDayProfile != null
+            ? activeDayProfile.SpawnIntervalSeconds : Mathf.Max(0.1f, spawnIntervalSeconds);
         public float FirstSpawnDelaySeconds => Mathf.Max(0f, firstSpawnDelaySeconds);
+        public DaySpawnProfile ActiveDayProfile => activeDayProfile;
 
         private void Awake()
         {
             wardStatus = FindFirstObjectByType<WardStatus>();
+            dayFlow = FindFirstObjectByType<DayFlowManager>();
         }
 
         private void Start()
@@ -95,7 +148,7 @@ namespace WardShift
 
         private void Update()
         {
-            if (!Application.isPlaying || !isActiveAndEnabled || !spawningEnabled) return;
+            if (!Application.isPlaying || !isActiveAndEnabled || !spawningEnabled || !CanSpawnNow()) return;
             if (wardStatus == null) wardStatus = FindFirstObjectByType<WardStatus>();
             if (wardStatus != null && wardStatus.HasFailed)
             {
@@ -121,6 +174,56 @@ namespace WardShift
             spawnCountdown = enabled ? FirstSpawnDelaySeconds : 0f;
         }
 
+        /// <summary>DAY별 허용 현상, 동시 상한, 생성 간격과 재도전용 결정적 난수를 적용합니다.</summary>
+        public void ConfigureForDay(int day, int deterministicSeed)
+        {
+            activeDayProfile = FindDayProfile(day);
+            dayRandom = new System.Random(deterministicSeed);
+            spawnCountdown = FirstSpawnDelaySeconds;
+            spawnWindowOpen = true;
+        }
+
+        public void SetSpawnWindowOpen(bool open) => spawnWindowOpen = open;
+
+        private bool CanSpawnNow()
+        {
+            if (!spawnWindowOpen) return false;
+            if (dayFlow == null) dayFlow = FindFirstObjectByType<DayFlowManager>();
+            return dayFlow == null || (dayFlow.State == DayState.Playing
+                && dayFlow.RemainingSeconds - Time.deltaTime > dayFlow.SpawnStopBeforeEndSeconds);
+        }
+
+        public DaySpawnProfile GetDayProfile(int day) => FindDayProfile(day);
+
+        public bool IsAnomalyEnabledForDay(AnomalyBehaviour anomaly, int day)
+        {
+            if (anomaly == null) return false;
+            DaySpawnProfile profile = FindDayProfile(day);
+            return profile == null || profile.Allows(anomaly);
+        }
+
+        /// <summary>검증된 생성 지점 기준으로 이 DAY의 동시 슬롯을 채울 수 있는지 확인합니다.</summary>
+        public int CountCompatibleSpawnPointsForDay(int day)
+        {
+            DaySpawnProfile profile = FindDayProfile(day);
+            var compatiblePoints = new HashSet<AnomalySpawnPoint>();
+            foreach (AnomalySpawnPoint point in GetAllSpawnPoints())
+            {
+                if (point == null || !point.isActiveAndEnabled) continue;
+                foreach (AnomalyBehaviour prefab in GetConfiguredPrefabs())
+                {
+                    if (profile != null && !profile.Allows(prefab)) continue;
+                    if (prefab.SpawnSurface != point.Surface) continue;
+                    if (prefab is CurseAnomaly curse
+                        && !curse.CanConfigureFromSpawnPoint(point.GetCursePatchPoints().Length)) continue;
+                    if (prefab is ManaDeviceAnomaly && !point.CanSpawnPrefab(prefab)) continue;
+                    compatiblePoints.Add(point);
+                    break;
+                }
+            }
+            return compatiblePoints.Count;
+        }
+
         /// <summary>기존 호출부 호환용 별칭. 이제 모든 스포너 관리 이상현상을 정리합니다.</summary>
         public void ClearActiveRift() => ClearActiveAnomalies();
 
@@ -135,11 +238,11 @@ namespace WardShift
             activeAnomalies.Clear();
         }
 
-        /// <summary>기존 Inspector 메뉴와 호출부에서 즉시 Rift 생성을 요청할 수 있습니다.</summary>
+        /// <summary>기존 Play Mode 테스트용 수동 생성. 자동 생성의 DAY 규칙은 변경하지 않습니다.</summary>
         [ContextMenu("Spawn Rift (Play Mode)")]
         public void SpawnRift()
         {
-            if (riftPrefab != null) TrySpawnPrefab(riftPrefab);
+            if (riftPrefab != null) TrySpawnPrefab(riftPrefab, true);
         }
 
         [ContextMenu("Spawn Anomaly (Play Mode)")]
@@ -154,7 +257,7 @@ namespace WardShift
             foreach (AnomalyBehaviour prefab in GetConfiguredPrefabs())
             {
                 if (!(prefab is ManaDeviceAnomaly)) continue;
-                TrySpawnPrefab(prefab);
+                TrySpawnPrefab(prefab, true);
                 return;
             }
             Debug.LogWarning("AnomalySpawner: 장치형 마력 폭주 프리팹이 연결되지 않았습니다.", this);
@@ -162,7 +265,7 @@ namespace WardShift
 
         private bool TrySpawnNextAnomaly()
         {
-            if (!Application.isPlaying || !isActiveAndEnabled || !spawningEnabled) return false;
+            if (!Application.isPlaying || !isActiveAndEnabled || !spawningEnabled || !CanSpawnNow()) return false;
             if (wardStatus != null && wardStatus.HasFailed) return false;
             PruneEndedAnomalies();
             if (activeAnomalies.Count >= MaximumConcurrentAnomalies) return false;
@@ -187,14 +290,16 @@ namespace WardShift
             {
                 AnomalySpawnPoint preferred = availableSpawnPoints[selectedPointIndex];
                 foreach (AnomalyBehaviour prefab in prefabs)
-                    if (IsValidPrefab(prefab) && CanUse(preferred, prefab))
+                    if (IsValidPrefab(prefab)
+                        && (activeDayProfile == null || activeDayProfile.Allows(prefab))
+                        && CanUse(preferred, prefab))
                         return TrySpawnAt(preferred, prefab);
             }
 
             var choices = new List<SpawnChoice>();
             foreach (AnomalyBehaviour prefab in prefabs)
             {
-                if (!IsValidPrefab(prefab)) continue;
+                if (!IsValidPrefab(prefab) || (activeDayProfile != null && !activeDayProfile.Allows(prefab))) continue;
                 foreach (AnomalySpawnPoint point in availableSpawnPoints)
                 {
                     if (!CanUse(point, prefab)) continue;
@@ -211,21 +316,22 @@ namespace WardShift
                 return false;
             }
 
-            SpawnChoice selected = choices[randomizePoint
-                ? UnityEngine.Random.Range(0, choices.Count)
-                : 0];
+            SpawnChoice selected = choices[randomizePoint ? NextRandom(choices.Count) : 0];
             return TrySpawnAt(selected.Point, selected.Prefab);
         }
 
-        private bool TrySpawnPrefab(AnomalyBehaviour prefab)
+        private bool TrySpawnPrefab(AnomalyBehaviour prefab, bool manualDebugSpawn = false)
         {
-            if (!Application.isPlaying || !isActiveAndEnabled || !spawningEnabled) return false;
+            if (!Application.isPlaying || !isActiveAndEnabled || !spawningEnabled || !CanSpawnNow()) return false;
             if (wardStatus != null && wardStatus.HasFailed) return false;
             PruneEndedAnomalies();
-            if (activeAnomalies.Count >= MaximumConcurrentAnomalies) return false;
-            if (!IsValidPrefab(prefab))
+            int concurrencyLimit = manualDebugSpawn
+                ? Mathf.Max(1, maximumConcurrentAnomalies) : MaximumConcurrentAnomalies;
+            if (activeAnomalies.Count >= concurrencyLimit) return false;
+            if (!IsValidPrefab(prefab)
+                || (!manualDebugSpawn && activeDayProfile != null && !activeDayProfile.Allows(prefab)))
             {
-                Debug.LogWarning("AnomalySpawner: Project 창의 활성 이상현상 프리팹을 연결하세요.", this);
+                Debug.LogWarning("AnomalySpawner: 현재 DAY에서 허용되지 않았거나 활성 Project 프리팹이 아닙니다.", this);
                 return false;
             }
 
@@ -250,8 +356,37 @@ namespace WardShift
                 if (CanUse(point, prefab) && !available.Contains(point)) available.Add(point);
             if (available.Count == 0) return null;
             return randomizePoint
-                ? available[UnityEngine.Random.Range(0, available.Count)]
+                ? available[NextRandom(available.Count)]
                 : available[0];
+        }
+
+        private int NextRandom(int exclusiveMaximum)
+        {
+            if (exclusiveMaximum <= 1) return 0;
+            return dayRandom != null ? dayRandom.Next(exclusiveMaximum)
+                : UnityEngine.Random.Range(0, exclusiveMaximum);
+        }
+
+        private DaySpawnProfile FindDayProfile(int day)
+        {
+            if (daySpawnProfiles == null) return null;
+            foreach (DaySpawnProfile profile in daySpawnProfiles)
+                if (profile != null && profile.Day == Mathf.Max(1, day)) return profile;
+            return null;
+        }
+
+        private static DaySpawnProfile[] CreateDefaultDayProfiles()
+        {
+            return new[]
+            {
+                new DaySpawnProfile(1, true, false, false, 1, 8f),
+                new DaySpawnProfile(2, true, true, false, 2, 7f),
+                new DaySpawnProfile(3, true, true, true, 2, 6f),
+                new DaySpawnProfile(4, true, true, true, 2, 5.5f),
+                new DaySpawnProfile(5, true, true, true, 2, 5f),
+                new DaySpawnProfile(6, true, true, true, 3, 4.5f),
+                new DaySpawnProfile(7, true, true, true, 3, 4f)
+            };
         }
 
         private bool TrySpawnAt(AnomalySpawnPoint point, AnomalyBehaviour prefab)

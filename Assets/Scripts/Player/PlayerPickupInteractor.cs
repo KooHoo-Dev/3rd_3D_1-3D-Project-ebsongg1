@@ -33,6 +33,8 @@ namespace WardShift
             dayFlow = manager;
         }
 
+        public void ClearCurrentPickup() => CurrentPickup = null;
+
         private void OnEnable() => interactAction.Enable();
 
         private void LateUpdate()

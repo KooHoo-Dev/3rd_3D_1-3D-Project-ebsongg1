@@ -8784,7 +8784,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 143d9bc7b5af451ab1d22b519f98bd44, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WardShift.AnomalySpawnPoint
   surface: 2
   zoneIdentity: {fileID: 774959335}
@@ -9356,7 +9356,10 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 1028673010234347357, guid: e6d2160222e364344a0ce60e22e1be03, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1310650233}
   m_SourcePrefab: {fileID: 100100000, guid: e6d2160222e364344a0ce60e22e1be03, type: 3}
 --- !u!114 &237810766 stripped
 MonoBehaviour:
@@ -9367,7 +9370,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 20ca0d0af2b6fe543910486618c78710, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WardShift.ManaDeviceVisuals
 --- !u!4 &237810767 stripped
 Transform:
@@ -9704,7 +9707,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 15, y: -131}
+  m_AnchoredPosition: {x: 15, y: -154.6}
   m_SizeDelta: {x: 420, y: 60}
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &247745838
@@ -11399,6 +11402,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WardShift.ItemPickup
   item: 1
   quantity: 1
+  isCollected: 0
 --- !u!23 &286955033
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -17244,9 +17248,59 @@ MonoBehaviour:
   randomizePoint: 1
   selectedPointIndex: 0
   spawnOnStart: 0
-  spawnIntervalSeconds: 30
+  spawnIntervalSeconds: 6
   maximumConcurrentAnomalies: 2
   firstSpawnDelaySeconds: 3
+  daySpawnProfiles:
+  - day: 1
+    allowManaRift: 1
+    allowCurseContamination: 0
+    allowManaDeviceOverload: 0
+    allowOtherAnomalies: 0
+    maximumConcurrentAnomalies: 1
+    spawnIntervalSeconds: 8
+  - day: 2
+    allowManaRift: 1
+    allowCurseContamination: 1
+    allowManaDeviceOverload: 0
+    allowOtherAnomalies: 0
+    maximumConcurrentAnomalies: 2
+    spawnIntervalSeconds: 7
+  - day: 3
+    allowManaRift: 1
+    allowCurseContamination: 1
+    allowManaDeviceOverload: 1
+    allowOtherAnomalies: 0
+    maximumConcurrentAnomalies: 2
+    spawnIntervalSeconds: 6
+  - day: 4
+    allowManaRift: 1
+    allowCurseContamination: 1
+    allowManaDeviceOverload: 1
+    allowOtherAnomalies: 0
+    maximumConcurrentAnomalies: 2
+    spawnIntervalSeconds: 5.5
+  - day: 5
+    allowManaRift: 1
+    allowCurseContamination: 1
+    allowManaDeviceOverload: 1
+    allowOtherAnomalies: 0
+    maximumConcurrentAnomalies: 2
+    spawnIntervalSeconds: 5
+  - day: 6
+    allowManaRift: 1
+    allowCurseContamination: 1
+    allowManaDeviceOverload: 1
+    allowOtherAnomalies: 0
+    maximumConcurrentAnomalies: 3
+    spawnIntervalSeconds: 4.5
+  - day: 7
+    allowManaRift: 1
+    allowCurseContamination: 1
+    allowManaDeviceOverload: 1
+    allowOtherAnomalies: 0
+    maximumConcurrentAnomalies: 3
+    spawnIntervalSeconds: 4
 --- !u!114 &411442693
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -17259,7 +17313,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d0749cf20249c6c4fbf9fa3f1e2012fd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WardShift.DayFlowManager
-  dayDurationSeconds: 90
+  dayDurationSeconds: 100
+  spawnStopBeforeEndSeconds: 30
+  finalDay: 7
   minimumAnomalyReward: 1
   maximumAnomalyReward: 2
   wardStatus: {fileID: 1545351164}
@@ -57221,6 +57277,40 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 463574, guid: 8fdde5e904d04270ba93710627eaee22, type: 3}
   m_PrefabInstance: {fileID: 1308641883}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1310650231 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1028673010234347357, guid: e6d2160222e364344a0ce60e22e1be03, type: 3}
+  m_PrefabInstance: {fileID: 237810765}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1310650233
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1310650231}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
+  m_UsePipelineSettings: 1
+  m_AdditionalLightsShadowResolutionTier: 2
+  m_CustomShadowLayers: 0
+  m_LightCookieSize: {x: 1, y: 1}
+  m_LightCookieOffset: {x: 0, y: 0}
+  m_SoftShadowQuality: 0
+  m_RenderingLayersMask:
+    serializedVersion: 0
+    m_Bits: 1
+  m_ShadowRenderingLayersMask:
+    serializedVersion: 0
+    m_Bits: 1
+  m_Version: 4
+  m_LightLayerMask: 1
+  m_ShadowLayerMask: 1
+  m_RenderingLayers: 1
+  m_ShadowRenderingLayers: 1
 --- !u!1001 &1311146756
 PrefabInstance:
   m_ObjectHideFlags: 0

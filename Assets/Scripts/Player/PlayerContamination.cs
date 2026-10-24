@@ -36,6 +36,9 @@ namespace WardShift
             ExposurePerSecond = 0f;
         }
 
+        /// <summary>새 DAY 또는 같은 DAY 재도전 때 오염도를 초기화합니다.</summary>
+        public void ResetForNewDay() => ResetForNewRun();
+
         /// <summary>DAY 전환 때 현재 오염량을 유지하면서 안전 구역 표시만 초기화.</summary>
         public void ResetExposureDisplay()
         {

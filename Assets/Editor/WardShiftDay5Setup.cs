@@ -10,7 +10,7 @@ using WardShift;
 
 namespace WardShift.Editor
 {
-    /// <summary>DAY 5 필수 오브젝트를 현재 게임 씬에 중복 없이 연결합니다.</summary>
+    /// <summary>DAY 진행 시스템 필수 오브젝트를 현재 게임 씬에 중복 없이 연결합니다.</summary>
     public static class WardShiftDay5Setup
     {
         private const string MainGamePath = "Assets/Scenes/MainGame.unity";
@@ -19,6 +19,7 @@ namespace WardShift.Editor
         private const string KoreanFontAssetPath = "Assets/Studys/99. External Assets/Font/Noto_Sans_KR/static/NotoSansKR-Regular SDF.asset";
 
         [MenuItem("Tools/WARD SHIFT/Setup Day 5")]
+        [MenuItem("Tools/WARD SHIFT/Setup DAY Progression")]
         public static void SetupActiveScene()
         {
             WardStatus status = Object.FindFirstObjectByType<WardStatus>();
@@ -83,6 +84,7 @@ namespace WardShift.Editor
         }
 
         [MenuItem("Tools/WARD SHIFT/Validate Day 5 Scene")]
+        [MenuItem("Tools/WARD SHIFT/Validate DAY Progression Scene")]
         public static void ValidateActiveScene()
         {
             var missing = new System.Collections.Generic.List<string>();
@@ -102,6 +104,22 @@ namespace WardShift.Editor
             if (spawner != null && spawner.MaximumConcurrentAnomalies > 1
                 && !spawner.HasAtLeastTwoCompatibleSpawnPoints)
                 missing.Add("동시 발생 수에 맞는 서로 다른 이상현상 생성 지점 2개 이상");
+            if (spawner != null)
+            {
+                for (int dayNumber = 1; dayNumber <= 7; dayNumber++)
+                {
+                    AnomalySpawner.DaySpawnProfile profile = spawner.GetDayProfile(dayNumber);
+                    if (profile == null)
+                    {
+                        missing.Add($"DAY {dayNumber} 이상현상 생성 프로필");
+                        continue;
+                    }
+                    int compatible = spawner.CountCompatibleSpawnPointsForDay(dayNumber);
+                    if (compatible < profile.MaximumConcurrentAnomalies)
+                        Debug.LogWarning($"DAY {dayNumber}: 동시 상한은 {profile.MaximumConcurrentAnomalies}개지만 "
+                            + $"호환 생성 지점은 {compatible}개입니다. 씬 위치를 추가하거나 상한을 조정하세요.", spawner);
+                }
+            }
             // - EventSystem.current는 런타임에 보장
             // - Edit Mode 검증에서는 씬 오브젝트를 직접 확인
             EventSystem eventSystem = Object.FindFirstObjectByType<EventSystem>(FindObjectsInactive.Include);
@@ -160,6 +178,25 @@ namespace WardShift.Editor
             if (maximumConcurrent != null) maximumConcurrent.intValue = 2;
             SerializedProperty firstDelay = serialized.FindProperty("firstSpawnDelaySeconds");
             if (firstDelay != null) firstDelay.floatValue = 1f;
+
+            SerializedProperty dayProfiles = serialized.FindProperty("daySpawnProfiles");
+            if (dayProfiles != null && dayProfiles.arraySize == 0)
+            {
+                int[] limits = { 1, 2, 2, 2, 2, 3, 3 };
+                float[] intervals = { 8f, 7f, 6f, 5.5f, 5f, 4.5f, 4f };
+                dayProfiles.arraySize = 7;
+                for (int i = 0; i < dayProfiles.arraySize; i++)
+                {
+                    SerializedProperty profile = dayProfiles.GetArrayElementAtIndex(i);
+                    profile.FindPropertyRelative("day").intValue = i + 1;
+                    profile.FindPropertyRelative("allowManaRift").boolValue = true;
+                    profile.FindPropertyRelative("allowCurseContamination").boolValue = i >= 1;
+                    profile.FindPropertyRelative("allowManaDeviceOverload").boolValue = i >= 2;
+                    profile.FindPropertyRelative("allowOtherAnomalies").boolValue = false;
+                    profile.FindPropertyRelative("maximumConcurrentAnomalies").intValue = limits[i];
+                    profile.FindPropertyRelative("spawnIntervalSeconds").floatValue = intervals[i];
+                }
+            }
 
             AnomalySpawnPoint[] scenePoints = Object.FindObjectsByType<AnomalySpawnPoint>(
                 FindObjectsInactive.Include, FindObjectsSortMode.None).OrderBy(point => point.name).ToArray();

@@ -10,6 +10,24 @@ namespace WardShift
         public const int SlotCount = 4;
         public const float PotionRecovery = 30f;
 
+        /// <summary>DAY 시작 시점의 재화와 모든 소비 아이템 슬롯.</summary>
+        public sealed class DayStateSnapshot
+        {
+            internal readonly ItemType[] Items;
+            internal readonly int[] Quantities;
+            internal readonly int ManaCrystals;
+            internal readonly int CrystalsEarnedToday;
+
+            internal DayStateSnapshot(ItemType[] items, int[] quantities,
+                int manaCrystals, int crystalsEarnedToday)
+            {
+                Items = items;
+                Quantities = quantities;
+                ManaCrystals = manaCrystals;
+                CrystalsEarnedToday = crystalsEarnedToday;
+            }
+        }
+
         [Serializable]
         private sealed class InventorySlot
         {
@@ -95,6 +113,36 @@ namespace WardShift
         public void BeginDay()
         {
             crystalsEarnedToday = 0;
+            Changed?.Invoke();
+        }
+
+        public DayStateSnapshot CaptureDayState()
+        {
+            EnsureSlots();
+            var items = new ItemType[slots.Length];
+            var quantities = new int[slots.Length];
+            for (int i = 0; i < slots.Length; i++)
+            {
+                items[i] = slots[i].Item;
+                quantities[i] = slots[i].Quantity;
+            }
+            return new DayStateSnapshot(items, quantities, manaCrystals, crystalsEarnedToday);
+        }
+
+        public void RestoreDayState(DayStateSnapshot snapshot)
+        {
+            if (snapshot == null) return;
+            EnsureSlots();
+            for (int i = 0; i < slots.Length; i++)
+            {
+                slots[i].Item = snapshot.Items != null && i < snapshot.Items.Length
+                    ? snapshot.Items[i] : ItemType.None;
+                slots[i].Quantity = snapshot.Quantities != null && i < snapshot.Quantities.Length
+                    ? snapshot.Quantities[i] : 0;
+                if (slots[i].Quantity <= 0) slots[i].Item = ItemType.None;
+            }
+            manaCrystals = Mathf.Max(0, snapshot.ManaCrystals);
+            crystalsEarnedToday = Mathf.Max(0, snapshot.CrystalsEarnedToday);
             Changed?.Invoke();
         }
 

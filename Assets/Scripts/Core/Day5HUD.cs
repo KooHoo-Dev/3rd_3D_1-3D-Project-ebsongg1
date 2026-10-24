@@ -24,8 +24,10 @@ namespace WardShift
         private GameObject inventoryPanel;
         private GameObject clearPanel;
         private GameObject failedPanel;
+        private GameObject endingPanel;
         private TMP_Text clearSummaryText;
         private TMP_Text failedSummaryText;
+        private TMP_Text endingSummaryText;
         private Color emptyColor = new Color(0.2f, 0.23f, 0.28f, 0.94f);
         private Color potionColor = new Color(0.55f, 0.25f, 0.95f, 1f);
         public bool HasKoreanFont => koreanFont != null;
@@ -57,13 +59,19 @@ namespace WardShift
             inventoryPanel.SetActive(dayFlow.State == DayState.Playing && dayFlow.InventoryOpen);
             clearPanel.SetActive(dayFlow.State == DayState.DayClear);
             failedPanel.SetActive(dayFlow.State == DayState.DayFailed);
+            if (endingPanel != null) endingPanel.SetActive(dayFlow.State == DayState.Ending);
             if (clearSummaryText != null)
                 clearSummaryText.text = $"{dayFlow.CurrentDay}일차 근무 완료\n"
                     + $"이번 근무 획득 마력 결정: {inventory.CrystalsEarnedToday}개\n"
                     + $"보유 마력 결정: {inventory.ManaCrystals}개";
             if (failedSummaryText != null)
                 failedSummaryText.text = $"{dayFlow.CurrentDay}일차\n"
-                    + (dayFlow.Status != null ? dayFlow.Status.FailureReason : "시설 관리 실패");
+                    + (dayFlow.Status != null && !string.IsNullOrEmpty(dayFlow.Status.FailureReason)
+                        ? dayFlow.Status.FailureReason : "시설 관리 실패")
+                    + "\nDAY 시작 시점의 자원과 픽업을 복원해 재도전합니다.";
+            if (endingSummaryText != null)
+                endingSummaryText.text = $"총 {dayFlow.FinalDay}일 근무를 모두 마쳤습니다.\n"
+                    + $"마력 결정: {inventory.ManaCrystals}개\n시설 안정도: {dayFlow.Status.Stability:F0}";
             RefreshInventory();
         }
 
@@ -91,7 +99,9 @@ namespace WardShift
             clearPanel = BuildOverlay(canvasObject.transform, "DayClearPanel", "근무 완료", out clearSummaryText,
                 "다음 날 시작", () => { if (dayFlow != null) dayFlow.BeginNextDay(); }, false);
             failedPanel = BuildOverlay(canvasObject.transform, "DayFailedPanel", "근무 실패", out failedSummaryText,
-                "첫째 날부터 다시 시작", () => { if (dayFlow != null) dayFlow.RestartFromDayOne(); }, false);
+                "같은 날 재도전", () => { if (dayFlow != null) dayFlow.RetryCurrentDay(); }, false);
+            endingPanel = BuildOverlay(canvasObject.transform, "DayEndingPanel", "WARD SHIFT 완료", out endingSummaryText,
+                "게임 종료", () => Application.Quit(), false);
             clearPanel.SetActive(false);
             failedPanel.SetActive(false);
         }

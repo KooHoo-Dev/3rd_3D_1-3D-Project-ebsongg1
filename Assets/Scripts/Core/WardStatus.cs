@@ -74,7 +74,7 @@ namespace WardShift
             HasFailed = true;
             FailureReason = reason;
             PauseGameForUI();
-            Debug.Log($"임시 게임 실패: {reason}. Play 모드를 종료 후 다시 시작하세요.", this);
+            Debug.Log($"DAY 실패: {reason}. 현재 DAY 시작 상태로 재도전할 수 있습니다.", this);
             Failed?.Invoke(reason);
         }
 
@@ -106,13 +106,19 @@ namespace WardShift
         /// <summary>새 게임 테스트를 위해 실패, 안정도와 플레이어 오염도를 초기화.</summary>
         public void ResetForNewRun()
         {
+            ResetForNewDay();
+        }
+
+        /// <summary>다음 DAY와 재도전에서 실패 상태, 안정도와 플레이어 오염도를 초기화합니다.</summary>
+        public void ResetForNewDay()
+        {
             RestorePauseSnapshot();
             HasFailed = false;
             FailureReason = null;
             HighestStage = 0;
             HasOverloadedAnomaly = false;
             stability = 100f;
-            if (player != null) player.ResetForNewRun();
+            if (player != null) player.ResetForNewDay();
         }
 
         /// <summary>DAY 전환 때 임시 위험 표시만 지움. 안정도와 오염도 값은 유지.</summary>

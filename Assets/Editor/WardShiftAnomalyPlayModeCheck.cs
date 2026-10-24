@@ -101,6 +101,11 @@ namespace WardShift.Editor
                 Finish(false, "AnomalySpawner was not found after entering Play Mode");
                 return;
             }
+            if (!ValidateDaySchedule(spawner, out string scheduleError))
+            {
+                Finish(false, scheduleError);
+                return;
+            }
             // - 테스트용 값은 Play Mode 인스턴스에만 설정
             // - Play Mode 종료 시 임시 값 폐기
             SetPrivateField(spawner, "firstSpawnDelaySeconds", 0.2f);
@@ -111,6 +116,7 @@ namespace WardShift.Editor
             // This check isolates the ManaRift scheduler rules; the curse-specific check covers mixed types.
             SetPrivateField(spawner, "additionalAnomalyPrefabs", Array.Empty<AnomalyBehaviour>());
             SetPrivateField(spawner, "spawnOnStart", false);
+            spawner.ConfigureForDay(2, 24601);
             SetPrivateField(spawner, "spawnCountdown", 0.2f);
             phase = 0;
             startedAt = EditorApplication.timeSinceStartup;
@@ -258,6 +264,34 @@ namespace WardShift.Editor
         private static ManaRift[] CurrentRifts(AnomalySpawner spawner)
         {
             return spawner.ActiveAnomalies.OfType<ManaRift>().Where(rift => rift != null).ToArray();
+        }
+
+        private static bool ValidateDaySchedule(AnomalySpawner spawner, out string error)
+        {
+            bool[] hasRift = { true, true, true, true, true, true, true };
+            bool[] hasCurse = { false, true, true, true, true, true, true };
+            bool[] hasDevice = { false, false, true, true, true, true, true };
+            int[] concurrentLimits = { 1, 2, 2, 2, 2, 3, 3 };
+            float previousInterval = float.PositiveInfinity;
+
+            for (int i = 0; i < concurrentLimits.Length; i++)
+            {
+                int dayNumber = i + 1;
+                AnomalySpawner.DaySpawnProfile profile = spawner.GetDayProfile(dayNumber);
+                if (profile == null || profile.AllowManaRift != hasRift[i]
+                    || profile.AllowCurseContamination != hasCurse[i]
+                    || profile.AllowManaDeviceOverload != hasDevice[i]
+                    || profile.MaximumConcurrentAnomalies != concurrentLimits[i]
+                    || profile.SpawnIntervalSeconds >= previousInterval)
+                {
+                    error = $"DAY {dayNumber} spawn profile is missing or violates the DAY 1–7 schedule.";
+                    return false;
+                }
+                previousInterval = profile.SpawnIntervalSeconds;
+            }
+
+            error = null;
+            return true;
         }
 
         private static void ConfigureFastIndependentGrowth(ManaRift rift)

@@ -7,6 +7,16 @@ using UnityEngine.Serialization;
 
 namespace WardShift
 {
+    /// <summary>
+    /// DAY 재도전 체크포인트에 상태를 추가할 수 있는 확장 지점입니다.
+    /// 강화 시스템은 이 인터페이스를 구현해 DAY 시작 상태를 저장·복원할 수 있습니다.
+    /// </summary>
+    public interface IDayRetryCheckpointParticipant
+    {
+        object CaptureDayRetryState();
+        void RestoreDayRetryState(object state);
+    }
+
     /// <summary>DAY 시작, 근무 시간, 진압 보상, CLEAR/FAILED와 다음 DAY 전환을 관리.</summary>
     [DisallowMultipleComponent]
     [DefaultExecutionOrder(10006)]
@@ -14,8 +24,13 @@ namespace WardShift
     {
         [Header("DAY 설정")]
         [SerializeField, Min(1f)] private float dayDurationSeconds = 180f;
+        [SerializeField, Min(0f)] private float spawnStopBeforeEndSeconds = 30f;
+        [SerializeField, Min(1)] private int finalDay = 7;
         [FormerlySerializedAs("minimumRiftReward"), SerializeField, Min(0)] private int minimumAnomalyReward = 1;
         [FormerlySerializedAs("maximumRiftReward"), SerializeField, Min(0)] private int maximumAnomalyReward = 2;
+        [Header("디버그 치트")]
+        [SerializeField] private bool enableDaySkipCheat = true;
+        [SerializeField] private Key daySkipCheatKey = Key.F8;
         [Header("씬 참조")]
         [SerializeField] private WardStatus wardStatus;
         [SerializeField] private AnomalySpawner anomalySpawner;
@@ -35,8 +50,13 @@ namespace WardShift
             "Toggle Inventory", InputActionType.Button, "<Keyboard>/b");
         private readonly InputAction mapAction = new InputAction(
             "Toggle Facility Map", InputActionType.Button, "<Keyboard>/m");
+        private InputAction daySkipAction;
         private readonly HashSet<int> rewardedAnomalyIds = new HashSet<int>();
         private readonly List<AnomalyBehaviour> subscribedAnomalies = new List<AnomalyBehaviour>();
+        private readonly List<PickupCheckpoint> pickupCheckpoint = new List<PickupCheckpoint>();
+        private readonly List<ParticipantCheckpoint> participantCheckpoint = new List<ParticipantCheckpoint>();
+        private PlayerInventory.DayStateSnapshot inventoryCheckpoint;
+        private int dayRandomSeed;
         private bool inventoryOpen;
         private bool mapOpen;
 
@@ -44,6 +64,9 @@ namespace WardShift
         public DayState State => state;
         public float RemainingSeconds => remainingSeconds;
         public float DayDurationSeconds => dayDurationSeconds;
+        public float SpawnStopBeforeEndSeconds => spawnStopBeforeEndSeconds;
+        public int FinalDay => Mathf.Max(1, finalDay);
+        public int DayRandomSeed => dayRandomSeed;
         public bool InventoryOpen => inventoryOpen;
         public bool IsMapOpen => mapOpen;
         public FacilityZoneTracker ZoneTracker => zoneTracker;
@@ -66,22 +89,28 @@ namespace WardShift
             if (pickupInteractor == null) pickupInteractor = FindFirstObjectByType<PlayerPickupInteractor>();
             if (zoneTracker == null) zoneTracker = FindFirstObjectByType<FacilityZoneTracker>();
             if (anomalySpawner != null) anomalySpawner.SetSpawningEnabled(false);
+            if (daySkipCheatKey != Key.None)
+            {
+                string keyPath = daySkipCheatKey.ToString().ToLowerInvariant();
+                daySkipAction = new InputAction("Cheat: Advance Day", InputActionType.Button,
+                    $"<Keyboard>/{keyPath}");
+            }
         }
 
         private void OnEnable()
         {
             inventoryAction.Enable();
             mapAction.Enable();
+            if (daySkipAction != null) daySkipAction.Enable();
             if (wardStatus != null) wardStatus.Failed += OnDayFailed;
             if (anomalySpawner != null) anomalySpawner.AnomalySpawned += OnAnomalySpawned;
         }
 
         private void Start()
         {
-            if (wardStatus == null || anomalySpawner == null || inventory == null
-                || playerRoot == null || startPoint == null)
+            if (!IsConfigured)
             {
-                Debug.LogError("DayFlowManager: Setup Day 5 메뉴로 씬 참조를 연결하세요.", this);
+                Debug.LogError("DayFlowManager: Setup DAY Progression 메뉴로 씬 참조를 연결하세요.", this);
                 enabled = false;
                 return;
             }
@@ -92,6 +121,11 @@ namespace WardShift
 
         private void LateUpdate()
         {
+            if (enableDaySkipCheat && daySkipAction != null && daySkipAction.WasPressedThisFrame())
+            {
+                CheatAdvanceDay();
+                return;
+            }
             if (mapAction.WasPressedThisFrame())
             {
                 ToggleMap();
@@ -108,17 +142,21 @@ namespace WardShift
             if (remainingSeconds > 0f)
             {
                 remainingSeconds = Mathf.Max(0f, remainingSeconds - Time.deltaTime);
-                if (remainingSeconds <= 0f && anomalySpawner != null)
-                    anomalySpawner.SetSpawningEnabled(false);
+                if (anomalySpawner != null)
+                    anomalySpawner.SetSpawnWindowOpen(remainingSeconds > Mathf.Max(0f, spawnStopBeforeEndSeconds));
             }
 
-            if (remainingSeconds <= 0f && !HasActiveAnomalies())
+            if (remainingSeconds <= 0f)
             {
-                if (wardStatus.Stability > 0f && wardStatus.Player != null
-                    && wardStatus.Player.Value < 100f)
-                    CompleteDay();
-                else if (wardStatus.HasFailed)
-                    OnDayFailed(wardStatus.FailureReason);
+                if (anomalySpawner != null)
+                {
+                    anomalySpawner.SetSpawningEnabled(false);
+                    anomalySpawner.SetSpawnWindowOpen(false);
+                }
+                ClearAllAnomalies();
+                if (HasSurvivedDay()) CompleteDay();
+                else if (wardStatus == null || !wardStatus.HasFailed)
+                    OnDayFailed("근무 종료 시 생존 조건을 만족하지 못했습니다.");
             }
         }
 
@@ -126,26 +164,56 @@ namespace WardShift
         public void BeginNextDay()
         {
             if (state != DayState.DayClear) return;
-            currentDay++;
+            currentDay = Mathf.Min(currentDay + 1, FinalDay);
+            dayRandomSeed = CreateDaySeed();
             state = DayState.Preparing;
             BeginDay();
         }
 
-        /// <summary>FAILED 화면에서 DAY 1부터 새 테스트를 시작.</summary>
-        public void RestartFromDayOne()
+        /// <summary>디버그용 DAY 스킵. 진행 중 현상은 보상 없이 정리하고 다음 DAY를 시작합니다.</summary>
+        public void CheatAdvanceDay()
+        {
+            if (wardStatus != null && wardStatus.HasFailed && state == DayState.Playing)
+            {
+                OnDayFailed(wardStatus.FailureReason);
+                return;
+            }
+
+            if (state == DayState.Playing)
+            {
+                if (anomalySpawner != null)
+                {
+                    anomalySpawner.SetSpawningEnabled(false);
+                    anomalySpawner.SetSpawnWindowOpen(false);
+                }
+                ClearAllAnomalies();
+                CompleteDay();
+            }
+
+            if (state == DayState.DayClear) BeginNextDay();
+        }
+
+        /// <summary>FAILED 화면에서 현재 DAY 시작 체크포인트로 재도전.</summary>
+        public void RetryCurrentDay()
         {
             if (state != DayState.DayFailed) return;
-            if (anomalySpawner != null) anomalySpawner.SetSpawningEnabled(false);
+            if (anomalySpawner != null)
+            {
+                anomalySpawner.SetSpawningEnabled(false);
+                anomalySpawner.SetSpawnWindowOpen(false);
+            }
             UnsubscribeFromAnomalies();
             ClearAllAnomalies();
-            currentDay = 1;
             state = DayState.Preparing;
             SetMapOpen(false, false);
             if (zoneTracker != null) zoneTracker.ResetVisitedZones();
-            inventory.ResetForNewRun();
-            wardStatus.ResetForNewRun();
+            RestoreDayCheckpoint();
+            if (pickupInteractor != null) pickupInteractor.ClearCurrentPickup();
             StartCoroutine(BeginDayNextFrame());
         }
+
+        /// <summary>기존 UI/호출부 호환용 이름. 동작은 현재 DAY 재도전입니다.</summary>
+        public void RestartFromDayOne() => RetryCurrentDay();
 
         /// <summary>인벤토리 창을 열거나 닫음.</summary>
         public void ToggleInventory()
@@ -195,12 +263,17 @@ namespace WardShift
             SetMapOpen(false, false);
             rewardedAnomalyIds.Clear();
             UnsubscribeFromAnomalies();
-            if (anomalySpawner != null) anomalySpawner.SetSpawningEnabled(false);
+            if (anomalySpawner != null)
+            {
+                anomalySpawner.SetSpawningEnabled(false);
+                anomalySpawner.SetSpawnWindowOpen(false);
+            }
             ClearAllAnomalies();
             ResetSceneManaDevicesForNewDay();
             TeleportPlayerToStart();
             inventory.BeginDay();
-            if (wardStatus != null) wardStatus.ResetDayHazardDisplay();
+            if (wardStatus != null) wardStatus.ResetForNewDay();
+            if (dayRandomSeed == 0) dayRandomSeed = CreateDaySeed();
             remainingSeconds = Mathf.Max(1f, dayDurationSeconds);
             state = DayState.Playing;
             Cursor.lockState = CursorLockMode.Locked;
@@ -212,17 +285,27 @@ namespace WardShift
                 magicCaster.SetInputBlocked(false);
             }
             if (anomalySpawner != null)
+            {
+                anomalySpawner.ConfigureForDay(currentDay, dayRandomSeed);
+                anomalySpawner.SetSpawnWindowOpen(remainingSeconds > Mathf.Max(0f, spawnStopBeforeEndSeconds));
+                CaptureDayCheckpoint();
                 anomalySpawner.SetSpawningEnabled(true);
+            }
+            else CaptureDayCheckpoint();
         }
 
         private void CompleteDay()
         {
             if (state != DayState.Playing) return;
-            state = DayState.DayClear;
+            state = currentDay >= FinalDay ? DayState.Ending : DayState.DayClear;
             SetMapOpen(false, false);
             remainingSeconds = 0f;
             inventoryOpen = false;
-            if (anomalySpawner != null) anomalySpawner.SetSpawningEnabled(false);
+            if (anomalySpawner != null)
+            {
+                anomalySpawner.SetSpawningEnabled(false);
+                anomalySpawner.SetSpawnWindowOpen(false);
+            }
             if (magicCaster != null) magicCaster.SetInputBlocked(true);
             wardStatus.PauseGameForUI();
         }
@@ -234,6 +317,7 @@ namespace WardShift
             SetMapOpen(false, false);
             inventoryOpen = false;
             if (anomalySpawner != null) anomalySpawner.SetSpawningEnabled(false);
+            if (anomalySpawner != null) anomalySpawner.SetSpawnWindowOpen(false);
             if (magicCaster != null) magicCaster.SetInputBlocked(true);
             if (wardStatus != null) wardStatus.PauseGameForUI();
         }
@@ -274,11 +358,90 @@ namespace WardShift
             subscribedAnomalies.Remove(anomaly);
         }
 
-        private bool HasActiveAnomalies()
+        private bool HasSurvivedDay()
         {
-            foreach (AnomalyBehaviour anomaly in AnomalyBehaviour.ActiveAnomalies)
-                if (anomaly != null && anomaly.IsHazardActive) return true;
-            return false;
+            return wardStatus != null && !wardStatus.HasFailed && wardStatus.Stability > 0f
+                && wardStatus.Player != null && wardStatus.Player.Value < 100f;
+        }
+
+        private void CaptureDayCheckpoint()
+        {
+            if (inventory == null) return;
+            inventoryCheckpoint = inventory.CaptureDayState();
+            pickupCheckpoint.Clear();
+            foreach (ItemPickup pickup in FindObjectsByType<ItemPickup>(
+                         FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                if (pickup == null || pickup.gameObject.scene != gameObject.scene) continue;
+                pickupCheckpoint.Add(new PickupCheckpoint(pickup, pickup.IsCollected,
+                    pickup.gameObject.activeSelf));
+            }
+
+            participantCheckpoint.Clear();
+            foreach (MonoBehaviour behaviour in FindObjectsByType<MonoBehaviour>(
+                         FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                if (behaviour == null || behaviour.gameObject.scene != gameObject.scene
+                    || !(behaviour is IDayRetryCheckpointParticipant participant)) continue;
+                participantCheckpoint.Add(new ParticipantCheckpoint(participant, participant.CaptureDayRetryState()));
+            }
+        }
+
+        private void RestoreDayCheckpoint()
+        {
+            if (inventory != null && inventoryCheckpoint != null)
+                inventory.RestoreDayState(inventoryCheckpoint);
+
+            ItemPickup[] currentPickups = FindObjectsByType<ItemPickup>(
+                FindObjectsInactive.Include, FindObjectsSortMode.None);
+            foreach (ItemPickup pickup in currentPickups)
+            {
+                if (pickup == null || pickup.gameObject.scene != gameObject.scene) continue;
+                PickupCheckpoint snapshot = FindPickupCheckpoint(pickup);
+                if (snapshot != null) pickup.RestoreDayState(snapshot.IsCollected, snapshot.ActiveSelf);
+                else
+                {
+                    pickup.gameObject.SetActive(false);
+                    Destroy(pickup.gameObject);
+                }
+            }
+
+            foreach (ParticipantCheckpoint snapshot in participantCheckpoint)
+                if (snapshot.Participant is UnityEngine.Object participantObject && participantObject != null)
+                    snapshot.Participant.RestoreDayRetryState(snapshot.State);
+        }
+
+        private PickupCheckpoint FindPickupCheckpoint(ItemPickup pickup)
+        {
+            foreach (PickupCheckpoint snapshot in pickupCheckpoint)
+                if (snapshot.Pickup == pickup) return snapshot;
+            return null;
+        }
+
+        private static int CreateDaySeed() => UnityEngine.Random.Range(1, int.MaxValue);
+
+        private sealed class PickupCheckpoint
+        {
+            public readonly ItemPickup Pickup;
+            public readonly bool IsCollected;
+            public readonly bool ActiveSelf;
+            public PickupCheckpoint(ItemPickup pickup, bool isCollected, bool activeSelf)
+            {
+                Pickup = pickup;
+                IsCollected = isCollected;
+                ActiveSelf = activeSelf;
+            }
+        }
+
+        private sealed class ParticipantCheckpoint
+        {
+            public readonly IDayRetryCheckpointParticipant Participant;
+            public readonly object State;
+            public ParticipantCheckpoint(IDayRetryCheckpointParticipant participant, object state)
+            {
+                Participant = participant;
+                State = state;
+            }
         }
 
         private void ClearAllAnomalies()
@@ -324,6 +487,7 @@ namespace WardShift
         {
             inventoryAction.Disable();
             mapAction.Disable();
+            if (daySkipAction != null) daySkipAction.Disable();
             if (wardStatus != null) wardStatus.Failed -= OnDayFailed;
             if (anomalySpawner != null) anomalySpawner.AnomalySpawned -= OnAnomalySpawned;
             UnsubscribeFromAnomalies();
@@ -333,9 +497,10 @@ namespace WardShift
         {
             inventoryAction.Dispose();
             mapAction.Dispose();
+            if (daySkipAction != null) daySkipAction.Dispose();
         }
     }
 
     /// <summary>하루 진행의 외부에서 확인 가능한 상태.</summary>
-    public enum DayState { Preparing, Playing, DayClear, DayFailed }
+    public enum DayState { Preparing, Playing, DayClear, DayFailed, Ending }
 }
