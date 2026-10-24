@@ -28,6 +28,21 @@ namespace WardShift
             zones = FindObjectsByType<ZoneIdentity>(FindObjectsSortMode.None);
         }
 
+        private void OnEnable()
+        {
+            if (status != null) status.StabilityChanged += OnStabilityChanged;
+        }
+
+        private void OnDisable()
+        {
+            if (status != null) status.StabilityChanged -= OnStabilityChanged;
+        }
+
+        private void OnStabilityChanged(float stability)
+        {
+            if (stabilityFill != null) stabilityFill.fillAmount = stability / 100f;
+        }
+
         private void LateUpdate()
         {
             if (status == null || status.Player == null) return;

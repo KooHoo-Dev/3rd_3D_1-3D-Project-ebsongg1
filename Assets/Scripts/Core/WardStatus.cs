@@ -33,6 +33,7 @@ namespace WardShift
 
         /// <summary>시설 또는 플레이어 조건으로 하루가 실패했을 때 발생.</summary>
         public event Action<string> Failed;
+        public event Action<float> StabilityChanged;
 
         private void Awake()
         {
@@ -53,6 +54,7 @@ namespace WardShift
         {
             if (HasFailed || Time.timeScale <= 0f || player == null) return;
             IReadOnlyList<AnomalyBehaviour> anomalies = AnomalyBehaviour.ActiveAnomalies;
+            float previousStability = stability;
             HighestStage = 0;
             HasOverloadedAnomaly = false;
             foreach (AnomalyBehaviour anomaly in anomalies)
@@ -62,6 +64,8 @@ namespace WardShift
                 HighestStage = Mathf.Max(HighestStage, anomaly.DangerStage);
                 HasOverloadedAnomaly |= anomaly.HasOverloaded;
             }
+            if (!Mathf.Approximately(previousStability, stability))
+                StabilityChanged?.Invoke(stability);
             if (player.isActiveAndEnabled)
                 player.Advance(Time.deltaTime, anomalies, FindObjectsByType<SafeZone>(FindObjectsSortMode.None));
             if (stability <= 0f || player.Value >= 100f)
@@ -117,8 +121,21 @@ namespace WardShift
             FailureReason = null;
             HighestStage = 0;
             HasOverloadedAnomaly = false;
+            bool stabilityChanged = !Mathf.Approximately(stability, 100f);
             stability = 100f;
+            if (stabilityChanged) StabilityChanged?.Invoke(stability);
             if (player != null) player.ResetForNewDay();
+        }
+
+        /// <summary>비상 수리 키트 등에서 시설 안정도를 회복합니다.</summary>
+        public bool TryRepairStability(float amount)
+        {
+            if (HasFailed || amount <= 0f || stability >= 100f) return false;
+            float repairedStability = Mathf.Min(100f, stability + amount);
+            if (Mathf.Approximately(repairedStability, stability)) return false;
+            stability = repairedStability;
+            StabilityChanged?.Invoke(stability);
+            return true;
         }
 
         /// <summary>DAY 전환 때 임시 위험 표시만 지움. 안정도와 오염도 값은 유지.</summary>

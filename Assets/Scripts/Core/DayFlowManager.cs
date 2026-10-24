@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using StarterAssets;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Serialization;
@@ -20,7 +21,7 @@ namespace WardShift
     /// <summary>DAY 시작, 근무 시간, 진압 보상, CLEAR/FAILED와 다음 DAY 전환을 관리.</summary>
     [DisallowMultipleComponent]
     [DefaultExecutionOrder(10006)]
-    public sealed class DayFlowManager : MonoBehaviour
+    public sealed class DayFlowManager : MonoBehaviour, IDayRetryCheckpointParticipant
     {
         [Header("DAY 설정")]
         [SerializeField, Min(1f)] private float dayDurationSeconds = 180f;
@@ -28,6 +29,8 @@ namespace WardShift
         [SerializeField, Min(1)] private int finalDay = 7;
         [FormerlySerializedAs("minimumRiftReward"), SerializeField, Min(0)] private int minimumAnomalyReward = 1;
         [FormerlySerializedAs("maximumRiftReward"), SerializeField, Min(0)] private int maximumAnomalyReward = 2;
+        [Header("강화 설정")]
+        [SerializeField, Min(0)] private int[] upgradeStagePrices = { 4, 8 };
         [Header("디버그 치트")]
         [SerializeField] private bool enableDaySkipCheat = true;
         [SerializeField] private Key daySkipCheatKey = Key.F8;
@@ -45,11 +48,16 @@ namespace WardShift
         [SerializeField, Min(1)] private int currentDay = 1;
         [SerializeField] private DayState state = DayState.Preparing;
         [SerializeField] private float remainingSeconds;
+        [SerializeField, Range(0, 2)] private int mobilityUpgradeLevel;
+        [SerializeField, Range(0, 2)] private int contaminationResistanceLevel;
+        [SerializeField, Range(0, 2)] private int fieldPurificationLevel;
 
         private readonly InputAction inventoryAction = new InputAction(
             "Toggle Inventory", InputActionType.Button, "<Keyboard>/b");
         private readonly InputAction mapAction = new InputAction(
             "Toggle Facility Map", InputActionType.Button, "<Keyboard>/m");
+        private readonly InputAction supplyAction = new InputAction(
+            "Open Day Supply", InputActionType.Button, "<Keyboard>/t");
         private InputAction daySkipAction;
         private readonly HashSet<int> rewardedAnomalyIds = new HashSet<int>();
         private readonly List<AnomalyBehaviour> subscribedAnomalies = new List<AnomalyBehaviour>();
@@ -59,6 +67,19 @@ namespace WardShift
         private int dayRandomSeed;
         private bool inventoryOpen;
         private bool mapOpen;
+        private bool daySupplyPending;
+        private bool daySupplyClaimed;
+        private bool supplyPanelOpen;
+        private ItemType supplyItemAwaitingExchange;
+        private bool upgradePurchasedThisClear;
+        private FirstPersonController firstPersonController;
+        private ThirdPersonController thirdPersonController;
+        private float firstPersonBaseMoveSpeed;
+        private float firstPersonBaseSprintSpeed;
+        private float thirdPersonBaseMoveSpeed;
+        private float thirdPersonBaseSprintSpeed;
+        private bool firstPersonSpeedCaptured;
+        private bool thirdPersonSpeedCaptured;
 
         public int CurrentDay => currentDay;
         public DayState State => state;
@@ -69,6 +90,15 @@ namespace WardShift
         public int DayRandomSeed => dayRandomSeed;
         public bool InventoryOpen => inventoryOpen;
         public bool IsMapOpen => mapOpen;
+        public bool DaySupplyPending => daySupplyPending;
+        public bool SupplyPanelOpen => supplyPanelOpen;
+        public ItemType SupplyItemAwaitingExchange => supplyItemAwaitingExchange;
+        public bool UpgradePurchasedThisClear => upgradePurchasedThisClear;
+        public int MobilityUpgradeLevel => mobilityUpgradeLevel;
+        public int ContaminationResistanceLevel => contaminationResistanceLevel;
+        public int FieldPurificationLevel => fieldPurificationLevel;
+        public float PotionRecoveryAmount => fieldPurificationLevel >= 2 ? 60f
+            : fieldPurificationLevel == 1 ? 45f : PlayerInventory.PotionRecovery;
         public FacilityZoneTracker ZoneTracker => zoneTracker;
         public PlayerInventory Inventory => inventory;
         public WardStatus Status => wardStatus;
@@ -88,6 +118,7 @@ namespace WardShift
                 playerRoot = wardStatus.Player.transform;
             if (pickupInteractor == null) pickupInteractor = FindFirstObjectByType<PlayerPickupInteractor>();
             if (zoneTracker == null) zoneTracker = FindFirstObjectByType<FacilityZoneTracker>();
+            CapturePlayerMovementBaseSpeeds();
             if (anomalySpawner != null) anomalySpawner.SetSpawningEnabled(false);
             if (daySkipCheatKey != Key.None)
             {
@@ -101,6 +132,7 @@ namespace WardShift
         {
             inventoryAction.Enable();
             mapAction.Enable();
+            supplyAction.Enable();
             if (daySkipAction != null) daySkipAction.Enable();
             if (wardStatus != null) wardStatus.Failed += OnDayFailed;
             if (anomalySpawner != null) anomalySpawner.AnomalySpawned += OnAnomalySpawned;
@@ -124,6 +156,11 @@ namespace WardShift
             if (enableDaySkipCheat && daySkipAction != null && daySkipAction.WasPressedThisFrame())
             {
                 CheatAdvanceDay();
+                return;
+            }
+            if (supplyAction.WasPressedThisFrame() && daySupplyPending && !supplyPanelOpen)
+            {
+                OpenDaySupplyChoice();
                 return;
             }
             if (mapAction.WasPressedThisFrame())
@@ -218,7 +255,7 @@ namespace WardShift
         /// <summary>인벤토리 창을 열거나 닫음.</summary>
         public void ToggleInventory()
         {
-            if (state != DayState.Playing || mapOpen) return;
+            if (state != DayState.Playing || mapOpen || supplyPanelOpen) return;
             inventoryOpen = !inventoryOpen;
             if (inventoryOpen) wardStatus.PauseGameForUI();
             else wardStatus.ResumeGameFromUI();
@@ -227,7 +264,7 @@ namespace WardShift
         /// <summary>지도 열기 입력. 인벤토리와 DAY 종료 화면이 열려 있을 때는 무시합니다.</summary>
         public void ToggleMap()
         {
-            if (state != DayState.Playing || inventoryOpen) return;
+            if (state != DayState.Playing || inventoryOpen || supplyPanelOpen) return;
             SetMapOpen(!mapOpen, true);
         }
 
@@ -249,6 +286,126 @@ namespace WardShift
             zoneTracker = tracker;
         }
 
+        public int GetUpgradeLevel(DayUpgradeType type)
+        {
+            switch (type)
+            {
+                case DayUpgradeType.Mobility: return mobilityUpgradeLevel;
+                case DayUpgradeType.ContaminationResistance: return contaminationResistanceLevel;
+                case DayUpgradeType.FieldPurification: return fieldPurificationLevel;
+                default: return 0;
+            }
+        }
+
+        public int GetNextUpgradePrice(DayUpgradeType type)
+        {
+            if (GetUpgradeLevel(type) >= 2) return 0;
+            EnsureUpgradePrices();
+            return Mathf.Max(0, upgradeStagePrices[GetUpgradeLevel(type)]);
+        }
+
+        public string GetUpgradeEffectText(DayUpgradeType type, int level)
+        {
+            level = Mathf.Clamp(level, 0, 2);
+            switch (type)
+            {
+                case DayUpgradeType.Mobility:
+                    return level == 0 ? "기본 이동속도" : $"이동속도 +{level * 10}%";
+                case DayUpgradeType.ContaminationResistance:
+                    return level == 0 ? "기본 오염 획득량" : $"오염도 획득량 -{(level == 1 ? 20 : 35)}%";
+                case DayUpgradeType.FieldPurification:
+                    return $"정화약 {PotionRecoveryForLevel(level):F0} 회복";
+                default:
+                    return string.Empty;
+            }
+        }
+
+        public bool CanPurchaseUpgrade(DayUpgradeType type)
+        {
+            return state == DayState.DayClear && !upgradePurchasedThisClear
+                && GetUpgradeLevel(type) < 2 && inventory != null
+                && inventory.ManaCrystals >= GetNextUpgradePrice(type);
+        }
+
+        public bool TryPurchaseUpgrade(DayUpgradeType type)
+        {
+            if (!CanPurchaseUpgrade(type)) return false;
+            int price = GetNextUpgradePrice(type);
+            if (!inventory.TrySpendManaCrystals(price)) return false;
+
+            SetUpgradeLevel(type, GetUpgradeLevel(type) + 1);
+            upgradePurchasedThisClear = true;
+            ApplyUpgradeEffects();
+            return true;
+        }
+
+        public void OpenDaySupplyChoice()
+        {
+            if (state != DayState.Playing || !daySupplyPending || inventoryOpen || mapOpen) return;
+            supplyPanelOpen = true;
+            if (wardStatus != null) wardStatus.PauseGameForUI();
+        }
+
+        /// <summary>보급 선택을 미루고 진행합니다. DAY 동안 T 키로 다시 열 수 있습니다.</summary>
+        public void DeferDaySupplyChoice()
+        {
+            if (!supplyPanelOpen) return;
+            supplyItemAwaitingExchange = ItemType.None;
+            supplyPanelOpen = false;
+            if (wardStatus != null) wardStatus.ResumeGameFromUI();
+        }
+
+        /// <summary>보급을 인벤토리와 DAY 시작 재도전 스냅샷에 함께 지급합니다.</summary>
+        public bool TryChooseDaySupply(ItemType item, out bool needsExchange)
+        {
+            needsExchange = false;
+            if (state != DayState.Playing || !supplyPanelOpen || !daySupplyPending
+                || (item != ItemType.PurificationPotion && item != ItemType.EmergencyRepairKit)
+                || inventory == null || inventoryCheckpoint == null) return false;
+
+            if (!inventory.TryAddItemToDayState(inventoryCheckpoint, item, 1,
+                    out PlayerInventory.DayStateSnapshot updatedSnapshot)
+                || !inventory.CanAddItem(item))
+            {
+                supplyItemAwaitingExchange = item;
+                needsExchange = true;
+                return false;
+            }
+
+            if (!inventory.TryAddItem(item))
+            {
+                supplyItemAwaitingExchange = item;
+                needsExchange = true;
+                return false;
+            }
+            inventoryCheckpoint = updatedSnapshot;
+            CompleteDaySupplyClaim();
+            return true;
+        }
+
+        /// <summary>가득 찬 인벤토리에서 고른 슬롯을 보급품으로 교환합니다.</summary>
+        public bool TryExchangeDaySupply(int slotIndex)
+        {
+            if (state != DayState.Playing || !supplyPanelOpen || !daySupplyPending
+                || supplyItemAwaitingExchange == ItemType.None || inventory == null
+                || inventoryCheckpoint == null) return false;
+
+            if (!inventory.TryReplaceItemInDayState(inventoryCheckpoint, slotIndex,
+                    supplyItemAwaitingExchange, out PlayerInventory.DayStateSnapshot updatedSnapshot)
+                || !inventory.TryReplaceItem(slotIndex, supplyItemAwaitingExchange)) return false;
+            inventoryCheckpoint = updatedSnapshot;
+            CompleteDaySupplyClaim();
+            return true;
+        }
+
+        public string GetSupplySnapshotSlotLabel(int slotIndex)
+        {
+            ItemType item = inventory != null ? inventory.GetDayStateItem(inventoryCheckpoint, slotIndex)
+                : ItemType.None;
+            int quantity = inventory != null ? inventory.GetDayStateQuantity(inventoryCheckpoint, slotIndex) : 0;
+            return item == ItemType.None ? "빈 슬롯" : $"{GetItemDisplayName(item)} x{quantity}";
+        }
+
         /// <summary>테스트 씬에서 근무 시간과 결정 보상 범위를 지정.</summary>
         public void ConfigureDaySettings(float durationSeconds, int minReward, int maxReward)
         {
@@ -257,9 +414,11 @@ namespace WardShift
             maximumAnomalyReward = Mathf.Max(minimumAnomalyReward, maxReward);
         }
 
-        private void BeginDay()
+        private void BeginDay(bool isRetry = false)
         {
             inventoryOpen = false;
+            supplyPanelOpen = false;
+            supplyItemAwaitingExchange = ItemType.None;
             SetMapOpen(false, false);
             rewardedAnomalyIds.Clear();
             UnsubscribeFromAnomalies();
@@ -273,6 +432,18 @@ namespace WardShift
             TeleportPlayerToStart();
             inventory.BeginDay();
             if (wardStatus != null) wardStatus.ResetForNewDay();
+            if (!isRetry)
+            {
+                upgradePurchasedThisClear = false;
+                daySupplyClaimed = false;
+                daySupplyPending = currentDay > 1;
+                if (currentDay == 1)
+                {
+                    daySupplyClaimed = inventory.TryAddItem(ItemType.PurificationPotion);
+                    daySupplyPending = !daySupplyClaimed;
+                }
+            }
+            ApplyUpgradeEffects();
             if (dayRandomSeed == 0) dayRandomSeed = CreateDaySeed();
             remainingSeconds = Mathf.Max(1f, dayDurationSeconds);
             state = DayState.Playing;
@@ -292,12 +463,18 @@ namespace WardShift
                 anomalySpawner.SetSpawningEnabled(true);
             }
             else CaptureDayCheckpoint();
+
+            if (daySupplyPending) OpenDaySupplyChoice();
         }
 
         private void CompleteDay()
         {
             if (state != DayState.Playing) return;
             state = currentDay >= FinalDay ? DayState.Ending : DayState.DayClear;
+            upgradePurchasedThisClear = false;
+            daySupplyPending = false;
+            supplyPanelOpen = false;
+            supplyItemAwaitingExchange = ItemType.None;
             SetMapOpen(false, false);
             remainingSeconds = 0f;
             inventoryOpen = false;
@@ -316,6 +493,8 @@ namespace WardShift
             state = DayState.DayFailed;
             SetMapOpen(false, false);
             inventoryOpen = false;
+            supplyPanelOpen = false;
+            supplyItemAwaitingExchange = ItemType.None;
             if (anomalySpawner != null) anomalySpawner.SetSpawningEnabled(false);
             if (anomalySpawner != null) anomalySpawner.SetSpawnWindowOpen(false);
             if (magicCaster != null) magicCaster.SetInputBlocked(true);
@@ -411,6 +590,135 @@ namespace WardShift
                     snapshot.Participant.RestoreDayRetryState(snapshot.State);
         }
 
+        public object CaptureDayRetryState()
+        {
+            return new DayRetryState(mobilityUpgradeLevel, contaminationResistanceLevel,
+                fieldPurificationLevel, upgradePurchasedThisClear, daySupplyPending, daySupplyClaimed);
+        }
+
+        public void RestoreDayRetryState(object stateSnapshot)
+        {
+            if (!(stateSnapshot is DayRetryState snapshot)) return;
+            mobilityUpgradeLevel = Mathf.Clamp(snapshot.MobilityUpgradeLevel, 0, 2);
+            contaminationResistanceLevel = Mathf.Clamp(snapshot.ContaminationResistanceLevel, 0, 2);
+            fieldPurificationLevel = Mathf.Clamp(snapshot.FieldPurificationLevel, 0, 2);
+            upgradePurchasedThisClear = snapshot.UpgradePurchasedThisClear;
+            daySupplyPending = snapshot.DaySupplyPending;
+            daySupplyClaimed = snapshot.DaySupplyClaimed;
+            supplyPanelOpen = false;
+            supplyItemAwaitingExchange = ItemType.None;
+            ApplyUpgradeEffects();
+        }
+
+        private void CompleteDaySupplyClaim()
+        {
+            daySupplyPending = false;
+            daySupplyClaimed = true;
+            supplyPanelOpen = false;
+            supplyItemAwaitingExchange = ItemType.None;
+            RefreshSelfRetryCheckpoint();
+            if (wardStatus != null) wardStatus.ResumeGameFromUI();
+        }
+
+        private void RefreshSelfRetryCheckpoint()
+        {
+            for (int i = 0; i < participantCheckpoint.Count; i++)
+            {
+                if (!ReferenceEquals(participantCheckpoint[i].Participant, this)) continue;
+                participantCheckpoint[i].State = CaptureDayRetryState();
+                return;
+            }
+        }
+
+        private void SetUpgradeLevel(DayUpgradeType type, int level)
+        {
+            level = Mathf.Clamp(level, 0, 2);
+            switch (type)
+            {
+                case DayUpgradeType.Mobility: mobilityUpgradeLevel = level; break;
+                case DayUpgradeType.ContaminationResistance: contaminationResistanceLevel = level; break;
+                case DayUpgradeType.FieldPurification: fieldPurificationLevel = level; break;
+            }
+        }
+
+        private void ApplyUpgradeEffects()
+        {
+            ApplyMovementUpgrade();
+            if (Player != null)
+            {
+                float reduction = contaminationResistanceLevel == 2 ? 0.35f
+                    : contaminationResistanceLevel == 1 ? 0.2f : 0f;
+                Player.SetContaminationGainMultiplier(1f - reduction);
+            }
+        }
+
+        private void CapturePlayerMovementBaseSpeeds()
+        {
+            if (playerRoot == null) return;
+            if (firstPersonController == null)
+                firstPersonController = playerRoot.GetComponentInChildren<FirstPersonController>(true);
+            if (thirdPersonController == null)
+                thirdPersonController = playerRoot.GetComponentInChildren<ThirdPersonController>(true);
+            if (firstPersonController != null && !firstPersonSpeedCaptured)
+            {
+                firstPersonBaseMoveSpeed = firstPersonController.MoveSpeed;
+                firstPersonBaseSprintSpeed = firstPersonController.SprintSpeed;
+                firstPersonSpeedCaptured = true;
+            }
+            if (thirdPersonController != null && !thirdPersonSpeedCaptured)
+            {
+                thirdPersonBaseMoveSpeed = thirdPersonController.MoveSpeed;
+                thirdPersonBaseSprintSpeed = thirdPersonController.SprintSpeed;
+                thirdPersonSpeedCaptured = true;
+            }
+        }
+
+        private void ApplyMovementUpgrade()
+        {
+            CapturePlayerMovementBaseSpeeds();
+            float multiplier = 1f + (mobilityUpgradeLevel == 2 ? 0.2f
+                : mobilityUpgradeLevel == 1 ? 0.1f : 0f);
+            if (firstPersonController != null && firstPersonSpeedCaptured)
+            {
+                firstPersonController.MoveSpeed = firstPersonBaseMoveSpeed * multiplier;
+                firstPersonController.SprintSpeed = firstPersonBaseSprintSpeed * multiplier;
+            }
+            if (thirdPersonController != null && thirdPersonSpeedCaptured)
+            {
+                thirdPersonController.MoveSpeed = thirdPersonBaseMoveSpeed * multiplier;
+                thirdPersonController.SprintSpeed = thirdPersonBaseSprintSpeed * multiplier;
+            }
+        }
+
+        private void EnsureUpgradePrices()
+        {
+            if (upgradeStagePrices == null || upgradeStagePrices.Length != 2)
+                upgradeStagePrices = new[] { 4, 8 };
+        }
+
+        private static float PotionRecoveryForLevel(int level)
+        {
+            return level >= 2 ? 60f : level == 1 ? 45f : PlayerInventory.PotionRecovery;
+        }
+
+        private static string GetItemDisplayName(ItemType item)
+        {
+            switch (item)
+            {
+                case ItemType.PurificationPotion: return "정화약";
+                case ItemType.EmergencyRepairKit: return "비상 수리 키트";
+                default: return "빈 슬롯";
+            }
+        }
+
+        private void OnValidate()
+        {
+            EnsureUpgradePrices();
+            mobilityUpgradeLevel = Mathf.Clamp(mobilityUpgradeLevel, 0, 2);
+            contaminationResistanceLevel = Mathf.Clamp(contaminationResistanceLevel, 0, 2);
+            fieldPurificationLevel = Mathf.Clamp(fieldPurificationLevel, 0, 2);
+        }
+
         private PickupCheckpoint FindPickupCheckpoint(ItemPickup pickup)
         {
             foreach (PickupCheckpoint snapshot in pickupCheckpoint)
@@ -436,11 +744,33 @@ namespace WardShift
         private sealed class ParticipantCheckpoint
         {
             public readonly IDayRetryCheckpointParticipant Participant;
-            public readonly object State;
+            public object State;
             public ParticipantCheckpoint(IDayRetryCheckpointParticipant participant, object state)
             {
                 Participant = participant;
                 State = state;
+            }
+        }
+
+        private sealed class DayRetryState
+        {
+            public readonly int MobilityUpgradeLevel;
+            public readonly int ContaminationResistanceLevel;
+            public readonly int FieldPurificationLevel;
+            public readonly bool UpgradePurchasedThisClear;
+            public readonly bool DaySupplyPending;
+            public readonly bool DaySupplyClaimed;
+
+            public DayRetryState(int mobilityUpgradeLevel, int contaminationResistanceLevel,
+                int fieldPurificationLevel, bool upgradePurchasedThisClear, bool daySupplyPending,
+                bool daySupplyClaimed)
+            {
+                MobilityUpgradeLevel = mobilityUpgradeLevel;
+                ContaminationResistanceLevel = contaminationResistanceLevel;
+                FieldPurificationLevel = fieldPurificationLevel;
+                UpgradePurchasedThisClear = upgradePurchasedThisClear;
+                DaySupplyPending = daySupplyPending;
+                DaySupplyClaimed = daySupplyClaimed;
             }
         }
 
@@ -473,7 +803,7 @@ namespace WardShift
         private IEnumerator BeginDayNextFrame()
         {
             yield return null;
-            BeginDay();
+            BeginDay(true);
         }
 
         private void UnsubscribeFromAnomalies()
@@ -487,6 +817,7 @@ namespace WardShift
         {
             inventoryAction.Disable();
             mapAction.Disable();
+            supplyAction.Disable();
             if (daySkipAction != null) daySkipAction.Disable();
             if (wardStatus != null) wardStatus.Failed -= OnDayFailed;
             if (anomalySpawner != null) anomalySpawner.AnomalySpawned -= OnAnomalySpawned;
@@ -497,10 +828,12 @@ namespace WardShift
         {
             inventoryAction.Dispose();
             mapAction.Dispose();
+            supplyAction.Dispose();
             if (daySkipAction != null) daySkipAction.Dispose();
         }
     }
 
     /// <summary>하루 진행의 외부에서 확인 가능한 상태.</summary>
     public enum DayState { Preparing, Playing, DayClear, DayFailed, Ending }
+    public enum DayUpgradeType { Mobility, ContaminationResistance, FieldPurification }
 }

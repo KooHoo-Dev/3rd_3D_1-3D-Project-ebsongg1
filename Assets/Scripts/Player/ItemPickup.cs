@@ -10,6 +10,7 @@ namespace WardShift
         [SerializeField, Min(1)] private int quantity = 1;
         [SerializeField, HideInInspector] private bool isCollected;
 
+        public ItemType Item => item;
         public bool IsCollected => isCollected;
 
         /// <summary>아이템을 인벤토리에 넣을 수 있을 때만 월드 오브젝트를 제거.</summary>

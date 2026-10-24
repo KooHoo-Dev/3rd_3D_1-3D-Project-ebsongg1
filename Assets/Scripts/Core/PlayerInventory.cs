@@ -9,6 +9,7 @@ namespace WardShift
     {
         public const int SlotCount = 4;
         public const float PotionRecovery = 30f;
+        public const float RepairKitRecovery = 20f;
 
         /// <summary>DAY 시작 시점의 재화와 모든 소비 아이템 슬롯.</summary>
         public sealed class DayStateSnapshot
@@ -53,16 +54,10 @@ namespace WardShift
         public bool TryAddItem(ItemType item, int quantity = 1)
         {
             EnsureSlots();
-            if (item == ItemType.None || quantity <= 0) return false;
+            if (!CanAddItem(item, quantity)) return false;
 
             int remaining = quantity;
             int stackLimit = Mathf.Max(1, maximumStack);
-            int capacity = 0;
-            foreach (InventorySlot slot in slots)
-                capacity += slot.Item == item ? Mathf.Max(0, stackLimit - slot.Quantity)
-                    : slot.Item == ItemType.None && slot.Quantity == 0 ? stackLimit : 0;
-            if (capacity < quantity) return false;
-
             for (int i = 0; i < slots.Length && remaining > 0; i++)
             {
                 InventorySlot slot = slots[i];
@@ -85,17 +80,68 @@ namespace WardShift
             return true;
         }
 
-        /// <summary>해당 칸의 소비 아이템을 사용. 효과 적용에 성공한 뒤에만 하나를 소모.</summary>
-        public bool TryUseItem(int slotIndex, PlayerContamination player)
+        public bool CanAddItem(ItemType item, int quantity = 1)
         {
             EnsureSlots();
-            if (player == null || slotIndex < 0 || slotIndex >= slots.Length) return false;
+            if (item == ItemType.None || quantity <= 0) return false;
+            int stackLimit = Mathf.Max(1, maximumStack);
+            int capacity = 0;
+            foreach (InventorySlot slot in slots)
+                capacity += slot.Item == item ? Mathf.Max(0, stackLimit - slot.Quantity)
+                    : slot.Item == ItemType.None && slot.Quantity == 0 ? stackLimit : 0;
+            return capacity >= quantity;
+        }
+
+        /// <summary>선택한 슬롯의 스택을 새 아이템 하나로 교환합니다.</summary>
+        public bool TryReplaceItem(int slotIndex, ItemType item)
+        {
+            EnsureSlots();
+            if (slotIndex < 0 || slotIndex >= slots.Length || item == ItemType.None) return false;
+            slots[slotIndex].Item = item;
+            slots[slotIndex].Quantity = 1;
+            Changed?.Invoke();
+            return true;
+        }
+
+        /// <summary>해당 칸의 소비 아이템을 사용. 효과 적용에 성공한 뒤에만 하나를 소모.</summary>
+        public bool TryUseItem(int slotIndex, PlayerContamination player)
+            => TryUseItem(slotIndex, player, FindFirstObjectByType<WardStatus>(), PotionRecovery);
+
+        /// <summary>소비 아이템의 종류에 맞는 효과가 성공한 경우에만 하나를 소모합니다.</summary>
+        public bool TryUseItem(int slotIndex, PlayerContamination player, WardStatus wardStatus,
+            float potionRecovery)
+        {
+            EnsureSlots();
+            if (slotIndex < 0 || slotIndex >= slots.Length) return false;
             InventorySlot slot = slots[slotIndex];
-            if (slot.Item != ItemType.PurificationPotion || slot.Quantity <= 0
-                || !player.TryReduceContamination(PotionRecovery)) return false;
+            if (slot.Quantity <= 0) return false;
+
+            bool effectApplied;
+            switch (slot.Item)
+            {
+                case ItemType.PurificationPotion:
+                    effectApplied = player != null && player.TryReduceContamination(potionRecovery);
+                    break;
+                case ItemType.EmergencyRepairKit:
+                    effectApplied = wardStatus != null && wardStatus.TryRepairStability(RepairKitRecovery);
+                    break;
+                default:
+                    effectApplied = false;
+                    break;
+            }
+            if (!effectApplied) return false;
 
             slot.Quantity--;
             if (slot.Quantity == 0) slot.Item = ItemType.None;
+            Changed?.Invoke();
+            return true;
+        }
+
+        public bool TrySpendManaCrystals(int amount)
+        {
+            if (amount < 0 || manaCrystals < amount) return false;
+            if (amount == 0) return true;
+            manaCrystals -= amount;
             Changed?.Invoke();
             return true;
         }
@@ -146,6 +192,52 @@ namespace WardShift
             Changed?.Invoke();
         }
 
+        /// <summary>현재 DAY 시작 스냅샷에 보급품을 반영한 복사본을 만듭니다.</summary>
+        public bool TryAddItemToDayState(DayStateSnapshot snapshot, ItemType item, int quantity,
+            out DayStateSnapshot updated)
+        {
+            updated = null;
+            if (snapshot == null || item == ItemType.None || quantity <= 0
+                || snapshot.Items == null || snapshot.Quantities == null) return false;
+
+            ItemType[] items = (ItemType[])snapshot.Items.Clone();
+            int[] quantities = (int[])snapshot.Quantities.Clone();
+            if (!TryAddToArrays(items, quantities, item, quantity, Mathf.Max(1, maximumStack))) return false;
+            updated = new DayStateSnapshot(items, quantities, snapshot.ManaCrystals,
+                snapshot.CrystalsEarnedToday);
+            return true;
+        }
+
+        /// <summary>선택한 스냅샷 슬롯을 보급품으로 교환한 복사본을 만듭니다.</summary>
+        public bool TryReplaceItemInDayState(DayStateSnapshot snapshot, int slotIndex, ItemType item,
+            out DayStateSnapshot updated)
+        {
+            updated = null;
+            if (snapshot == null || item == ItemType.None || snapshot.Items == null
+                || snapshot.Quantities == null || slotIndex < 0 || slotIndex >= snapshot.Items.Length
+                || slotIndex >= snapshot.Quantities.Length) return false;
+
+            ItemType[] items = (ItemType[])snapshot.Items.Clone();
+            int[] quantities = (int[])snapshot.Quantities.Clone();
+            items[slotIndex] = item;
+            quantities[slotIndex] = 1;
+            updated = new DayStateSnapshot(items, quantities, snapshot.ManaCrystals,
+                snapshot.CrystalsEarnedToday);
+            return true;
+        }
+
+        public ItemType GetDayStateItem(DayStateSnapshot snapshot, int slotIndex)
+        {
+            return snapshot != null && snapshot.Items != null && slotIndex >= 0
+                && slotIndex < snapshot.Items.Length ? snapshot.Items[slotIndex] : ItemType.None;
+        }
+
+        public int GetDayStateQuantity(DayStateSnapshot snapshot, int slotIndex)
+        {
+            return snapshot != null && snapshot.Quantities != null && slotIndex >= 0
+                && slotIndex < snapshot.Quantities.Length ? snapshot.Quantities[slotIndex] : 0;
+        }
+
         /// <summary>새 실행을 시작할 때 아이템과 재화를 모두 초기화.</summary>
         public void ResetForNewRun()
         {
@@ -186,8 +278,36 @@ namespace WardShift
             for (int i = 0; i < slots.Length; i++)
                 if (slots[i] == null) slots[i] = new InventorySlot();
         }
+
+        private static bool TryAddToArrays(ItemType[] items, int[] quantities, ItemType item,
+            int quantity, int stackLimit)
+        {
+            int capacity = 0;
+            for (int i = 0; i < items.Length && i < quantities.Length; i++)
+                capacity += items[i] == item ? Mathf.Max(0, stackLimit - quantities[i])
+                    : items[i] == ItemType.None && quantities[i] == 0 ? stackLimit : 0;
+            if (capacity < quantity) return false;
+
+            int remaining = quantity;
+            for (int i = 0; i < items.Length && i < quantities.Length && remaining > 0; i++)
+            {
+                if (items[i] != item || quantities[i] >= stackLimit) continue;
+                int added = Mathf.Min(remaining, stackLimit - quantities[i]);
+                quantities[i] += added;
+                remaining -= added;
+            }
+            for (int i = 0; i < items.Length && i < quantities.Length && remaining > 0; i++)
+            {
+                if (items[i] != ItemType.None || quantities[i] != 0) continue;
+                int added = Mathf.Min(remaining, stackLimit);
+                items[i] = item;
+                quantities[i] = added;
+                remaining -= added;
+            }
+            return remaining == 0;
+        }
     }
 
-    /// <summary>DAY 5에서 사용할 간단한 소비 아이템 종류.</summary>
-    public enum ItemType { None, PurificationPotion }
+    /// <summary>소비 아이템 종류.</summary>
+    public enum ItemType { None, PurificationPotion, EmergencyRepairKit }
 }

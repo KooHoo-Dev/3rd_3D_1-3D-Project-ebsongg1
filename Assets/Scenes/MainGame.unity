@@ -17318,6 +17318,9 @@ MonoBehaviour:
   finalDay: 7
   minimumAnomalyReward: 1
   maximumAnomalyReward: 2
+  upgradeStagePrices:
+  - 4
+  - 8
   wardStatus: {fileID: 1545351164}
   anomalySpawner: {fileID: 411442692}
   inventory: {fileID: 411442694}
@@ -17329,6 +17332,9 @@ MonoBehaviour:
   currentDay: 1
   state: 0
   remainingSeconds: 0
+  mobilityUpgradeLevel: 0
+  contaminationResistanceLevel: 0
+  fieldPurificationLevel: 0
 --- !u!114 &411442694
 MonoBehaviour:
   m_ObjectHideFlags: 0

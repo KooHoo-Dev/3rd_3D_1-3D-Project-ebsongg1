@@ -253,6 +253,11 @@ MonoBehaviour:
   - {fileID: 6398913119400273118}
   minimumPatchCount: 4
   maximumPatchCount: 6
+  patchSpawnIntervalSeconds: 3
+  floorSnapProbeHeight: 2
+  floorSnapProbeDistance: 4
+  maximumFloorHeightCorrection: 1
+  minimumFloorNormalY: 0.7
   stageTwoAt: 20
   stageThreeAt: 40
   ruptureAt: 60

@@ -9,9 +9,16 @@ namespace WardShift
     {
         [SerializeField, Min(0f)] private float recoveryPerSecond = 10f;
         [SerializeField, Range(0f, 100f)] private float contamination;
+        private float contaminationGainMultiplier = 1f;
         public float Value => contamination;
         public bool InSafeZone { get; private set; }
         public float ExposurePerSecond { get; private set; }
+
+        /// <summary>강화 효과를 절대 배수로 설정합니다. 호출할 때마다 중첩되지 않습니다.</summary>
+        public void SetContaminationGainMultiplier(float multiplier)
+        {
+            contaminationGainMultiplier = Mathf.Clamp01(multiplier);
+        }
 
         /// <summary>회복 아이템 사용에 성공하면 오염도를 0 아래로 내리지 않고 줄임.</summary>
         public bool TryReduceContamination(float amount)
@@ -25,13 +32,14 @@ namespace WardShift
         public void AddContamination(float amount)
         {
             if (amount <= 0f) return;
-            contamination = Mathf.Clamp(contamination + amount, 0f, 100f);
+            contamination = Mathf.Clamp(contamination + amount * contaminationGainMultiplier, 0f, 100f);
         }
 
         /// <summary>새 게임 초기화에만 사용.</summary>
         public void ResetForNewRun()
         {
             contamination = 0f;
+            contaminationGainMultiplier = 1f;
             InSafeZone = false;
             ExposurePerSecond = 0f;
         }
@@ -55,6 +63,7 @@ namespace WardShift
             if (!InSafeZone)
                 foreach (AnomalyBehaviour anomaly in anomalies)
                     if (anomaly != null) ExposurePerSecond += anomaly.ContaminationRateAt(transform.position);
+            if (!InSafeZone) ExposurePerSecond *= contaminationGainMultiplier;
             float rate = InSafeZone ? -Mathf.Max(0f, recoveryPerSecond) : ExposurePerSecond;
             contamination = Mathf.Clamp(contamination + rate * Mathf.Max(0f, deltaTime), 0f, 100f);
         }

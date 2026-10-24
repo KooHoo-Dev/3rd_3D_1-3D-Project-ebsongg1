@@ -13,6 +13,13 @@ namespace WardShift
         [SerializeField] private CursePatch[] patches = new CursePatch[0];
         [SerializeField, Range(4, 6)] private int minimumPatchCount = 4;
         [SerializeField, Range(4, 6)] private int maximumPatchCount = 6;
+        [Tooltip("첫 패치는 즉시 나타나며, 저주 오염이 남아 있을 때 다음 패치가 나타나는 간격입니다.")]
+        [SerializeField, Min(0.1f)] private float patchSpawnIntervalSeconds = 3f;
+        [Header("바닥 위치 자동 맞춤")]
+        [SerializeField, Min(0.1f)] private float floorSnapProbeHeight = 2f;
+        [SerializeField, Min(0.1f)] private float floorSnapProbeDistance = 4f;
+        [SerializeField, Min(0f)] private float maximumFloorHeightCorrection = 1f;
+        [SerializeField, Range(0f, 1f)] private float minimumFloorNormalY = 0.7f;
         [Header("성장·파열 (생성 후 누적 초)")]
         [SerializeField, Min(0.1f)] private float stageTwoAt = 20f;
         [SerializeField, Min(0.2f)] private float stageThreeAt = 40f;
@@ -37,6 +44,8 @@ namespace WardShift
         private bool[] registeredPatches;
         private bool hasSpawnPointConfiguration;
         private int selectedPatchCount;
+        private int spawnedPatchCount;
+        private float nextPatchSpawnAge;
         private bool hasPlacedPatches;
 
         /// <summary>이상현상 생성 후 흐른 시간입니다.</summary>
@@ -117,6 +126,8 @@ namespace WardShift
                 Destroy(gameObject);
                 return;
             }
+            spawnedPatchCount = Mathf.Min(1, selectedPatchCount);
+            nextPatchSpawnAge = Mathf.Max(0.1f, patchSpawnIntervalSeconds);
             hasPlacedPatches = true;
             RefreshPatchAvailability();
         }
@@ -141,7 +152,7 @@ namespace WardShift
                 return false;
             }
 
-            // 후보 위치만 섞습니다. 패치는 등록된 Transform에 배치하고 바닥 레이캐스트로 보정하지 않습니다.
+            // 후보 위치만 섞습니다. 각 지점의 X/Z를 유지하고 바닥 콜라이더 높이에 패치를 자동으로 맞춥니다.
             var shuffledPoints = new List<CursePatchPoint>(registeredPoints);
             for (int i = shuffledPoints.Count - 1; i > 0; i--)
             {
@@ -155,6 +166,7 @@ namespace WardShift
             registeredPatches = new bool[patches.Length];
             Vector3 unusedTemplatePosition = spawnPoint.SpawnPosition;
             Quaternion unusedTemplateRotation = spawnPoint.transform.rotation;
+            int floorSnapMisses = 0;
             for (int i = 0; i < patches.Length; i++)
             {
                 CursePatch patch = patches[i];
@@ -163,13 +175,63 @@ namespace WardShift
                 if (i >= selectedPatchCount) continue;
 
                 CursePatchPoint patchPoint = shuffledPoints[i];
-                Vector3 position = patchPoint.transform.position
-                    + patchPoint.transform.up * patch.SurfaceOffset;
-                patch.transform.SetPositionAndRotation(position, patchPoint.transform.rotation);
+                if (TryGetSnappedFloorPose(patchPoint, patch.SurfaceOffset,
+                        out Vector3 position, out Quaternion rotation))
+                {
+                    patch.transform.SetPositionAndRotation(position, rotation);
+                }
+                else
+                {
+                    floorSnapMisses++;
+                    Vector3 fallbackPosition = patchPoint.transform.position
+                        + patchPoint.transform.up * patch.SurfaceOffset;
+                    patch.transform.SetPositionAndRotation(fallbackPosition, patchPoint.transform.rotation);
+                }
                 registeredPatches[i] = true;
             }
 
+            if (floorSnapMisses > 0)
+                Debug.LogWarning($"{spawnPoint.name}: {floorSnapMisses}개 저주 패치 지점에서 가까운 바닥 콜라이더를 찾지 못했습니다. "
+                    + "PatchPoint 높이와 바닥 콜라이더를 확인하세요.", spawnPoint);
+
             hasSpawnPointConfiguration = true;
+            return true;
+        }
+
+        private bool TryGetSnappedFloorPose(CursePatchPoint patchPoint, float surfaceOffset,
+            out Vector3 position, out Quaternion rotation)
+        {
+            Vector3 pointPosition = patchPoint.transform.position;
+            Vector3 origin = pointPosition + Vector3.up * Mathf.Max(0.1f, floorSnapProbeHeight);
+            RaycastHit[] hits = Physics.RaycastAll(origin, Vector3.down,
+                Mathf.Max(0.1f, floorSnapProbeDistance), Physics.DefaultRaycastLayers,
+                QueryTriggerInteraction.Ignore);
+
+            bool foundFloor = false;
+            float nearestDistance = float.PositiveInfinity;
+            RaycastHit floorHit = default;
+            foreach (RaycastHit hit in hits)
+            {
+                if (hit.collider == null || hit.normal.y < minimumFloorNormalY
+                    || hit.collider.GetComponentInParent<CursePatch>() != null
+                    || hit.collider.GetComponentInParent<AnomalyBehaviour>() != null
+                    || Mathf.Abs(hit.point.y - pointPosition.y) > maximumFloorHeightCorrection)
+                    continue;
+                if (hit.distance >= nearestDistance) continue;
+                nearestDistance = hit.distance;
+                floorHit = hit;
+                foundFloor = true;
+            }
+
+            if (!foundFloor)
+            {
+                position = pointPosition;
+                rotation = patchPoint.transform.rotation;
+                return false;
+            }
+
+            position = floorHit.point + floorHit.normal * Mathf.Max(0f, surfaceOffset);
+            rotation = Quaternion.FromToRotation(Vector3.up, floorHit.normal) * patchPoint.transform.rotation;
             return true;
         }
 
@@ -186,11 +248,10 @@ namespace WardShift
             float currentAge = Mathf.Min(nextAge, rupture);
             age = currentAge;
             int nextStage = currentAge >= third ? 3 : currentAge >= second ? 2 : 1;
-            if (nextStage != dangerStage)
-            {
-                dangerStage = nextStage;
-                if (hasPlacedPatches) RefreshPatchAvailability();
-            }
+            bool availabilityChanged = nextStage != dangerStage;
+            dangerStage = nextStage;
+            availabilityChanged |= AdvancePatchSpawns(currentAge);
+            if (hasPlacedPatches && availabilityChanged) RefreshPatchAvailability();
 
             float stageTwoSeconds = Mathf.Max(0f, Mathf.Min(currentAge, third) - Mathf.Max(previousAge, second));
             float stageThreeSeconds = Mathf.Max(0f, Mathf.Min(currentAge, rupture) - Mathf.Max(previousAge, third));
@@ -235,19 +296,32 @@ namespace WardShift
                 CursePatch patch = patches[i];
                 if (patch == null) continue;
                 bool validPoint = registeredPatches != null && i < registeredPatches.Length && registeredPatches[i];
-                bool activate = hasPlacedPatches && validPoint && i < selectedPatchCount;
+                bool activate = hasPlacedPatches && validPoint && i < spawnedPatchCount;
                 patch.SetStageAvailability(activate, dangerStage);
                 if (patch.IsHazardActive) activePatchCount++;
             }
+        }
+
+        private bool AdvancePatchSpawns(float currentAge)
+        {
+            bool spawnedAny = false;
+            float interval = Mathf.Max(0.1f, patchSpawnIntervalSeconds);
+            while (spawnedPatchCount < selectedPatchCount && currentAge >= nextPatchSpawnAge)
+            {
+                spawnedPatchCount++;
+                nextPatchSpawnAge += interval;
+                spawnedAny = true;
+            }
+            return spawnedAny;
         }
 
         private void OnPatchPurified(CursePatch patch)
         {
             if (isResolved || hasRuptured || HasEnded) return;
             RefreshPatchAvailability();
-            if (!AllSelectedPatchesPurified()) return;
+            if (!AllSpawnedPatchesPurified()) return;
             isResolved = true;
-            Debug.Log($"저주 오염 진압 완료 ({selectedPatchCount}/{selectedPatchCount})", this);
+            Debug.Log($"저주 오염 진압 완료 ({spawnedPatchCount}개 패치)", this);
             try
             {
                 onResolved.Invoke();
@@ -259,10 +333,10 @@ namespace WardShift
             }
         }
 
-        private bool AllSelectedPatchesPurified()
+        private bool AllSpawnedPatchesPurified()
         {
-            if (patches == null || selectedPatchCount < 4) return false;
-            for (int i = 0; i < selectedPatchCount; i++)
+            if (patches == null || spawnedPatchCount <= 0) return false;
+            for (int i = 0; i < spawnedPatchCount; i++)
                 if (patches[i] == null || !patches[i].IsPurified) return false;
             return true;
         }
