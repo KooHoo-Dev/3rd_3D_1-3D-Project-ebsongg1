@@ -34,6 +34,7 @@ namespace WardShift
         /// <summary>시설 또는 플레이어 조건으로 하루가 실패했을 때 발생.</summary>
         public event Action<string> Failed;
         public event Action<float> StabilityChanged;
+        private readonly List<AnomalyBehaviour> anomalySnapshot = new List<AnomalyBehaviour>();
 
         private void Awake()
         {
@@ -53,7 +54,11 @@ namespace WardShift
         private void LateUpdate()
         {
             if (HasFailed || Time.timeScale <= 0f || player == null) return;
-            IReadOnlyList<AnomalyBehaviour> anomalies = AnomalyBehaviour.ActiveAnomalies;
+            IReadOnlyList<AnomalyBehaviour> activeAnomalies = AnomalyBehaviour.ActiveAnomalies;
+            anomalySnapshot.Clear();
+            for (int i = 0; i < activeAnomalies.Count; i++)
+                if (activeAnomalies[i] != null) anomalySnapshot.Add(activeAnomalies[i]);
+            IReadOnlyList<AnomalyBehaviour> anomalies = anomalySnapshot;
             float previousStability = stability;
             HighestStage = 0;
             HasOverloadedAnomaly = false;

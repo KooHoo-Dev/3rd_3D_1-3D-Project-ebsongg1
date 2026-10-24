@@ -32,6 +32,7 @@ namespace WardShift
         private Button supplyReopenButton;
         private Button[] supplyExchangeButtons = new Button[PlayerInventory.SlotCount];
         private TMP_Text clearSummaryText;
+        private TMP_Text clearConditionText;
         private TMP_Text failedSummaryText;
         private TMP_Text endingSummaryText;
         private TMP_Text upgradeResultText;
@@ -85,6 +86,13 @@ namespace WardShift
                 clearSummaryText.text = $"{dayFlow.CurrentDay}일차 근무 완료\n"
                     + $"이번 근무 획득 마력 결정: {inventory.CrystalsEarnedToday}개\n"
                     + $"보유 마력 결정: {inventory.ManaCrystals}개";
+            if (clearConditionText != null)
+            {
+                clearConditionText.text = dayFlow.CurrentDay < dayFlow.FinalDay
+                    ? $"다음 DAY {dayFlow.CurrentDay + 1} 범람 조건\n"
+                        + FloodConditionRules.GetDisplayText(dayFlow.NextDayFloodCondition)
+                    : "마지막 DAY를 완료했습니다.";
+            }
             if (failedSummaryText != null)
                 failedSummaryText.text = $"{dayFlow.CurrentDay}일차\n"
                     + (dayFlow.Status != null && !string.IsNullOrEmpty(dayFlow.Status.FailureReason)
@@ -194,6 +202,10 @@ namespace WardShift
             clearSummaryText = CreateText("Summary", clearPanel.transform, new Vector2(0f, 1f),
                 new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -120f),
                 new Vector2(-60f, 82f), 20, TextAlignmentOptions.Center, Color.white);
+            clearConditionText = CreateText("NextFloodCondition", clearPanel.transform,
+                new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(0f, -204f), new Vector2(-70f, 104f), 17,
+                TextAlignmentOptions.Center, new Color(0.75f, 0.9f, 1f));
 
             DayUpgradeType[] types =
             {
@@ -245,10 +257,11 @@ namespace WardShift
                 new Vector2(0.5f, 1f), new Vector2(0f, -48f), new Vector2(-40f, 70f),
                 38, TextAlignmentOptions.Center, new Color(0.65f, 0.92f, 1f)).text = "DAY 시작 보급";
             supplyMessageText = CreateText("Message", supplyPanel.transform, new Vector2(0f, 1f),
-                new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -115f),
-                new Vector2(-55f, 92f), 21, TextAlignmentOptions.Center, Color.white);
+                new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -105f),
+                new Vector2(-55f, 120f), 16, TextAlignmentOptions.Center, Color.white);
 
             supplyOptionsRoot = CreateRectTransformObject("SupplyOptions", supplyPanel.transform);
+            supplyOptionsRoot.GetComponent<RectTransform>().anchoredPosition = new Vector2(0f, -70f);
             Button potionButton = CreateActionButton("ChoosePotion", supplyOptionsRoot.transform, new Vector2(-150f, 8f),
                 new Vector2(275f, 130f), "정화약\n오염도 30 회복",
                 () => TryChooseSupply(ItemType.PurificationPotion));
@@ -259,6 +272,7 @@ namespace WardShift
             supplyRepairLabel = repairButton.GetComponentInChildren<TMP_Text>();
 
             supplyExchangeRoot = CreateRectTransformObject("SupplyExchangeOptions", supplyPanel.transform);
+            supplyExchangeRoot.GetComponent<RectTransform>().anchoredPosition = new Vector2(0f, -100f);
             for (int i = 0; i < supplyExchangeButtons.Length; i++)
             {
                 int slotIndex = i;
@@ -396,9 +410,16 @@ namespace WardShift
                 supplyPotionLabel.text = $"정화약\n오염도 {dayFlow.PotionRecoveryAmount:F0} 회복";
             if (supplyRepairLabel != null) supplyRepairLabel.text = "비상 수리 키트\n안정도 20 회복";
             if (supplyMessageText != null)
-                supplyMessageText.text = exchanging
+            {
+                string conditionText = dayFlow.ActiveFloodCondition == FloodCondition.None
+                    ? $"오늘의 범람 조건: {FloodConditionRules.GetName(dayFlow.ActiveFloodCondition)} · 범람 조건 없음"
+                    : $"오늘의 범람 조건: {FloodConditionRules.GetName(dayFlow.ActiveFloodCondition)}\n"
+                        + FloodConditionRules.GetRuleDescription(dayFlow.ActiveFloodCondition) + "\n"
+                        + $"대응 힌트: {FloodConditionRules.GetResponseHint(dayFlow.ActiveFloodCondition)}";
+                supplyMessageText.text = conditionText + "\n\n" + (exchanging
                     ? $"인벤토리 공간이 없어 {GetItemName(dayFlow.SupplyItemAwaitingExchange)}을(를) 바로 넣을 수 없습니다.\n교환할 슬롯을 고르세요. DAY 시작 기록의 해당 슬롯도 함께 교체됩니다."
-                    : "정화약 또는 비상 수리 키트 중 하나를 선택하세요.\n가득 찬 경우 교환할 슬롯을 직접 고를 수 있고, 선택을 미뤄도 근무는 계속됩니다.";
+                    : "정화약 또는 비상 수리 키트 중 하나를 선택하세요.\n가득 찬 경우 슬롯을 교환하거나, 선택을 미뤄도 근무를 계속할 수 있습니다.");
+            }
             for (int i = 0; i < supplyExchangeButtons.Length; i++)
             {
                 ItemType current = inventory != null ? inventory.GetItem(i) : ItemType.None;

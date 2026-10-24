@@ -51,6 +51,8 @@ namespace WardShift
         [SerializeField, Range(0, 2)] private int mobilityUpgradeLevel;
         [SerializeField, Range(0, 2)] private int contaminationResistanceLevel;
         [SerializeField, Range(0, 2)] private int fieldPurificationLevel;
+        [SerializeField] private FloodCondition activeFloodCondition;
+        [SerializeField] private FloodCondition nextDayFloodCondition;
 
         private readonly InputAction inventoryAction = new InputAction(
             "Toggle Inventory", InputActionType.Button, "<Keyboard>/b");
@@ -65,6 +67,13 @@ namespace WardShift
         private readonly List<ParticipantCheckpoint> participantCheckpoint = new List<ParticipantCheckpoint>();
         private PlayerInventory.DayStateSnapshot inventoryCheckpoint;
         private int dayRandomSeed;
+        private int plannedNextDayNumber;
+        private int plannedNextDayRandomSeed;
+        private FloodCondition previousDayFloodCondition;
+#if UNITY_EDITOR
+        private bool useFloodConditionTestOverride;
+        private FloodCondition floodConditionTestOverride;
+#endif
         private bool inventoryOpen;
         private bool mapOpen;
         private bool daySupplyPending;
@@ -97,8 +106,11 @@ namespace WardShift
         public int MobilityUpgradeLevel => mobilityUpgradeLevel;
         public int ContaminationResistanceLevel => contaminationResistanceLevel;
         public int FieldPurificationLevel => fieldPurificationLevel;
-        public float PotionRecoveryAmount => fieldPurificationLevel >= 2 ? 60f
-            : fieldPurificationLevel == 1 ? 45f : PlayerInventory.PotionRecovery;
+        public FloodCondition ActiveFloodCondition => activeFloodCondition;
+        public FloodCondition NextDayFloodCondition => nextDayFloodCondition;
+        public float SafeZoneRecoveryMultiplier => FloodConditionRules.SafeZoneRecoveryMultiplier(activeFloodCondition);
+        public float PotionRecoveryAmount => FloodConditionRules.PotionRecoveryAmount(
+            PotionRecoveryForLevel(fieldPurificationLevel), activeFloodCondition);
         public FacilityZoneTracker ZoneTracker => zoneTracker;
         public PlayerInventory Inventory => inventory;
         public WardStatus Status => wardStatus;
@@ -202,7 +214,11 @@ namespace WardShift
         {
             if (state != DayState.DayClear) return;
             currentDay = Mathf.Min(currentDay + 1, FinalDay);
-            dayRandomSeed = CreateDaySeed();
+            dayRandomSeed = plannedNextDayNumber == currentDay
+                ? plannedNextDayRandomSeed : CreateDaySeed();
+            plannedNextDayNumber = 0;
+            plannedNextDayRandomSeed = 0;
+            nextDayFloodCondition = FloodCondition.None;
             state = DayState.Preparing;
             BeginDay();
         }
@@ -314,7 +330,13 @@ namespace WardShift
                 case DayUpgradeType.ContaminationResistance:
                     return level == 0 ? "기본 오염 획득량" : $"오염도 획득량 -{(level == 1 ? 20 : 35)}%";
                 case DayUpgradeType.FieldPurification:
-                    return $"정화약 {PotionRecoveryForLevel(level):F0} 회복";
+                {
+                    FloodCondition condition = state == DayState.DayClear
+                        ? nextDayFloodCondition : activeFloodCondition;
+                    float amount = FloodConditionRules.PotionRecoveryAmount(
+                        PotionRecoveryForLevel(level), condition);
+                    return $"정화약 {amount:F0} 회복";
+                }
                 default:
                     return string.Empty;
             }
@@ -414,6 +436,16 @@ namespace WardShift
             maximumAnomalyReward = Mathf.Max(minimumAnomalyReward, maxReward);
         }
 
+#if UNITY_EDITOR
+        /// <summary>에디터 전용 검사에서 이후 DAY 조건을 고정합니다. 일반 플레이 경로에는 저장되지 않습니다.</summary>
+        public void ConfigureFloodConditionTestOverride(bool enabled, FloodCondition condition)
+        {
+            useFloodConditionTestOverride = enabled;
+            floodConditionTestOverride = condition;
+            if (state == DayState.DayClear) PrepareNextDayCondition();
+        }
+#endif
+
         private void BeginDay(bool isRetry = false)
         {
             inventoryOpen = false;
@@ -430,6 +462,9 @@ namespace WardShift
             ClearAllAnomalies();
             ResetSceneManaDevicesForNewDay();
             TeleportPlayerToStart();
+            if (dayRandomSeed == 0) dayRandomSeed = CreateDaySeed();
+            if (!isRetry)
+                activeFloodCondition = SelectFloodCondition(currentDay, dayRandomSeed, previousDayFloodCondition);
             inventory.BeginDay();
             if (wardStatus != null) wardStatus.ResetForNewDay();
             if (!isRetry)
@@ -444,7 +479,6 @@ namespace WardShift
                 }
             }
             ApplyUpgradeEffects();
-            if (dayRandomSeed == 0) dayRandomSeed = CreateDaySeed();
             remainingSeconds = Mathf.Max(1f, dayDurationSeconds);
             state = DayState.Playing;
             Cursor.lockState = CursorLockMode.Locked;
@@ -471,6 +505,10 @@ namespace WardShift
         {
             if (state != DayState.Playing) return;
             state = currentDay >= FinalDay ? DayState.Ending : DayState.DayClear;
+            previousDayFloodCondition = activeFloodCondition;
+            activeFloodCondition = FloodCondition.None;
+            ApplyUpgradeEffects();
+            PrepareNextDayCondition();
             upgradePurchasedThisClear = false;
             daySupplyPending = false;
             supplyPanelOpen = false;
@@ -532,6 +570,7 @@ namespace WardShift
                 int max = Mathf.Max(min, maximumAnomalyReward);
                 reward = UnityEngine.Random.Range(min, max + 1);
             }
+            else reward = FloodConditionRules.ResolutionReward(reward, activeFloodCondition);
             inventory.AddManaCrystals(Mathf.Max(0, reward));
             anomaly.ResolutionCompleted -= OnAnomalyResolved;
             subscribedAnomalies.Remove(anomaly);
@@ -593,7 +632,8 @@ namespace WardShift
         public object CaptureDayRetryState()
         {
             return new DayRetryState(mobilityUpgradeLevel, contaminationResistanceLevel,
-                fieldPurificationLevel, upgradePurchasedThisClear, daySupplyPending, daySupplyClaimed);
+                fieldPurificationLevel, activeFloodCondition, previousDayFloodCondition,
+                upgradePurchasedThisClear, daySupplyPending, daySupplyClaimed);
         }
 
         public void RestoreDayRetryState(object stateSnapshot)
@@ -602,6 +642,8 @@ namespace WardShift
             mobilityUpgradeLevel = Mathf.Clamp(snapshot.MobilityUpgradeLevel, 0, 2);
             contaminationResistanceLevel = Mathf.Clamp(snapshot.ContaminationResistanceLevel, 0, 2);
             fieldPurificationLevel = Mathf.Clamp(snapshot.FieldPurificationLevel, 0, 2);
+            activeFloodCondition = snapshot.ActiveFloodCondition;
+            previousDayFloodCondition = snapshot.PreviousDayFloodCondition;
             upgradePurchasedThisClear = snapshot.UpgradePurchasedThisClear;
             daySupplyPending = snapshot.DaySupplyPending;
             daySupplyClaimed = snapshot.DaySupplyClaimed;
@@ -649,7 +691,31 @@ namespace WardShift
                 float reduction = contaminationResistanceLevel == 2 ? 0.35f
                     : contaminationResistanceLevel == 1 ? 0.2f : 0f;
                 Player.SetContaminationGainMultiplier(1f - reduction);
+                Player.SetSafeZoneRecoveryMultiplier(SafeZoneRecoveryMultiplier);
             }
+        }
+
+        private FloodCondition SelectFloodCondition(int day, int seed, FloodCondition previousCondition)
+        {
+#if UNITY_EDITOR
+            return FloodConditionRules.SelectForDay(day, seed, previousCondition,
+                useFloodConditionTestOverride, floodConditionTestOverride);
+#else
+            return FloodConditionRules.SelectForDay(day, seed, previousCondition);
+#endif
+        }
+
+        private void PrepareNextDayCondition()
+        {
+            nextDayFloodCondition = FloodCondition.None;
+            plannedNextDayNumber = 0;
+            plannedNextDayRandomSeed = 0;
+            if (currentDay >= FinalDay) return;
+
+            plannedNextDayNumber = currentDay + 1;
+            plannedNextDayRandomSeed = CreateDaySeed();
+            nextDayFloodCondition = SelectFloodCondition(plannedNextDayNumber,
+                plannedNextDayRandomSeed, previousDayFloodCondition);
         }
 
         private void CapturePlayerMovementBaseSpeeds()
@@ -757,17 +823,22 @@ namespace WardShift
             public readonly int MobilityUpgradeLevel;
             public readonly int ContaminationResistanceLevel;
             public readonly int FieldPurificationLevel;
+            public readonly FloodCondition ActiveFloodCondition;
+            public readonly FloodCondition PreviousDayFloodCondition;
             public readonly bool UpgradePurchasedThisClear;
             public readonly bool DaySupplyPending;
             public readonly bool DaySupplyClaimed;
 
             public DayRetryState(int mobilityUpgradeLevel, int contaminationResistanceLevel,
-                int fieldPurificationLevel, bool upgradePurchasedThisClear, bool daySupplyPending,
-                bool daySupplyClaimed)
+                int fieldPurificationLevel, FloodCondition activeFloodCondition,
+                FloodCondition previousDayFloodCondition, bool upgradePurchasedThisClear,
+                bool daySupplyPending, bool daySupplyClaimed)
             {
                 MobilityUpgradeLevel = mobilityUpgradeLevel;
                 ContaminationResistanceLevel = contaminationResistanceLevel;
                 FieldPurificationLevel = fieldPurificationLevel;
+                ActiveFloodCondition = activeFloodCondition;
+                PreviousDayFloodCondition = previousDayFloodCondition;
                 UpgradePurchasedThisClear = upgradePurchasedThisClear;
                 DaySupplyPending = daySupplyPending;
                 DaySupplyClaimed = daySupplyClaimed;
@@ -836,4 +907,33 @@ namespace WardShift
     /// <summary>하루 진행의 외부에서 확인 가능한 상태.</summary>
     public enum DayState { Preparing, Playing, DayClear, DayFailed, Ending }
     public enum DayUpgradeType { Mobility, ContaminationResistance, FieldPurification }
+
+#if UNITY_EDITOR
+    /// <summary>에디터 Play Mode 검사에서 진압 이벤트와 보상 중복 방지를 확인하는 임시 이상현상.</summary>
+    [AddComponentMenu("")]
+    public sealed class FloodRewardProbeAnomaly : AnomalyBehaviour
+    {
+        private int stage = 1;
+        private bool ruptureDuringAdvance;
+
+        public override AnomalySpawnPoint.SurfaceType SpawnSurface => AnomalySpawnPoint.SurfaceType.Wall;
+        public override bool IsHazardActive => false;
+        public override int DangerStage => stage;
+        public override int ResolutionReward => stage;
+
+        public override float AdvanceHazard(float deltaTime)
+        {
+            if (!ruptureDuringAdvance) return 0f;
+            ruptureDuringAdvance = false;
+            NotifyRuptured();
+            Destroy(gameObject);
+            return 0f;
+        }
+
+        public void SetStage(int value) => stage = Mathf.Clamp(value, 1, 3);
+        public void ResolveForTest() => NotifyResolved();
+        public void RuptureForTest() => NotifyRuptured();
+        public void RuptureDuringAdvanceForTest() => ruptureDuringAdvance = true;
+    }
+#endif
 }
