@@ -82,7 +82,7 @@ namespace WardShift
         /// <summary>패치 하나를 정화할 때 카메라 중앙에 조준할 수 있는 대상들입니다.</summary>
         public CursePatch[] Patches => patches;
         /// <summary>다음 성장 단계 또는 파열까지 남은 시간입니다.</summary>
-        public float SecondsUntilNextStage
+        public override float SecondsUntilNextStage
         {
             get
             {

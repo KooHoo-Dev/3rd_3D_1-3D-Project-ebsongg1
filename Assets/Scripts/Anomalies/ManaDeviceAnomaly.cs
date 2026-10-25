@@ -60,7 +60,7 @@ namespace WardShift
         public bool IsBurstWarningActive => isBurstWarningActive;
         /// <summary>HUD에서 읽는 기존 장치 대상의 누적 진행도.</summary>
         public float StabilizationProgress => stabilizationTarget != null ? stabilizationTarget.Progress : 0f;
-        public float SecondsUntilNextStage
+        public override float SecondsUntilNextStage
         {
             get
             {

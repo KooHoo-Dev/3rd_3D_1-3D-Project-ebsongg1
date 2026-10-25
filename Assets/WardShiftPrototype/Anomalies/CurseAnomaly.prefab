@@ -163,6 +163,7 @@ MonoBehaviour:
   requiredMagic: 1
   castDuration: 0.5
   useTimingCast: 0
+  preserveProgressOnCancel: 0
   allowHeldPurifyChain: 1
   stableStart: 0.6
   stableEnd: 0.85
@@ -258,9 +259,9 @@ MonoBehaviour:
   floorSnapProbeDistance: 4
   maximumFloorHeightCorrection: 1
   minimumFloorNormalY: 0.7
-  stageTwoAt: 20
-  stageThreeAt: 40
-  ruptureAt: 60
+  stageTwoAt: 40
+  stageThreeAt: 80
+  ruptureAt: 120
   stageTwoStabilityLossPerSecond: 0.5
   stageThreeStabilityLossPerSecond: 1
   ruptureStabilityDamage: 20
@@ -348,6 +349,7 @@ MonoBehaviour:
   requiredMagic: 1
   castDuration: 0.5
   useTimingCast: 0
+  preserveProgressOnCancel: 0
   allowHeldPurifyChain: 1
   stableStart: 0.6
   stableEnd: 0.85
@@ -452,6 +454,7 @@ MonoBehaviour:
   requiredMagic: 1
   castDuration: 0.5
   useTimingCast: 0
+  preserveProgressOnCancel: 0
   allowHeldPurifyChain: 1
   stableStart: 0.6
   stableEnd: 0.85
@@ -10228,6 +10231,7 @@ MonoBehaviour:
   requiredMagic: 1
   castDuration: 0.5
   useTimingCast: 0
+  preserveProgressOnCancel: 0
   allowHeldPurifyChain: 1
   stableStart: 0.6
   stableEnd: 0.85
@@ -25200,6 +25204,7 @@ MonoBehaviour:
   requiredMagic: 1
   castDuration: 0.5
   useTimingCast: 0
+  preserveProgressOnCancel: 0
   allowHeldPurifyChain: 1
   stableStart: 0.6
   stableEnd: 0.85
@@ -30140,6 +30145,7 @@ MonoBehaviour:
   requiredMagic: 1
   castDuration: 0.5
   useTimingCast: 0
+  preserveProgressOnCancel: 0
   allowHeldPurifyChain: 1
   stableStart: 0.6
   stableEnd: 0.85

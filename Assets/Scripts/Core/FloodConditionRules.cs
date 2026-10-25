@@ -47,11 +47,16 @@ namespace WardShift
             return condition == FloodCondition.PurificationCycle ? 2f : 1f;
         }
 
+        public static float PotionRecoveryMultiplier(FloodCondition condition)
+        {
+            return condition == FloodCondition.PurificationCycle ? 2f / 3f : 1f;
+        }
+
         /// <summary>기본 회복량 또는 현장 정화 강화량에 조건 배수를 한 번 적용합니다.</summary>
         public static float PotionRecoveryAmount(float baseRecovery, FloodCondition condition)
         {
             return Mathf.Max(0f, baseRecovery)
-                * (condition == FloodCondition.PurificationCycle ? 2f / 3f : 1f);
+                * PotionRecoveryMultiplier(condition);
         }
 
         /// <summary>단계 1 진압 보상만 올립니다. 자동 정리에는 호출하지 않습니다.</summary>
@@ -83,6 +88,27 @@ namespace WardShift
             }
         }
 
+        /// <summary>HUD 설명에 현재 규칙의 실제 수치를 색으로 강조합니다.</summary>
+        public static string GetHighlightedRuleDescription(FloodCondition condition)
+        {
+            switch (condition)
+            {
+                case FloodCondition.PurificationCycle:
+                    float recoveryMultiplier = SafeZoneRecoveryMultiplier(condition);
+                    float potionMultiplier = PotionRecoveryMultiplier(condition);
+                    return "안전 구역 오염 회복 속도 <color=#75E6A5>"
+                        + recoveryMultiplier.ToString("0.##") + "배</color> · 정화약 회복량 <color=#F5A067>"
+                        + FormatRatio(potionMultiplier) + "</color>";
+                case FloodCondition.EarlySealBonus:
+                    int baseReward = 1;
+                    int increasedReward = ResolutionReward(baseReward, condition);
+                    return "1단계 이상현상 진압 보상 <color=#75E6A5>" + baseReward + "개 → "
+                        + increasedReward + "개</color> · 2·3단계 보상 유지";
+                default:
+                    return GetRuleDescription(condition);
+            }
+        }
+
         public static string GetResponseHint(FloodCondition condition)
         {
             switch (condition)
@@ -99,6 +125,18 @@ namespace WardShift
         public static string GetDisplayText(FloodCondition condition)
         {
             return $"{GetName(condition)}\n{GetRuleDescription(condition)}\n대응 힌트: {GetResponseHint(condition)}";
+        }
+
+        private static string FormatRatio(float value)
+        {
+            if (value >= 1f) return value.ToString("0.##") + "배";
+            for (int denominator = 2; denominator <= 12; denominator++)
+            {
+                int numerator = Mathf.RoundToInt(value * denominator);
+                if (numerator > 0 && Mathf.Abs(value - numerator / (float)denominator) < 0.005f)
+                    return numerator + "/" + denominator;
+            }
+            return value.ToString("0.##");
         }
     }
 }

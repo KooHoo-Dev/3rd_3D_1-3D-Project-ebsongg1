@@ -147,6 +147,18 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   isResolved: 0
+  stageTwoAt: 40
+  stageThreeAt: 80
+  ruptureAt: 120
+  stageTwoStabilityLossPerSecond: 0.5
+  stageThreeStabilityLossPerSecond: 1
+  ruptureStabilityDamage: 20
+  dangerRadius: 3
+  stageTwoContamination: 3
+  stageThreeContamination: 6
+  age: 0
+  dangerStage: 1
+  hasRuptured: 0
 --- !u!1 &5323635872421856178
 GameObject:
   m_ObjectHideFlags: 0
@@ -278,6 +290,8 @@ MonoBehaviour:
   requiredMagic: 0
   castDuration: 2
   useTimingCast: 1
+  preserveProgressOnCancel: 0
+  allowHeldPurifyChain: 0
   stableStart: 0.6
   stableEnd: 0.85
   deactivateOnComplete: 1
@@ -434,6 +448,8 @@ MonoBehaviour:
   requiredMagic: 0
   castDuration: 2
   useTimingCast: 1
+  preserveProgressOnCancel: 0
+  allowHeldPurifyChain: 0
   stableStart: 0.6
   stableEnd: 0.85
   deactivateOnComplete: 1

@@ -60,7 +60,7 @@ namespace WardShift
         public override int ResolutionReward => dangerStage;
         public override AnomalySpawnPoint.SurfaceType SpawnSurface => AnomalySpawnPoint.SurfaceType.Wall;
         public override bool IsHazardActive => isActiveAndEnabled && !isResolved && !hasRuptured && CompletedSealCount < 2;
-        public float SecondsUntilNextStage
+        public override float SecondsUntilNextStage
         {
             get
             {

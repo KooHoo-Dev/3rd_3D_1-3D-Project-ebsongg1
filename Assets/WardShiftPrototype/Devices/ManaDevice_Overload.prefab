@@ -51,9 +51,9 @@ MonoBehaviour:
   stageOneBurstContamination: 10
   stageTwoBurstContamination: 15
   stageThreeBurstContamination: 20
-  stageTwoAt: 20
-  stageThreeAt: 40
-  ruptureAt: 60
+  stageTwoAt: 40
+  stageThreeAt: 80
+  ruptureAt: 120
   stageTwoStabilityLossPerSecond: 0.5
   stageThreeStabilityLossPerSecond: 1
   ruptureStabilityDamage: 20

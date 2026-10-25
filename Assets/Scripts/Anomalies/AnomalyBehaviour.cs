@@ -29,6 +29,8 @@ namespace WardShift
         /// <summary>지도와 상태 HUD에 표시할 이상현상 이름입니다.</summary>
         public virtual string DisplayName => name.Replace("(Clone)", string.Empty).Trim();
         public virtual int DangerStage => 0;
+        /// <summary>현재 단계 다음의 성장 또는 최종 파열까지 남은 초입니다. HUD는 이 공통 타이머만 읽습니다.</summary>
+        public virtual float SecondsUntilNextStage => float.PositiveInfinity;
         /// <summary>UI에서 읽는 현재 단계 기준 파열까지 남은 초입니다.</summary>
         public virtual float SecondsUntilRupture => float.PositiveInfinity;
         public virtual bool HasOverloaded => false;

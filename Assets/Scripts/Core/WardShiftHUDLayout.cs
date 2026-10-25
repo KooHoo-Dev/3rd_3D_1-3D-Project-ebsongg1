@@ -96,9 +96,9 @@ namespace WardShift
             BuildDay();
             BuildLoadout();
             RectTransform controls = Panel("Controls", hudRoot, new Vector2(1, 0), new Vector2(1, 0),
-                new Vector2(-32, 32), new Vector2(262, 164));
-            Text("Keys", controls, new Vector2(16, -12), new Vector2(230, 140), 21,
-                "1 / 2 / 3   마법 선택\nQ 유지   마력 감지\nM   시설 지도\nB   인벤토리", Muted);
+                new Vector2(-32, 32), new Vector2(262, 200));
+            Text("Keys", controls, new Vector2(16, -12), new Vector2(230, 176), 21,
+                "1 / 2 / 3   마법 선택\nQ 유지   마력 감지\nM   시설 지도\nB   인벤토리\nShift   달리기", Muted);
             pickupText = Text("PickupPrompt", hudRoot, Vector2.zero, new Vector2(600, 42), 25, "", Color.white);
             Place(pickupText.rectTransform, new Vector2(0.5f, 0), new Vector2(0.5f, 0),
                 new Vector2(0, 208), new Vector2(600, 42));
@@ -114,11 +114,19 @@ namespace WardShift
                 float minHeight = text.fontSize * 1.6f;
                 if (rect.sizeDelta.y < minHeight) rect.sizeDelta = new Vector2(rect.sizeDelta.x, minHeight);
             }
-            SetHeight("AnomalyAlerts", 442);
+            SetHeight("AnomalyAlerts", 590);
             SetHeight("AnomalyAlerts/PriorityAndSummary", 64);
             SetHeight("AnomalyAlerts/DangerWarning", 70);
-            SetHeight("FloodCondition", 158);
-            SetHeight("FloodCondition/ActiveCondition", 134);
+            SetHeight("FloodCondition", 198);
+            SetHeight("FloodCondition/ActiveCondition", 174);
+            SetHeight("Controls", 200);
+            SetHeight("Controls/Keys", 176);
+            TMP_Text controlsText = hudRoot.Find("Controls/Keys")?.GetComponent<TMP_Text>();
+            if (controlsText != null)
+            {
+                controlsText.fontSize = 21;
+                controlsText.text = "1 / 2 / 3   마법 선택\nQ 유지   마력 감지\nM   시설 지도\nB   인벤토리\nShift   달리기";
+            }
             ((RectTransform)hudRoot.Find("CoreStatus/LocationAndExposure")).anchoredPosition = new Vector2(22, -84);
         }
 
@@ -223,8 +231,10 @@ namespace WardShift
             GameObject floodPanel = floodText.transform.parent.gameObject;
             floodPanel.SetActive(showFloodCondition);
             floodText.text = showFloodCondition
-                ? "오늘의 범람 조건\n" + FloodConditionRules.GetName(condition) + "\n<size=20>"
-                    + FloodConditionRules.GetRuleDescription(condition).Replace(" · ", "\n") + "</size>"
+                ? "<color=#E8C26E>오늘의 범람 조건</color>\n<size=24><color=#94D8FF>"
+                    + FloodConditionRules.GetName(condition) + "</color></size>\n<size=20><color=#EDF2F7>"
+                    + FloodConditionRules.GetHighlightedRuleDescription(condition).Replace(" · ", "\n")
+                    + "</color></size>"
                 : string.Empty;
             for (int i = 0; i < magicCards.Length; i++)
             {

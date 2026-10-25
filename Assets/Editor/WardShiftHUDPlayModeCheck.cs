@@ -83,7 +83,6 @@ namespace WardShift.Editor
                         ward = Object.FindFirstObjectByType<WardStatusHUD>();
                         dayHUD = Object.FindFirstObjectByType<Day5HUD>();
                         spawner = Object.FindFirstObjectByType<AnomalySpawner>();
-                        day.DeferDaySupplyChoice();
                         spawner.SetSpawningEnabled(false);
                         spawner.ClearActiveAnomalies();
                         Cursor.lockState = CursorLockMode.Locked;
@@ -91,7 +90,6 @@ namespace WardShift.Editor
                         caster.SetInputBlocked(false);
                         CheckCastingViews();
                         CheckDataAndModals();
-                        SetGameSize(1920, 1080);
                         PrepareMultipleAnomalies();
                         break;
                     case 1:
@@ -308,6 +306,17 @@ namespace WardShift.Editor
 
         private static void CheckDataAndModals()
         {
+            SetGameSize(1920, 1080);
+            Refresh();
+            CheckSupplyPanelLayout(false, 1920, 1080);
+            Capture("day-supply-day1-1920x1080.png");
+            SetGameSize(1280, 720);
+            Refresh();
+            CheckSupplyPanelLayout(false, 1280, 720);
+            Capture("day-supply-day1-1280x720.png");
+            SetGameSize(1920, 1080);
+            day.DeferDaySupplyChoice();
+
             Set(day.Status, "stability", 64f);
             Set(day.Player, "contamination", 38f);
             day.Inventory.AddManaCrystals(9);
@@ -340,16 +349,29 @@ namespace WardShift.Editor
                 Assert(day.State == DayState.DayClear && Get<GameObject>(dayHUD, "clearPanel").activeSelf
                     && !layout.HUDRoot.gameObject.activeSelf, "CLEAR has no stale gameplay HUD");
                 day.BeginNextDay();
-                day.DeferDaySupplyChoice();
                 spawner.SetSpawningEnabled(false);
                 Refresh();
                 GameObject conditionPanel = Get<TMP_Text>(layout, "floodText").transform.parent.gameObject;
                 if (next < FloodConditionRules.FirstFloodConditionDay)
                     Assert(!conditionPanel.activeSelf, "DAY " + next + " hides the entire inactive flood panel");
                 else
+                {
                     Assert(conditionPanel.activeSelf
                         && Get<TMP_Text>(layout, "floodText").text.Contains(FloodConditionRules.GetName(day.ActiveFloodCondition)),
                         "Actual condition displayed DAY " + next);
+                    string highlightedRule = FloodConditionRules.GetHighlightedRuleDescription(day.ActiveFloodCondition)
+                        .Replace(" · ", "\n");
+                    Assert(Get<TMP_Text>(layout, "floodText").text.Contains(highlightedRule),
+                        "Flood HUD shows the active condition's current rule values with highlights");
+                    CheckSupplyPanelLayout(true, 1920, 1080);
+                    Capture("day-supply-day4-1920x1080.png");
+                    SetGameSize(1280, 720);
+                    Refresh();
+                    CheckSupplyPanelLayout(true, 1280, 720);
+                    Capture("day-supply-day4-1280x720.png");
+                    SetGameSize(1920, 1080);
+                }
+                day.DeferDaySupplyChoice();
             }
 
             FloodCondition actualCondition = day.ActiveFloodCondition;
@@ -359,6 +381,55 @@ namespace WardShift.Editor
                 "DAY 4 hides the panel when no condition is active");
             Set(day, "activeFloodCondition", actualCondition);
             Refresh();
+        }
+
+        private static void CheckSupplyPanelLayout(bool expectCondition, int width, int height)
+        {
+            Assert(Screen.width == width && Screen.height == height,
+                "Supply panel rendered at " + width + "x" + height);
+            GameObject panelObject = Get<GameObject>(dayHUD, "supplyPanel");
+            Assert(panelObject.activeSelf, "DAY supply panel is open");
+            RectTransform panel = panelObject.GetComponent<RectTransform>();
+            TMP_Text title = panel.Find("Title").GetComponent<TMP_Text>();
+            TMP_Text heading = panel.Find("ConditionHeading").GetComponent<TMP_Text>();
+            TMP_Text name = panel.Find("ConditionName").GetComponent<TMP_Text>();
+            TMP_Text effect = panel.Find("ConditionEffect").GetComponent<TMP_Text>();
+            TMP_Text hint = panel.Find("ConditionHint").GetComponent<TMP_Text>();
+            TMP_Text guide = panel.Find("SupplyGuide").GetComponent<TMP_Text>();
+            Assert(heading.gameObject.activeSelf == expectCondition
+                && name.gameObject.activeSelf == expectCondition
+                && effect.gameObject.activeSelf == expectCondition
+                && hint.gameObject.activeSelf == expectCondition,
+                "Supply condition fields are hidden when absent and shown when active");
+            if (expectCondition)
+            {
+                AssertNoOverlap(title.rectTransform, heading.rectTransform, "Supply title and flood heading");
+                AssertNoOverlap(heading.rectTransform, name.rectTransform, "Supply condition heading and name");
+                AssertNoOverlap(name.rectTransform, effect.rectTransform, "Supply condition name and effect");
+                AssertNoOverlap(effect.rectTransform, hint.rectTransform, "Supply effect and response hint");
+                AssertNoOverlap(hint.rectTransform, guide.rectTransform, "Supply response hint and item guidance");
+            }
+            else AssertNoOverlap(title.rectTransform, guide.rectTransform, "Supply title and item guidance");
+
+            Button potion = panel.Find("SupplyOptions/ChoosePotion").GetComponent<Button>();
+            Button repair = panel.Find("SupplyOptions/ChooseRepairKit").GetComponent<Button>();
+            Button defer = panel.Find("DeferSupply").GetComponent<Button>();
+            Assert(!potion.transform.parent.gameObject.activeSelf || potion.gameObject.activeSelf,
+                "Potion choice remains available in choice mode");
+            if (potion.transform.parent.gameObject.activeSelf)
+            {
+                AssertNoOverlap(guide.rectTransform, potion.GetComponent<RectTransform>(), "Guidance and potion button");
+                AssertNoOverlap(guide.rectTransform, repair.GetComponent<RectTransform>(), "Guidance and repair button");
+            }
+            Assert(RectContains(ScreenRect(panel), ScreenRect(defer.GetComponent<RectTransform>())),
+                "Defer button remains inside the supply panel");
+
+            foreach (TMP_Text text in panelObject.GetComponentsInChildren<TMP_Text>(true))
+            {
+                if (!text.gameObject.activeInHierarchy || string.IsNullOrEmpty(text.text)) continue;
+                text.ForceMeshUpdate();
+                Assert(!text.isTextTruncated, "Supply text is not truncated: " + text.name);
+            }
         }
 
         private static void PrepareMultipleAnomalies()
@@ -372,8 +443,19 @@ namespace WardShift.Editor
                 AnomalyBehaviour prefab = AssetDatabase.LoadAssetAtPath<GameObject>(paths[i]).GetComponent<AnomalyBehaviour>();
                 AnomalySpawnPoint point = Object.FindObjectsByType<AnomalySpawnPoint>(FindObjectsSortMode.None)
                     .FirstOrDefault(p => !p.IsOccupied && p.CanSpawnPrefab(prefab));
-                Assert(point != null && point.TrySpawn(prefab, out _), "Spawn presentation fixture " + prefab.DisplayName);
+                AnomalyBehaviour spawnedAnomaly = null;
+                Assert(point != null && point.TrySpawn(prefab, out spawnedAnomaly),
+                    "Spawn presentation fixture " + prefab.DisplayName);
                 Refresh();
+                if (spawnedAnomaly != null)
+                {
+                    string cardText = VisibleAlertText(spawnedAnomaly.GetInstanceID());
+                    Assert(cardText.Contains("2단계까지")
+                        && cardText.Contains(DisplaySecondsForTest(spawnedAnomaly.SecondsUntilNextStage))
+                        && cardText.Contains("파열까지")
+                        && cardText.Contains(DisplaySecondsForTest(spawnedAnomaly.SecondsUntilRupture)),
+                        "Stage-one card reads real next-stage and rupture timers for " + spawnedAnomaly.DisplayName);
+                }
                 int active = AnomalyBehaviour.ActiveAnomalies.Count(a => a != null && a.IsHazardActive);
                 Assert(VisibleAnomalyCardNames().Length == Mathf.Min(3, active),
                     "One independent alert card per visible anomaly after " + active + " spawns");
@@ -421,6 +503,9 @@ namespace WardShift.Editor
                 older.AdvanceHazard(20f);
                 newer.AdvanceHazard(45f);
                 Refresh();
+                Assert(VisibleAlertText(older.GetInstanceID()).Contains("3단계까지 ")
+                    && VisibleAlertText(older.GetInstanceID()).Contains(DisplaySecondsForTest(older.SecondsUntilNextStage)),
+                    "Stage-two card shows the real countdown to stage three");
                 Assert(VisibleAnomalyCardNames()[0] == "AnomalyCard_" + newer.GetInstanceID(),
                     "New stage-three anomaly outranks an older stage-two anomaly");
                 older.AdvanceHazard(25f);
@@ -432,8 +517,9 @@ namespace WardShift.Editor
                 Assert(VisibleAnomalyCardNames()[0] == "AnomalyCard_" + older.GetInstanceID(),
                     "Shorter rupture time reorders cards without changing their display size");
                 Assert(VisibleAlertText(older.GetInstanceID()).Contains("위험 3단계")
-                    && VisibleAlertText(older.GetInstanceID()).Contains("파열까지 8초"),
-                    "Stage growth refreshes the card stage and rupture countdown");
+                    && VisibleAlertText(older.GetInstanceID()).Contains("파열까지 8초")
+                    && !VisibleAlertText(older.GetInstanceID()).Contains("단계까지"),
+                    "Stage growth refreshes stage/rupture countdown and hides the next-stage countdown at stage three");
                 older.AdvanceHazard(older.SecondsUntilRupture + 0.1f);
                 Refresh();
                 Assert(!VisibleAnomalyCardNames().Contains("AnomalyCard_" + older.GetInstanceID()),
@@ -512,6 +598,10 @@ namespace WardShift.Editor
                 Assert(text.font != null && text.font.name.Contains("NotoSansKR"), "Korean font reused: " + text.name);
                 Assert(!text.isTextTruncated, "HUD text fits: " + text.name);
             }
+            TMP_Text controls = layout.HUDRoot.Find("Controls/Keys").GetComponent<TMP_Text>();
+            Assert(controls.text.Contains("Shift") && controls.text.Contains("달리기")
+                && controls.rectTransform.rect.height >= 176f,
+                "Controls include the actual Shift sprint hint with room for five lines");
         }
 
         private static void CheckClearOverlayLayout(int width, int height)
@@ -604,6 +694,12 @@ namespace WardShift.Editor
             Transform card = cardList.Find("AnomalyCard_" + instanceId);
             TMP_Text details = card != null ? card.Find("Details").GetComponent<TMP_Text>() : null;
             return details != null ? details.text : string.Empty;
+        }
+
+        private static string DisplaySecondsForTest(float seconds)
+        {
+            return float.IsInfinity(seconds) || float.IsNaN(seconds)
+                ? "시간 정보 없음" : Mathf.CeilToInt(Mathf.Max(0f, seconds)) + "초";
         }
 
         private static void SetGameSize(int width, int height)

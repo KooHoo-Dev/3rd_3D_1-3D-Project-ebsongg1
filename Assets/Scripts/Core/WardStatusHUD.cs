@@ -11,9 +11,10 @@ namespace WardShift
     public sealed class WardStatusHUD : MonoBehaviour
     {
         private const int MaximumVisibleAlerts = 3;
-        private const float AlertCardHeight = 92f;
+        private const float AlertCardHeight = 118f;
         private const float AlertCardSpacing = 7f;
-        private const float AlertListTop = 54f;
+        private const float AlertListTop = 62f;
+        private const float MaximumAlertPanelHeight = 590f;
 
         [SerializeField] private WardStatus status;
         [SerializeField] private TMP_Text statusText;
@@ -228,11 +229,12 @@ namespace WardShift
             RectTransform detailsRect = detailsObject.GetComponent<RectTransform>();
             detailsRect.anchorMin = Vector2.zero;
             detailsRect.anchorMax = Vector2.one;
-            detailsRect.offsetMin = new Vector2(20f, 5f);
-            detailsRect.offsetMax = new Vector2(-10f, -5f);
+            // Increase the inner top padding so the first line sits clearly inside the card.
+            detailsRect.offsetMin = new Vector2(20f, 10f);
+            detailsRect.offsetMax = new Vector2(-10f, -15f);
             TMP_Text details = detailsObject.GetComponent<TMP_Text>();
             details.font = statusText.font;
-            details.fontSize = 19f;
+            details.fontSize = 18f;
             details.color = Color.white;
             details.alignment = TextAlignmentOptions.TopLeft;
             details.textWrappingMode = TextWrappingModes.Normal;
@@ -327,15 +329,23 @@ namespace WardShift
             int stage = Mathf.Clamp(anomaly.DangerStage, 1, 3);
             Color stageColor = StageColor(stage);
             float remaining = anomaly.SecondsUntilRupture;
-            string ruptureText = float.IsInfinity(remaining) || float.IsNaN(remaining)
-                ? "파열 시각 정보 없음" : string.Format("파열까지 {0}초", Mathf.CeilToInt(remaining));
+            string timingText = stage < 3
+                ? string.Format("{0}단계까지 {1} · 파열까지 {2}", stage + 1,
+                    DisplayDuration(anomaly.SecondsUntilNextStage), DisplayDuration(remaining))
+                : "파열까지 " + DisplayDuration(remaining);
             string details = string.Format(
-                "<size=20><color=#{0}>{1} · {2}</color></size>\n<size=18>위험 {3}단계 · {4}</size>\n<size=18>{5}</size>",
+                "<size=20><color=#{0}>{1} · {2}</color></size>\n<size=17>위험 {3}단계</size>\n<size=16.5>{4}</size>\n<size=16.5>{5}</size>",
                 ColorUtility.ToHtmlStringRGB(stageColor), Location(anomaly), anomaly.DisplayName,
-                stage, ruptureText, ProgressSummary(anomaly));
+                stage, timingText, ProgressSummary(anomaly));
             if (card.Details.text != details) card.Details.text = details;
             card.Accent.color = stageColor;
             card.Anomaly = anomaly;
+        }
+
+        private static string DisplayDuration(float seconds)
+        {
+            return float.IsInfinity(seconds) || float.IsNaN(seconds)
+                ? "시간 정보 없음" : Mathf.CeilToInt(Mathf.Max(0f, seconds)) + "초";
         }
 
         private void FitAlertPanel(bool gameplayActive)
@@ -370,7 +380,8 @@ namespace WardShift
 
             float panelHeight = showWarning ? warningTop + 70f + 14f
                 : contentBottom + 16f;
-            panel.sizeDelta = new Vector2(panel.sizeDelta.x, Mathf.Clamp(panelHeight, 100f, 474f));
+            panel.sizeDelta = new Vector2(panel.sizeDelta.x,
+                Mathf.Clamp(panelHeight, 100f, MaximumAlertPanelHeight));
         }
 
         private int CompareUrgency(AnomalyBehaviour a, AnomalyBehaviour b)
