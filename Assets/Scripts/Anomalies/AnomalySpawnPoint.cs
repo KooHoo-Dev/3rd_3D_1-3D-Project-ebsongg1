@@ -58,6 +58,7 @@ namespace WardShift
         {
             if (prefab == null || prefab.SpawnSurface != surface || !isActiveAndEnabled || IsOccupied)
                 return false;
+            if (prefab is ManaRift rift) return rift.HasValidSealPoints;
             if (prefab is CurseAnomaly curse)
                 return curse.CanConfigureFromSpawnPoint(GetCursePatchPoints().Length);
             if (prefab is ManaDeviceAnomaly)
@@ -101,7 +102,7 @@ namespace WardShift
                 WarnPatchPointShortage(cursePrefab);
                 return false;
             }
-            if (prefab is ManaDeviceAnomaly && !CanSpawnPrefab(prefab)) return false;
+            if ((prefab is ManaDeviceAnomaly || prefab is ManaRift) && !CanSpawnPrefab(prefab)) return false;
 
             spawning = true;
             try

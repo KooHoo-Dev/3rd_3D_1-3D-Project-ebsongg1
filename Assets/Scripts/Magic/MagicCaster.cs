@@ -4,7 +4,7 @@ using UnityEngine.EventSystems;
 
 namespace WardShift
 {
-    /// <summary>조준 갱신 이후 입력을 검사하고 충전과 해제 판정을 전달.</summary>
+    /// <summary>조준 갱신 이후 봉인 클릭, 정화와 안정화 시전 입력을 전달.</summary>
     [DisallowMultipleComponent]
     [RequireComponent(typeof(PlayerInteractor))]
     [DefaultExecutionOrder(10002)]
@@ -28,8 +28,11 @@ namespace WardShift
         private bool hasFocus = true;
         private bool inputEnabled;
         private float resultUntil;
+        private ManaRift activeSealRift;
         public MagicType SelectedMagic => selectedMagic;
         public MagicTarget CastingTarget => castingTarget;
+        public ManaRift ActiveSealRift => activeSealRift != null && activeSealRift.IsSealChainInProgress
+            ? activeSealRift : null;
         /// <summary>저주 오염 패치는 선택한 정화 마법의 짧은 사거리 안에서만 조준 대상으로 반환합니다.</summary>
         public MagicTarget AimedTarget
         {
@@ -53,6 +56,11 @@ namespace WardShift
                     float range = Mathf.Max(0.1f, device.StabilizeRange);
                     if (offset.sqrMagnitude > range * range) return null;
                 }
+                if (selectedMagic == MagicType.Seal
+                    && target.GetComponentInParent<ManaRift>() is ManaRift rift
+                    && !rift.IsSealChainInProgress
+                    && (target != rift.ExpectedSealPoint || !target.IsDetected))
+                    return null;
                 return target;
             }
         }
@@ -102,6 +110,7 @@ namespace WardShift
         public void ResetForNewDay()
         {
             CancelCast();
+            StopTrackingSealRift();
             continuousPurifySession = false;
             LastResult = MagicCastResult.None;
             ResultProgress = 0f;
@@ -133,6 +142,22 @@ namespace WardShift
             if (sealAction.WasPressedThisFrame()) SelectMagic(MagicType.Seal);
             if (purifyAction.WasPressedThisFrame()) SelectMagic(MagicType.Purify);
             if (stabilizeAction.WasPressedThisFrame()) SelectMagic(MagicType.Stabilize);
+
+            if (selectedMagic == MagicType.Seal)
+            {
+                if (waitingForRelease)
+                {
+                    if (!pressed) waitingForRelease = false;
+                    return;
+                }
+                if (pressed && castAction.WasPressedThisFrame()) HandleSealClick(AimedTarget);
+                return;
+            }
+
+            // Another spell's click abandons the chain, then follows that spell's existing path.
+            if (activeSealRift != null && activeSealRift.IsSealChainInProgress
+                && !waitingForRelease && pressed && castAction.WasPressedThisFrame())
+                activeSealRift.TryCompleteSealClick(null);
 
             // Only explicitly configured non-timing Purify targets may chain while held.
             MagicTarget aimed = AimedTarget;
@@ -183,6 +208,50 @@ namespace WardShift
             castingTarget = aimed;
             resultUntil = 0f;
             Charge(aimed);
+        }
+
+        private void HandleSealClick(MagicTarget aimed)
+        {
+            if (activeSealRift != null && activeSealRift.IsSealChainInProgress)
+            {
+                ManaRift chain = activeSealRift;
+                chain.TryCompleteSealClick(aimed);
+                if (chain != null && !chain.IsSealChainInProgress && chain.CompletedSealCount == 2)
+                    StopTrackingSealRift();
+                return;
+            }
+
+            StopTrackingSealRift();
+            if (aimed == null || aimed.RequiredMagic != MagicType.Seal) return;
+            ManaRift rift = aimed.GetComponentInParent<ManaRift>();
+            if (rift != null)
+            {
+                if (rift.TryCompleteSealClick(aimed) && rift.IsSealChainInProgress)
+                    TrackSealRift(rift);
+                return;
+            }
+
+            aimed.CompleteInstantly(MagicType.Seal);
+        }
+
+        private void TrackSealRift(ManaRift rift)
+        {
+            StopTrackingSealRift();
+            activeSealRift = rift;
+            activeSealRift.SealChainFailed += OnSealChainFailed;
+        }
+
+        private void OnSealChainFailed(ManaRift rift)
+        {
+            if (activeSealRift == rift) StopTrackingSealRift();
+            CompletedTargetName = "연쇄 봉인";
+            ShowResult(MagicCastResult.Canceled);
+        }
+
+        private void StopTrackingSealRift()
+        {
+            if (activeSealRift != null) activeSealRift.SealChainFailed -= OnSealChainFailed;
+            activeSealRift = null;
         }
 
         private void UpdateContinuousPurify(bool pressed, MagicTarget aimed)
@@ -289,6 +358,7 @@ namespace WardShift
         {
             inputEnabled = false;
             CancelCast();
+            StopTrackingSealRift();
             continuousPurifySession = false;
             waitingForRelease = true;
             // canceled 콜백으로 판정하지 않으므로 액션 비활성화가 성공을 발생시키지 않음.

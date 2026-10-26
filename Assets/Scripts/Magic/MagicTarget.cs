@@ -31,6 +31,7 @@ namespace WardShift
         [SerializeField, Range(0f, 1f)] private float progress;
         [SerializeField] private bool isCompleted;
         private bool runtimeAvailable = true;
+        private SealPointVisual sealPointVisual;
 
         public string DisplayName => displayName;
         public MagicType RequiredMagic => requiredMagic;
@@ -52,10 +53,18 @@ namespace WardShift
         public event Action<MagicTarget> Completed;
         /// <summary>성공, 실패 또는 취소가 확정될 때 한 번 발생.</summary>
         public event Action<MagicTarget, MagicCastResult> CastResolved;
+        public event Action<MagicTarget, bool> DetectionChanged;
+
+        private void Awake()
+        {
+            sealPointVisual = GetComponent<SealPointVisual>();
+        }
 
         /// <summary>장치 폭주가 시작되거나 DAY가 초기화될 때 대상을 새 시전용으로 준비합니다.</summary>
         public void ResetForNewUse(bool available = true)
         {
+            // Completed seal points deactivate themselves; retrying a chain must bring them back.
+            if (!gameObject.activeSelf) gameObject.SetActive(true);
             if (IsCasting) CancelCast();
             progress = 0f;
             isCompleted = false;
@@ -63,6 +72,17 @@ namespace WardShift
             runtimeAvailable = available;
             if (IsDetected) SetDetected(false, Color.white);
             else RestoreAppearance();
+        }
+
+        /// <summary>연쇄 봉인 입력을 충전 없이 즉시 완료하고 기존 완료 이벤트를 발생시킵니다.</summary>
+        public bool CompleteInstantly(MagicType magic)
+        {
+            if (!IsAvailable || magic != requiredMagic || IsCasting) return false;
+            IsCasting = true;
+            LastResult = MagicCastResult.None;
+            CastStarted?.Invoke();
+            if (!IsAvailable || !IsCasting) return false;
+            return Resolve(MagicCastResult.Success) == MagicCastResult.Success;
         }
 
         /// <summary>영구 장치의 안정화 대상을 폭주 중에만 조준 가능하게 합니다.</summary>
@@ -157,9 +177,17 @@ namespace WardShift
             detected &= IsAvailable;
             if (IsDetected == detected) return;
             IsDetected = detected;
+            if (sealPointVisual == null) sealPointVisual = GetComponent<SealPointVisual>();
+            if (sealPointVisual != null)
+            {
+                sealPointVisual.SetDetected(detected, color);
+                DetectionChanged?.Invoke(this, detected);
+                return;
+            }
             if (!detected)
             {
                 RestoreAppearance();
+                DetectionChanged?.Invoke(this, false);
                 return;
             }
 
@@ -180,6 +208,7 @@ namespace WardShift
                 block.SetColor(EmissionColor, color * 2f);
                 renderer.SetPropertyBlock(block);
             }
+            DetectionChanged?.Invoke(this, true);
         }
 
         private void RestoreAppearance()
@@ -197,6 +226,7 @@ namespace WardShift
             CancelCast();
             IsDetected = false;
             RestoreAppearance();
+            DetectionChanged?.Invoke(this, false);
         }
     }
 }

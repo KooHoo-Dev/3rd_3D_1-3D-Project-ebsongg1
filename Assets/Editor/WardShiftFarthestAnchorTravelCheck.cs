@@ -164,6 +164,12 @@ namespace WardShift.Editor
                         break;
 
                     case 2:
+                        if (targetRift == null || !targetRift.IsHazardActive)
+                        {
+                            Finish(false, $"봉인 {sealIndex + 1} 입력 전 ManaRift 종료");
+                            return;
+                        }
+                        if (sealIndex == 0) sealTargets[sealIndex].SetDetected(true, Color.yellow);
                         AimAtSealTarget();
                         if (caster.AimedTarget != sealTargets[sealIndex])
                         {
@@ -173,29 +179,9 @@ namespace WardShift.Editor
                         }
                         if (sealIndex == 1)
                             rewardAtResolution = targetRift.ResolutionReward;
-                        sealTargets[sealIndex].AdvanceCast(MagicType.Seal, Time.deltaTime);
-                        phase = 3;
-                        phaseStartedAt = EditorApplication.timeSinceStartup;
-                        break;
-
-                    case 3:
-                        if (targetRift == null || !targetRift.IsHazardActive)
+                        if (!targetRift.TryCompleteSealClick(sealTargets[sealIndex]))
                         {
-                            Finish(false, $"봉인 {sealIndex + 1} 완료 전 ManaRift 종료 (경과 {Time.time - travelStartedAt:F2}초)");
-                            return;
-                        }
-                        AimAtSealTarget();
-                        if (caster.AimedTarget != sealTargets[sealIndex])
-                        {
-                            sealTargets[sealIndex].CancelCast();
-                            phase = 2;
-                            return;
-                        }
-                        sealTargets[sealIndex].AdvanceCast(MagicType.Seal, Time.deltaTime);
-                        if (sealTargets[sealIndex].Progress < 0.7f) return;
-                        if (sealTargets[sealIndex].ReleaseCast() != MagicCastResult.Success)
-                        {
-                            Finish(false, $"최장 거리 지점에서 봉인 {sealIndex + 1} 타이밍 시전 실패");
+                            Finish(false, $"최장 거리 지점에서 연쇄 봉인 {sealIndex + 1}번 입력 실패");
                             return;
                         }
                         sealIndex++;
@@ -319,8 +305,8 @@ namespace WardShift.Editor
 
             sealTargets = new[]
             {
-                GetPrivateField<MagicTarget>(targetRift, "sealPoint01"),
-                GetPrivateField<MagicTarget>(targetRift, "sealPoint02")
+                targetRift.FirstSealPoint,
+                targetRift.SecondSealPoint
             };
             if (sealTargets.Any(target => target == null))
             {

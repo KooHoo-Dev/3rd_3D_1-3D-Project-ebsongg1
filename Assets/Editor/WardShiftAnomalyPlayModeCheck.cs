@@ -313,10 +313,7 @@ namespace WardShift.Editor
 
         private static bool CompleteSeal(MagicTarget target)
         {
-            if (target == null || !target.IsAvailable) return false;
-            target.AdvanceCast(MagicType.Seal, target.CastDuration * 0.7f);
-            if (!target.IsCasting) return false;
-            return target.ReleaseCast() == MagicCastResult.Success;
+            return target != null && target.CompleteInstantly(MagicType.Seal);
         }
 
         private static T GetPrivateField<T>(object target, string fieldName) where T : class

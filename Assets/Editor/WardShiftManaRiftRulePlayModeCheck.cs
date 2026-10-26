@@ -355,9 +355,7 @@ namespace WardShift.Editor
 
         private static bool CompleteSeal(MagicTarget target)
         {
-            if (target == null || !target.IsAvailable) return false;
-            target.AdvanceCast(MagicType.Seal, target.CastDuration * 0.7f);
-            return target.IsCasting && target.ReleaseCast() == MagicCastResult.Success;
+            return target != null && target.CompleteInstantly(MagicType.Seal);
         }
 
         private static float ExpectedStabilityLoss(ManaRift rift)

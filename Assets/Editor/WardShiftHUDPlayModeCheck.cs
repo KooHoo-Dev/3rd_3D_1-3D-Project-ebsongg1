@@ -228,9 +228,9 @@ namespace WardShift.Editor
                         break;
                     case 13:
                         Assert(caster.CastingTarget != null && Get<GameObject>(magic, "castPanel").activeInHierarchy,
-                            "Real mouse input and raycast drive visible seal gauge"
+                            "Real mouse input and raycast drive visible stabilization gauge"
                             + $" (blocked={caster.InputBlocked}, waiting={caster.WaitingForRelease}, aimed={caster.AimedTarget?.DisplayName}, pressed={Get<InputAction>(caster, "castAction").IsPressed()})");
-                        Capture("hud-seal-casting.png");
+                        Capture("hud-stabilize-casting.png");
                         break;
                     default:
                         Finish(true, "All HUD presentation checks passed.");
@@ -536,7 +536,8 @@ namespace WardShift.Editor
             // 실제 Raycast와 InputAction을 통과하는 임시 봉인 대상. 런타임 안에서만 사용합니다.
             var targetObject = new GameObject("HUD_Check_CaptureTarget");
             MagicTarget target = targetObject.AddComponent<MagicTarget>();
-            Set(target, "displayName", "봉인점");
+            Set(target, "displayName", "안정화 대상");
+            Set(target, "requiredMagic", MagicType.Stabilize);
             Set(target, "castDuration", 10f);
             targetObject.transform.position = Camera.main.transform.position + Camera.main.transform.forward * 2;
             targetObject.AddComponent<SphereCollider>().radius = 0.15f;
@@ -544,7 +545,7 @@ namespace WardShift.Editor
             gameView.Focus();
             caster.SetInputBlocked(false);
             caster.ResetForNewDay();
-            caster.SelectMagic(MagicType.Seal);
+            caster.SelectMagic(MagicType.Stabilize);
             Set(caster, "hasFocus", true);
             target.AdvanceCast(MagicType.Seal, target.CastDuration * 0.68f);
             holdCaptureMouse = true;

@@ -100,6 +100,7 @@ GameObject:
   m_Component:
   - component: {fileID: 3954148019290186074}
   - component: {fileID: 1253605351275401882}
+  - component: {fileID: 8043994593402485791}
   m_Layer: 0
   m_Name: ManaRift_Test
   m_TagString: Untagged
@@ -140,6 +141,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WardShift.ManaRift
   sealPoint01: {fileID: 8022264527901937804}
   sealPoint02: {fileID: 2317996195726161280}
+  sealChainTimeout: 2
   completeVFXPrefab: {fileID: 176482, guid: 1cead947942da8646811dd74faaf5448, type: 3}
   completeVFXAnchor: {fileID: 8827359575551701073}
   completeVFXLifetime: 1.5
@@ -159,6 +161,27 @@ MonoBehaviour:
   age: 0
   dangerStage: 1
   hasRuptured: 0
+--- !u!114 &8043994593402485791
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2916871627963324434}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8c0718b5369b4e9db11a0a9742ec77a4, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::WardShift.ManaRiftVFX
+  persistentRiftPrefab: {fileID: 159362, guid: 0d9b0e27a2944614abe85db3c25b3d74, type: 3}
+  persistentRiftAnchor: {fileID: 0}
+  dangerStageChangePrefab: {fileID: 178798, guid: 3e131aa0e7d8b43429a09642f5d0bbaf, type: 3}
+  dangerStageChangeAnchor: {fileID: 0}
+  sealChainFailurePrefab: {fileID: 387594403099771044, guid: d481dc194dbbb2f41bb56ba7aa3c8ee6, type: 3}
+  sealChainFailureAnchor: {fileID: 0}
+  rupturePrefab: {fileID: 190198, guid: 5511542e98d45d24baa0d5d49bd2f989, type: 3}
+  ruptureAnchor: {fileID: 0}
+  transientLifetime: 2.5
 --- !u!1 &5323635872421856178
 GameObject:
   m_ObjectHideFlags: 0
@@ -173,6 +196,7 @@ GameObject:
   - component: {fileID: 2999498764456990727}
   - component: {fileID: 8022264527901937804}
   - component: {fileID: 4333878783796367081}
+  - component: {fileID: 91918433374022511}
   m_Layer: 0
   m_Name: SealPoint_01
   m_TagString: Untagged
@@ -194,6 +218,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 792696171989958904}
+  - {fileID: 9106354935236961359}
   m_Father: {fileID: 3954148019290186074}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &2531349050408356233
@@ -232,7 +257,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5323635872421856178}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -286,10 +311,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6384f11f1ff1498dbdd8429221bdd469, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WardShift.MagicTarget
-  displayName: Test Seal Point
+  displayName: "\uBD09\uC778 \uB8EC 1"
   requiredMagic: 0
   castDuration: 2
-  useTimingCast: 1
+  useTimingCast: 0
   preserveProgressOnCancel: 0
   allowHeldPurifyChain: 0
   stableStart: 0.6
@@ -317,6 +342,26 @@ MonoBehaviour:
   castLoopPrefab: {fileID: 9096157622375344100, guid: ce19347d6ca00e74fa2aded96469b50c, type: 3}
   castCompletePrefab: {fileID: 2906058898862174061, guid: a35320f10464d9643be307a25d3ab7a3, type: 3}
   completeLifetime: 1.5
+--- !u!114 &91918433374022511
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5323635872421856178}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a833c4c6e5104c5aa1f3de61651b269b, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::WardShift.SealPointVisual
+  discoveredColor: {r: 0.55, g: 0.45, b: 0.08, a: 1}
+  activeColor: {r: 1, g: 0.85, b: 0.1, a: 1}
+  completedColor: {r: 0.2, g: 1, b: 0.35, a: 1}
+  failedColor: {r: 1, g: 0.18, b: 0.12, a: 1}
+  billboardTarget: {fileID: 9106354935236961359}
+  billboardCamera: {fileID: 0}
+  billboardRotationOffset: {x: 90, y: 0, z: 0}
+  billboardPositionOffset: {x: 0, y: 0, z: 0.02}
 --- !u!1 &7557781589367010280
 GameObject:
   m_ObjectHideFlags: 0
@@ -331,6 +376,7 @@ GameObject:
   - component: {fileID: 5378957367654891528}
   - component: {fileID: 2317996195726161280}
   - component: {fileID: 6457962929523153450}
+  - component: {fileID: 91918433374022512}
   m_Layer: 0
   m_Name: SealPoint_02
   m_TagString: Untagged
@@ -352,6 +398,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 4851378263236055961}
+  - {fileID: 4444810420917411417}
   m_Father: {fileID: 3954148019290186074}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &4176593887524679846
@@ -390,7 +437,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7557781589367010280}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -444,10 +491,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6384f11f1ff1498dbdd8429221bdd469, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WardShift.MagicTarget
-  displayName: Test Seal Point
+  displayName: "\uBD09\uC778 \uB8EC 2"
   requiredMagic: 0
   castDuration: 2
-  useTimingCast: 1
+  useTimingCast: 0
   preserveProgressOnCancel: 0
   allowHeldPurifyChain: 0
   stableStart: 0.6
@@ -475,6 +522,26 @@ MonoBehaviour:
   castLoopPrefab: {fileID: 9096157622375344100, guid: ce19347d6ca00e74fa2aded96469b50c, type: 3}
   castCompletePrefab: {fileID: 2906058898862174061, guid: a35320f10464d9643be307a25d3ab7a3, type: 3}
   completeLifetime: 1.5
+--- !u!114 &91918433374022512
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7557781589367010280}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a833c4c6e5104c5aa1f3de61651b269b, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::WardShift.SealPointVisual
+  discoveredColor: {r: 0.55, g: 0.45, b: 0.08, a: 1}
+  activeColor: {r: 1, g: 0.85, b: 0.1, a: 1}
+  completedColor: {r: 0.2, g: 1, b: 0.35, a: 1}
+  failedColor: {r: 1, g: 0.18, b: 0.12, a: 1}
+  billboardTarget: {fileID: 4444810420917411417}
+  billboardCamera: {fileID: 0}
+  billboardRotationOffset: {x: 90, y: 0, z: 0}
+  billboardPositionOffset: {x: 0, y: 0, z: 0.02}
 --- !u!1 &7738930248187090455
 GameObject:
   m_ObjectHideFlags: 0
@@ -568,3 +635,127 @@ Transform:
   m_Children: []
   m_Father: {fileID: 3954148019290186074}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1001 &447432943770455337
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 502280111982900478}
+    m_Modifications:
+    - target: {fileID: 53134389835715358, guid: dccca923a3fd0794194f41e010ebc126, type: 3}
+      propertyPath: m_Name
+      value: Marker circle simple yellow
+      objectReference: {fileID: 0}
+    - target: {fileID: 4294950130936861552, guid: dccca923a3fd0794194f41e010ebc126, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4294950130936861552, guid: dccca923a3fd0794194f41e010ebc126, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4294950130936861552, guid: dccca923a3fd0794194f41e010ebc126, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4294950130936861552, guid: dccca923a3fd0794194f41e010ebc126, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 0.7071068
+      objectReference: {fileID: 0}
+    - target: {fileID: 4294950130936861552, guid: dccca923a3fd0794194f41e010ebc126, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0.7071068
+      objectReference: {fileID: 0}
+    - target: {fileID: 4294950130936861552, guid: dccca923a3fd0794194f41e010ebc126, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4294950130936861552, guid: dccca923a3fd0794194f41e010ebc126, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4294950130936861552, guid: dccca923a3fd0794194f41e010ebc126, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 90
+      objectReference: {fileID: 0}
+    - target: {fileID: 4294950130936861552, guid: dccca923a3fd0794194f41e010ebc126, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4294950130936861552, guid: dccca923a3fd0794194f41e010ebc126, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: dccca923a3fd0794194f41e010ebc126, type: 3}
+--- !u!4 &4444810420917411417 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 4294950130936861552, guid: dccca923a3fd0794194f41e010ebc126, type: 3}
+  m_PrefabInstance: {fileID: 447432943770455337}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1001 &5042624154552956735
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 3763424966865304482}
+    m_Modifications:
+    - target: {fileID: 53134389835715358, guid: dccca923a3fd0794194f41e010ebc126, type: 3}
+      propertyPath: m_Name
+      value: Marker circle simple yellow
+      objectReference: {fileID: 0}
+    - target: {fileID: 4294950130936861552, guid: dccca923a3fd0794194f41e010ebc126, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4294950130936861552, guid: dccca923a3fd0794194f41e010ebc126, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4294950130936861552, guid: dccca923a3fd0794194f41e010ebc126, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4294950130936861552, guid: dccca923a3fd0794194f41e010ebc126, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 0.7071068
+      objectReference: {fileID: 0}
+    - target: {fileID: 4294950130936861552, guid: dccca923a3fd0794194f41e010ebc126, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0.7071068
+      objectReference: {fileID: 0}
+    - target: {fileID: 4294950130936861552, guid: dccca923a3fd0794194f41e010ebc126, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4294950130936861552, guid: dccca923a3fd0794194f41e010ebc126, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4294950130936861552, guid: dccca923a3fd0794194f41e010ebc126, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 90
+      objectReference: {fileID: 0}
+    - target: {fileID: 4294950130936861552, guid: dccca923a3fd0794194f41e010ebc126, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4294950130936861552, guid: dccca923a3fd0794194f41e010ebc126, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: dccca923a3fd0794194f41e010ebc126, type: 3}
+--- !u!4 &9106354935236961359 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 4294950130936861552, guid: dccca923a3fd0794194f41e010ebc126, type: 3}
+  m_PrefabInstance: {fileID: 5042624154552956735}
+  m_PrefabAsset: {fileID: 0}

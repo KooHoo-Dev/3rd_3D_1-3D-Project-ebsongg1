@@ -47,19 +47,30 @@ namespace WardShift
             MagicTarget target = caster.CastingTarget;
             bool casting = !blocked && target != null && target.IsCasting && target.IsAvailable;
             bool showingResult = !blocked && !casting && caster.ShowingResult;
+            ManaRift chain = !blocked ? caster.ActiveSealRift : null;
+            bool chainingSeal = chain != null && chain.ExpectedSealPoint != null;
             // 결과는 짧은 텍스트로만 표시. 조준/결과 상태에서는 게이지를 남기지 않습니다.
             if (castPanel != null) castPanel.SetActive(casting);
             if (aimText != null)
             {
                 MagicTarget aimed = caster.AimedTarget;
                 aimText.color = showingResult && caster.LastResult != MagicCastResult.Success
-                    ? failureColor : Color.white;
+                    ? failureColor : chainingSeal ? successColor : Color.white;
                 aimText.text = blocked || casting ? ""
                     : showingResult ? $"{caster.CompletedTargetName} · {ResultName(caster.LastResult)}"
+                    : chainingSeal ? $"{chain.ExpectedSealPoint.DisplayName} · {chain.SealChainTimeRemaining:F1}초"
                     : aimed == null ? ""
                     : $"{aimed.DisplayName} · {MagicName(aimed.RequiredMagic)}";
             }
-            if (!casting) return;
+            if (!casting)
+            {
+                if (chainingSeal && !showingResult)
+                {
+                    if (castHint != null) castHint.text = "두 번째 룬을 조준해 좌클릭";
+                    if (statusText != null) statusText.text = "연쇄 봉인";
+                }
+                return;
+            }
             float start = target.StableStart;
             float end = target.StableEnd;
             bool timing = target.UseTimingCast;
