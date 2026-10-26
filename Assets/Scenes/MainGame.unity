@@ -49658,6 +49658,71 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 469104, guid: d8839064e1bb48788b19b68155d6ea2c, type: 3}
   m_PrefabInstance: {fileID: 1076311026}
   m_PrefabAsset: {fileID: 0}
+--- !u!1001 &1076739576
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 1756570166355187460, guid: 80a7d9974144bf742912ee0364b9319c, type: 3}
+      propertyPath: m_Materials.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2060346757458291206, guid: 80a7d9974144bf742912ee0364b9319c, type: 3}
+      propertyPath: m_Materials.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4471308536229622051, guid: 80a7d9974144bf742912ee0364b9319c, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -418.9302
+      objectReference: {fileID: 0}
+    - target: {fileID: 4471308536229622051, guid: 80a7d9974144bf742912ee0364b9319c, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 4471308536229622051, guid: 80a7d9974144bf742912ee0364b9319c, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -14.398644
+      objectReference: {fileID: 0}
+    - target: {fileID: 4471308536229622051, guid: 80a7d9974144bf742912ee0364b9319c, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4471308536229622051, guid: 80a7d9974144bf742912ee0364b9319c, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4471308536229622051, guid: 80a7d9974144bf742912ee0364b9319c, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4471308536229622051, guid: 80a7d9974144bf742912ee0364b9319c, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4471308536229622051, guid: 80a7d9974144bf742912ee0364b9319c, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4471308536229622051, guid: 80a7d9974144bf742912ee0364b9319c, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4471308536229622051, guid: 80a7d9974144bf742912ee0364b9319c, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5161750554754205258, guid: 80a7d9974144bf742912ee0364b9319c, type: 3}
+      propertyPath: m_Name
+      value: LightBeamBlast
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 80a7d9974144bf742912ee0364b9319c, type: 3}
 --- !u!1001 &1080777119
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -63750,9 +63815,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e4cf386bd20341f5a710d12a5666ac28, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WardShift.SealBeamVFX
-  beamPrefab: {fileID: 168570, guid: 1f7452042ec77d94ea7cece5cc4816fc, type: 3}
+  beamPrefab: {fileID: 5161750554754205258, guid: 80a7d9974144bf742912ee0364b9319c, type: 3}
   beamLifetime: 0.2
   extensionTime: 0.04
   widthMultiplier: 0.03
@@ -97964,3 +98029,4 @@ SceneRoots:
   - {fileID: 411442691}
   - {fileID: 1545351165}
   - {fileID: 437060336}
+  - {fileID: 1076739576}
