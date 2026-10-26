@@ -31,8 +31,10 @@ namespace WardShift
         [FormerlySerializedAs("maximumRiftReward"), SerializeField, Min(0)] private int maximumAnomalyReward = 2;
         [Header("강화 설정")]
         [SerializeField, Min(0)] private int[] upgradeStagePrices = { 4, 8 };
-        [Header("디버그 치트")]
+        [Header("DAY 스킵 (Editor / Development Build)")]
         [SerializeField] private bool enableDaySkipCheat = true;
+        [Tooltip("Development Build에서 F8 DAY 스킵을 허용합니다. 일반 빌드에서는 이 값과 관계없이 비활성화됩니다.")]
+        [SerializeField] private bool demoMode;
         [SerializeField] private Key daySkipCheatKey = Key.F8;
         [Header("씬 참조")]
         [SerializeField] private WardStatus wardStatus;
@@ -120,6 +122,20 @@ namespace WardShift
         public bool IsConfigured => wardStatus != null && anomalySpawner != null && inventory != null
             && magicCaster != null && playerRoot != null && startPoint != null && pickupInteractor != null;
 
+        private bool CanUseDaySkip
+        {
+            get
+            {
+#if UNITY_EDITOR
+                return enableDaySkipCheat;
+#elif DEVELOPMENT_BUILD
+                return enableDaySkipCheat && demoMode;
+#else
+                return false;
+#endif
+            }
+        }
+
         private void Awake()
         {
             if (wardStatus == null) wardStatus = FindFirstObjectByType<WardStatus>();
@@ -132,7 +148,7 @@ namespace WardShift
             if (zoneTracker == null) zoneTracker = FindFirstObjectByType<FacilityZoneTracker>();
             CapturePlayerMovementBaseSpeeds();
             if (anomalySpawner != null) anomalySpawner.SetSpawningEnabled(false);
-            if (daySkipCheatKey != Key.None)
+            if (CanUseDaySkip && daySkipCheatKey != Key.None)
             {
                 string keyPath = daySkipCheatKey.ToString().ToLowerInvariant();
                 daySkipAction = new InputAction("Cheat: Advance Day", InputActionType.Button,
@@ -165,7 +181,7 @@ namespace WardShift
 
         private void LateUpdate()
         {
-            if (enableDaySkipCheat && daySkipAction != null && daySkipAction.WasPressedThisFrame())
+            if (CanUseDaySkip && daySkipAction != null && daySkipAction.WasPressedThisFrame())
             {
                 CheatAdvanceDay();
                 return;
@@ -226,6 +242,7 @@ namespace WardShift
         /// <summary>디버그용 DAY 스킵. 진행 중 현상은 보상 없이 정리하고 다음 DAY를 시작합니다.</summary>
         public void CheatAdvanceDay()
         {
+            if (!CanUseDaySkip) return;
             if (wardStatus != null && wardStatus.HasFailed && state == DayState.Playing)
             {
                 OnDayFailed(wardStatus.FailureReason);
@@ -259,7 +276,6 @@ namespace WardShift
             ClearAllAnomalies();
             state = DayState.Preparing;
             SetMapOpen(false, false);
-            if (zoneTracker != null) zoneTracker.ResetVisitedZones();
             RestoreDayCheckpoint();
             if (pickupInteractor != null) pickupInteractor.ClearCurrentPickup();
             StartCoroutine(BeginDayNextFrame());
@@ -555,7 +571,16 @@ namespace WardShift
         {
             if (anomaly == null || subscribedAnomalies.Contains(anomaly)) return;
             anomaly.ResolutionCompleted += OnAnomalyResolved;
+            anomaly.Ended += OnAnomalyEnded;
             subscribedAnomalies.Add(anomaly);
+        }
+
+        private void OnAnomalyEnded(AnomalyBehaviour anomaly, AnomalyEndReason reason)
+        {
+            if (anomaly == null) return;
+            anomaly.ResolutionCompleted -= OnAnomalyResolved;
+            anomaly.Ended -= OnAnomalyEnded;
+            subscribedAnomalies.Remove(anomaly);
         }
 
         private void OnAnomalyResolved(AnomalyBehaviour anomaly)
@@ -573,7 +598,6 @@ namespace WardShift
             else reward = FloodConditionRules.ResolutionReward(reward, activeFloodCondition);
             inventory.AddManaCrystals(Mathf.Max(0, reward));
             anomaly.ResolutionCompleted -= OnAnomalyResolved;
-            subscribedAnomalies.Remove(anomaly);
         }
 
         private bool HasSurvivedDay()
@@ -880,7 +904,11 @@ namespace WardShift
         private void UnsubscribeFromAnomalies()
         {
             foreach (AnomalyBehaviour anomaly in subscribedAnomalies)
-                if (anomaly != null) anomaly.ResolutionCompleted -= OnAnomalyResolved;
+            {
+                if (anomaly == null) continue;
+                anomaly.ResolutionCompleted -= OnAnomalyResolved;
+                anomaly.Ended -= OnAnomalyEnded;
+            }
             subscribedAnomalies.Clear();
         }
 

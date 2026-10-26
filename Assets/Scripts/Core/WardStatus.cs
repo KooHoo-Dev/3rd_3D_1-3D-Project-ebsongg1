@@ -95,7 +95,7 @@ namespace WardShift
                 previousTimeScale = Time.timeScale;
                 previousCursorLock = Cursor.lockState;
                 previousCursorVisible = Cursor.visible;
-                previousInputBlocked = caster != null && caster.InputBlocked;
+                previousInputBlocked = caster != null && caster.RawInputBlocked;
                 hasPauseSnapshot = true;
             }
             if (caster != null) caster.SetInputBlocked(true);

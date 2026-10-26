@@ -117,7 +117,8 @@ namespace WardShift
                     + "\nDAY 시작 시점의 자원과 픽업을 복원해 재도전합니다.";
             if (endingSummaryText != null)
                 endingSummaryText.text = $"총 {dayFlow.FinalDay}일 근무를 모두 마쳤습니다.\n"
-                    + $"마력 결정: {inventory.ManaCrystals}개\n시설 안정도: {dayFlow.Status.Stability:F0}";
+                    + $"마력 결정: {inventory.ManaCrystals}개\n시설 안정도: "
+                    + (dayFlow.Status != null ? dayFlow.Status.Stability.ToString("F0") : "-");
             RefreshInventory();
             RefreshUpgradeCards();
         }

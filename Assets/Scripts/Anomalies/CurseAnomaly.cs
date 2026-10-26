@@ -75,7 +75,7 @@ namespace WardShift
             && !isResolved && !hasRuptured && !HasEnded;
         /// <summary>현재 활성 패치 수입니다.</summary>
         public int ActivePatchCount => activePatchCount;
-        /// <summary>이번 이상현상에서 정화해야 하는 총 패치 수입니다.</summary>
+        /// <summary>최대 확산 시 생성될 패치 수입니다. 현재 생성된 패치를 모두 정화하면 조기 진압할 수 있습니다.</summary>
         public int SelectedPatchCount => selectedPatchCount;
         /// <summary>이 이상현상에 등록해야 하는 최소 PatchPoint 개수입니다.</summary>
         public int MinimumPatchPointCount => Mathf.Clamp(minimumPatchCount, 4, 6);
@@ -345,6 +345,8 @@ namespace WardShift
 
         private bool AllSpawnedPatchesPurified()
         {
+            // 의도된 조기 진압: 아직 예약된 패치가 있어도 현재 생성된 패치가 모두 정화되면 종료합니다.
+            // OnPatchPurified가 isResolved를 먼저 세우므로 이후 확산은 멈추고 보상은 한 번만 발생합니다.
             if (patches == null || spawnedPatchCount <= 0) return false;
             for (int i = 0; i < spawnedPatchCount; i++)
                 if (patches[i] == null || !patches[i].IsPurified) return false;

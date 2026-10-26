@@ -133,7 +133,9 @@ namespace WardShift
             if (!ValidateSealPoints())
             {
                 Debug.LogError("ManaRift: 서로 다른 자식 봉인점 두 개를 연결하세요. 각 대상은 Seal 및 Use Timing Cast 설정이 필요합니다.", this);
+                // 이번 프레임의 위험 계산에서 제외하고, OnDestroy의 Removed 이벤트로 점유를 반환합니다.
                 enabled = false;
+                Destroy(gameObject);
                 return;
             }
             sealPoint01.Completed += OnSealCompleted;

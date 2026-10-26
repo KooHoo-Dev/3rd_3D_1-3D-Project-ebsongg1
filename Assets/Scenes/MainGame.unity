@@ -18464,6 +18464,7 @@ MonoBehaviour:
   maximumAnomalyReward: 2
   upgradeStagePrices: 0400000008000000
   enableDaySkipCheat: 1
+  demoMode: 0
   daySkipCheatKey: 101
   wardStatus: {fileID: 1545351164}
   anomalySpawner: {fileID: 411442692}

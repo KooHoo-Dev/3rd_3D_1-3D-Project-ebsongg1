@@ -69,6 +69,7 @@ namespace WardShift
         public bool InputBlocked => inputBlocked || !hasFocus || !inputEnabled || Time.timeScale <= 0f
             || (Cursor.lockState != CursorLockMode.Locked && EventSystem.current != null
                 && EventSystem.current.IsPointerOverGameObject());
+        public bool RawInputBlocked => inputBlocked;
 
         private void Awake()
         {
@@ -138,6 +139,12 @@ namespace WardShift
             if (selectedMagic == MagicType.Purify
                 && (continuousPurifySession || (aimed != null && aimed.AllowHeldPurifyChain)))
             {
+                // 새 연속 정화 세션에도 메뉴 닫기/마법 전환 후 버튼 해제를 요구합니다.
+                if (waitingForRelease && !continuousPurifySession)
+                {
+                    if (!pressed) waitingForRelease = false;
+                    return;
+                }
                 UpdateContinuousPurify(pressed, aimed);
                 return;
             }
