@@ -245,10 +245,20 @@ MonoBehaviour:
   crystalLight: {fileID: 5557579244879819838}
   warningLight: {fileID: 8982160939430218991}
   warningRing: {fileID: 1614912270518411588}
+  overloadLoopVFX: {fileID: 139178, guid: 6b3488aa97f1d514d8a4fa45cc3b2dad, type: 3}
+  stabilizingVFX: {fileID: 100000, guid: 0c395858d0318dc41bb0e645e801eeac, type: 3}
+  warningVFX: {fileID: 131454, guid: 495b63906f5f3bb40bf58baeb0848011, type: 3}
+  burstVFX: {fileID: 136414, guid: d59fb75f8c3c18040903bc802beec898, type: 3}
+  recoveryVFX: {fileID: 0}
+  resolvedVFX: {fileID: 127662, guid: c70cded20eb22b54b85e9004073a5073, type: 3}
+  burstVFXLifetime: 1.5
+  resolvedVFXLifetime: 1.5
   stabilizeRange: 2.75
   normalColor: {r: 0.15, g: 0.78, b: 1, a: 1}
   overloadColor: {r: 1, g: 0.2, b: 0.5, a: 1}
   warningColor: {r: 1, g: 0.08, b: 0.025, a: 1}
+  recoveryColor: {r: 0.16, g: 1, b: 0.65, a: 1}
+  diagnosisColor: {r: 0.15, g: 0.85, b: 1, a: 0.7}
   normalEmission: 1.7
   overloadEmission: 3.3
   warningEmission: 5

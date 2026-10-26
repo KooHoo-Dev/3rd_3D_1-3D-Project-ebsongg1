@@ -51,6 +51,8 @@ MonoBehaviour:
   stageOneBurstContamination: 10
   stageTwoBurstContamination: 15
   stageThreeBurstContamination: 20
+  recoverySeconds: 2
+  recoveryStabilizationMultiplier: 1.5
   stageTwoAt: 40
   stageThreeAt: 80
   ruptureAt: 120

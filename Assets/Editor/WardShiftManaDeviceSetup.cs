@@ -226,6 +226,8 @@ namespace WardShift
                 data.FindProperty("stageOneBurstContamination").floatValue = 10f;
                 data.FindProperty("stageTwoBurstContamination").floatValue = 15f;
                 data.FindProperty("stageThreeBurstContamination").floatValue = 20f;
+                data.FindProperty("recoverySeconds").floatValue = 2f;
+                data.FindProperty("recoveryStabilizationMultiplier").floatValue = 1.5f;
                 data.FindProperty("stageTwoAt").floatValue = 20f;
                 data.FindProperty("stageThreeAt").floatValue = 40f;
                 data.FindProperty("ruptureAt").floatValue = 60f;

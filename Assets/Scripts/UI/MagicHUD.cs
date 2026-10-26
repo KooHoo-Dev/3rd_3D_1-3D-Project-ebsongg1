@@ -11,6 +11,7 @@ namespace WardShift
     {
         [Header("플레이어와 UI 연결")]
         [SerializeField] private MagicCaster caster;
+        [SerializeField] private MagicDetector detector;
         [SerializeField] private TMP_Text selectionText;
         [SerializeField] private TMP_Text statusText;
         [SerializeField] private TMP_Text progressText;
@@ -41,6 +42,7 @@ namespace WardShift
         private void LateUpdate()
         {
             if (caster == null) return;
+            if (detector == null) detector = caster.GetComponent<MagicDetector>();
             if (selectionText != null) selectionText.text = MagicName(caster.SelectedMagic);
 
             bool blocked = !caster.isActiveAndEnabled || caster.InputBlocked;
@@ -54,9 +56,28 @@ namespace WardShift
             if (aimText != null)
             {
                 MagicTarget aimed = caster.AimedTarget;
-                aimText.color = showingResult && caster.LastResult != MagicCastResult.Success
+                ManaDeviceAnomaly diagnosed = !blocked && detector != null && detector.IsSensing
+                    ? detector.DiagnosedDevice : null;
+                MagicTarget focused = casting ? target : aimed;
+                ManaDeviceVisuals focusedVisuals = focused != null
+                    ? focused.GetComponentInParent<ManaDeviceVisuals>() : null;
+                ManaDeviceAnomaly recovery = !blocked && focusedVisuals != null
+                    ? focusedVisuals.ActiveAnomaly : null;
+                aimText.color = diagnosed != null ? new Color(0.5f, 0.9f, 1f)
+                    : recovery != null && recovery.RecoveryRemaining > 0f
+                    ? new Color(0.3f, 1f, 0.7f)
+                    : showingResult && caster.LastResult != MagicCastResult.Success
                     ? failureColor : chainingSeal ? successColor : Color.white;
-                aimText.text = blocked || casting ? ""
+                aimText.rectTransform.sizeDelta = diagnosed != null
+                    ? new Vector2(700f, 68f) : new Vector2(600f, 38f);
+                aimText.text = diagnosed != null
+                    ? $"마력 진단 · 다음 방출 {diagnosed.SecondsUntilNextBurst:F1}초 · 위험 반경 {diagnosed.BurstRadius:F1}m\n<size=18>"
+                        + (diagnosed.IsBurstWarningActive ? "방출 예고 중" : "방출 예고 전")
+                        + (diagnosed.RecoveryRemaining > 0f
+                            ? $" · 빠른 안정화 {diagnosed.RecoveryRemaining:F1}초" : "") + "</size>"
+                    : recovery != null && recovery.RecoveryRemaining > 0f
+                    ? $"빠른 안정화 ×{recovery.StabilizationSpeedMultiplier:F1} · {recovery.RecoveryRemaining:F1}초"
+                    : blocked || casting ? ""
                     : showingResult ? $"{caster.CompletedTargetName} · {ResultName(caster.LastResult)}"
                     : chainingSeal ? $"{chain.ExpectedSealPoint.DisplayName} · {chain.SealChainTimeRemaining:F1}초"
                     : aimed == null ? ""

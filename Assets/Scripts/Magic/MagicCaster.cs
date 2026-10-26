@@ -340,9 +340,17 @@ namespace WardShift
         private void Charge(MagicTarget target)
         {
             CaptureFeedback(target);
+            float castDelta = Time.deltaTime;
+            if (selectedMagic == MagicType.Stabilize
+                && target.GetComponentInParent<ManaDeviceVisuals>() is ManaDeviceVisuals visuals
+                && visuals.ActiveAnomaly is ManaDeviceAnomaly device && device.IsHazardActive)
+            {
+                device.RecordStabilizationWork(target);
+                castDelta *= device.StabilizationSpeedMultiplier;
+            }
             // 실패 후 대상의 진행도가 초기화되기 전에 결과 표시용 충전량을 저장.
-            ResultProgress = Mathf.Clamp01(target.Progress + Time.deltaTime / Mathf.Max(0.1f, target.CastDuration));
-            target.AdvanceCast(selectedMagic, Time.deltaTime);
+            ResultProgress = Mathf.Clamp01(target.Progress + castDelta / Mathf.Max(0.1f, target.CastDuration));
+            target.AdvanceCast(selectedMagic, castDelta);
             if (target == null) { castingTarget = null; waitingForRelease = true; return; }
             if (target.IsCasting) return;
             castingTarget = null;

@@ -34,10 +34,15 @@ namespace WardShift
         private HashSet<MagicTarget> detected = new HashSet<MagicTarget>();
         private HashSet<MagicTarget> nextDetected = new HashSet<MagicTarget>();
         private float nextScanTime;
+        private PlayerInteractor interactor;
+        private ManaDeviceVisuals diagnosedVisuals;
+        public ManaDeviceAnomaly DiagnosedDevice => diagnosedVisuals != null
+            ? diagnosedVisuals.ActiveAnomaly : null;
 
         private void Awake()
         {
             if (playerRoot == null) playerRoot = transform;
+            interactor = GetComponent<PlayerInteractor>();
             if (senseCamera == null) senseCamera = Camera.main;
             if (senseCamera == null)
             {
@@ -89,6 +94,45 @@ namespace WardShift
             detected = nextDetected;
             nextDetected = previous;
             detectedCount = detected.Count;
+            SelectDiagnosis();
+        }
+
+        private void SelectDiagnosis()
+        {
+            MagicTarget preferred = interactor != null ? interactor.CurrentTarget : null;
+            MagicTarget selected = null;
+            if (preferred != null && detected.Contains(preferred))
+            {
+                ManaDeviceVisuals preferredVisuals = preferred.GetComponentInParent<ManaDeviceVisuals>();
+                if (preferredVisuals != null && preferredVisuals.ActiveAnomaly != null
+                    && preferredVisuals.ActiveAnomaly.IsHazardActive) selected = preferred;
+            }
+            float bestScreenDistance = float.PositiveInfinity;
+            if (selected == null)
+            {
+                foreach (MagicTarget target in detected)
+                {
+                    if (target == null) continue;
+                    ManaDeviceVisuals visuals = target.GetComponentInParent<ManaDeviceVisuals>();
+                    if (visuals == null || visuals.ActiveAnomaly == null
+                        || !visuals.ActiveAnomaly.IsHazardActive) continue;
+                    Vector3 screen = senseCamera.WorldToViewportPoint(target.transform.position);
+                    if (screen.z <= 0f) continue;
+                    float distance = (new Vector2(screen.x - 0.5f, screen.y - 0.5f)).sqrMagnitude;
+                    if (distance >= bestScreenDistance) continue;
+                    selected = target;
+                    bestScreenDistance = distance;
+                }
+            }
+            ManaDeviceVisuals next = selected != null
+                ? selected.GetComponentInParent<ManaDeviceVisuals>() : null;
+            if (next != null && (next.ActiveAnomaly == null || !next.ActiveAnomaly.IsHazardActive))
+                next = null;
+            if (diagnosedVisuals != null && diagnosedVisuals != next)
+                diagnosedVisuals.SetDiagnosis(false, 0f);
+            diagnosedVisuals = next;
+            if (diagnosedVisuals != null)
+                diagnosedVisuals.SetDiagnosis(true, diagnosedVisuals.ActiveAnomaly.BurstRadius);
         }
 
         private bool HasLineOfSight(Vector3 origin, Collider collider, MagicTarget target)
@@ -116,6 +160,8 @@ namespace WardShift
             nextDetected.Clear();
             detectedCount = 0;
             isSensing = false;
+            if (diagnosedVisuals != null) diagnosedVisuals.SetDiagnosis(false, 0f);
+            diagnosedVisuals = null;
         }
 
         private void OnApplicationFocus(bool hasFocus)

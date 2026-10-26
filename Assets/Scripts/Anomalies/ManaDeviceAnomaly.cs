@@ -16,6 +16,10 @@ namespace WardShift
         [SerializeField, Min(0f)] private float stageTwoBurstContamination = 15f;
         [SerializeField, Min(0f)] private float stageThreeBurstContamination = 20f;
 
+        [Header("방출 회피 후 안정화")]
+        [SerializeField, Min(0f)] private float recoverySeconds = 2f;
+        [SerializeField, Min(1f)] private float recoveryStabilizationMultiplier = 1.5f;
+
         [Header("성장·파열 (생성 후 누적 초)")]
         [SerializeField, Min(0.1f)] private float stageTwoAt = 20f;
         [SerializeField, Min(0.2f)] private float stageThreeAt = 40f;
@@ -36,6 +40,8 @@ namespace WardShift
         private ManaDeviceVisuals deviceVisuals;
         private MagicTarget stabilizationTarget;
         private bool configured;
+        private bool workedThisBurstCycle;
+        private float recoveryRemaining;
 
         public override string DisplayName => "장치형 마력 폭주";
         public override int DangerStage => dangerStage;
@@ -58,6 +64,15 @@ namespace WardShift
         public float BurstRadius => Mathf.Max(Mathf.Max(0.1f, burstRadius),
             deviceVisuals != null ? deviceVisuals.StabilizeRange + 1.25f : 0.1f);
         public bool IsBurstWarningActive => isBurstWarningActive;
+        public float SecondsUntilNextBurst => IsHazardActive ? Mathf.Max(0f, secondsUntilNextBurst) : 0f;
+        public float RecoveryRemaining => IsHazardActive ? Mathf.Max(0f, recoveryRemaining) : 0f;
+        public float StabilizationSpeedMultiplier => RecoveryRemaining > 0f
+            ? Mathf.Max(1f, recoveryStabilizationMultiplier) : 1f;
+        public void RecordStabilizationWork(MagicTarget target)
+        {
+            if (IsHazardActive && target == stabilizationTarget && target.IsAvailable)
+                workedThisBurstCycle = true;
+        }
         /// <summary>HUD에서 읽는 기존 장치 대상의 누적 진행도.</summary>
         public float StabilizationProgress => stabilizationTarget != null ? stabilizationTarget.Progress : 0f;
         public override float SecondsUntilNextStage
@@ -93,9 +108,12 @@ namespace WardShift
             hasRuptured = false;
             isResolved = false;
             isBurstWarningActive = false;
+            workedThisBurstCycle = false;
+            recoveryRemaining = 0f;
             secondsUntilNextBurst = Mathf.Max(0.1f, firstBurstDelaySeconds)
                 + Mathf.Max(0.1f, burstWarningSeconds);
             configured = true;
+            deviceVisuals.SetActiveAnomaly(this);
             stabilizationTarget.Completed -= OnStabilizationCompleted;
             stabilizationTarget.Completed += OnStabilizationCompleted;
             deviceVisuals.SetBurstWarning(false, BurstRadius, 0f);
@@ -124,6 +142,8 @@ namespace WardShift
             if (ruptureReached)
             {
                 hasRuptured = true;
+                recoveryRemaining = 0f;
+                workedThisBurstCycle = false;
                 if (stabilizationTarget != null) stabilizationTarget.Completed -= OnStabilizationCompleted;
                 if (deviceVisuals != null) deviceVisuals.MarkRuptured();
                 stabilityLoss += Mathf.Max(0f, ruptureStabilityDamage);
@@ -151,6 +171,12 @@ namespace WardShift
                 float step = Mathf.Min(remaining, toTransition);
                 secondsUntilNextBurst -= step;
                 remaining -= step;
+                if (recoveryRemaining > 0f)
+                {
+                    recoveryRemaining = Mathf.Max(0f, recoveryRemaining - step);
+                    if (recoveryRemaining <= 0f && deviceVisuals != null)
+                        deviceVisuals.SetRecovery(false);
+                }
 
                 if (!isBurstWarningActive && secondsUntilNextBurst <= warningDuration)
                 {
@@ -182,9 +208,13 @@ namespace WardShift
         {
             if (deviceVisuals != null) deviceVisuals.ShowBurstImpact();
             PlayerContamination player = FindFirstObjectByType<PlayerContamination>();
-            if (player == null || player.InSafeZone
-                || PlanarDistance(player.transform.position, transform.position) > BurstRadius)
-                return;
+            bool outsideRadius = player != null
+                && PlanarDistance(player.transform.position, transform.position) > BurstRadius;
+            bool earnedRecovery = workedThisBurstCycle && outsideRadius;
+            workedThisBurstCycle = false;
+            recoveryRemaining = earnedRecovery ? Mathf.Max(0f, recoverySeconds) : 0f;
+            if (deviceVisuals != null) deviceVisuals.SetRecovery(recoveryRemaining > 0f);
+            if (player == null || player.InSafeZone || outsideRadius) return;
 
             float amount = dangerStage >= 3 ? stageThreeBurstContamination
                 : dangerStage == 2 ? stageTwoBurstContamination : stageOneBurstContamination;
@@ -197,7 +227,9 @@ namespace WardShift
             if (target != stabilizationTarget || isResolved || hasRuptured || HasEnded) return;
             isResolved = true;
             isBurstWarningActive = false;
-            if (deviceVisuals != null) deviceVisuals.ReturnToNormal();
+            recoveryRemaining = 0f;
+            workedThisBurstCycle = false;
+            if (deviceVisuals != null) deviceVisuals.MarkResolved();
             Debug.Log("장치형 마력 폭주 진압 완료", this);
             try { NotifyResolved(); }
             finally { if (this != null) Destroy(gameObject); }
