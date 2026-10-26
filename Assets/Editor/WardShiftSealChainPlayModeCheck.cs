@@ -90,6 +90,7 @@ namespace WardShift.Editor
                 AssertRandomOrderCanVary();
                 AssertOptionalRiftVfx();
                 RunQAndClickInputCheck();
+                AssertLineBeamCompatibility();
 
                 timeoutRift = SpawnRift("SealChain_Timeout");
                 timeoutRift.AdvanceHazard(45f);
@@ -162,6 +163,7 @@ namespace WardShift.Editor
             Invoke(caster, "LateUpdate");
             Assert(first.IsCompleted && rift.IsSealChainInProgress && rift.CompletedSealCount == 1,
                 "첫 번째 좌클릭 즉시 시작하고 첫 성공부터 연쇄 상태가 됨");
+            AssertSealBeam(first, 1);
             Assert(second.GetComponent<SealPointVisual>().CurrentState == SealPointVisual.State.Active,
                 "첫 성공 후 두 번째 봉인점 활성 강조");
 
@@ -187,6 +189,7 @@ namespace WardShift.Editor
             Invoke(caster, "LateUpdate");
             Assert(second.IsCompleted && rift.CompletedSealCount == 2,
                 "버튼을 놓았다 다시 누르는 두 번째 클릭으로 진압 진행");
+            AssertSealBeam(second, 2);
             if (!rift.IsEnded) Invoke(rift, "LateUpdate");
             Assert(resolved == 1 && (rift == null || rift.IsEnded), "전체 진압 완료 이벤트가 한 번 발생");
 
@@ -197,6 +200,88 @@ namespace WardShift.Editor
             caster.enabled = true;
             caster.ResetForNewDay();
             Assert(senseAction.enabled, "Q 감지 액션이 활성 상태로 유지됨");
+        }
+
+        private static void AssertSealBeam(MagicTarget point, int expectedCount)
+        {
+            SealBeamVFX vfx = SealBeamVFX.Active;
+            if (vfx == null || GetPrivateField<GameObject>(vfx, "beamPrefab") == null) return;
+            var beams = GetPrivateField<System.Collections.IList>(vfx, "beams");
+            Assert(beams.Count == expectedCount, "봉인 성공마다 독립 광선 인스턴스 생성");
+            typeof(SealBeamVFX).GetMethod("AdvanceBeams", PrivateInstance).Invoke(vfx, new object[] { 0.04f });
+            object beam = beams[beams.Count - 1];
+            GameObject root = (GameObject)beam.GetType().GetField("Root").GetValue(beam);
+            Vector3 start = (Vector3)beam.GetType().GetField("Start").GetValue(beam);
+            Assert(root != null && root.activeInHierarchy, "광선 프리팹이 삭제되지 않고 활성 상태 유지");
+            LineRenderer[] lines = root.GetComponentsInChildren<LineRenderer>(true);
+            ParticleSystemRenderer[] particles = root.GetComponentsInChildren<ParticleSystemRenderer>(true);
+            bool visibleBeam = false;
+            foreach (LineRenderer line in lines)
+            {
+                Assert(Vector3.Distance(line.GetPosition(0), start) < 0.001f
+                    && Vector3.Distance(line.GetPosition(1), point.transform.position) < 0.001f,
+                    "LineRenderer 광선이 발사 위치와 봉인점을 연결");
+                visibleBeam = true;
+            }
+            foreach (ParticleSystemRenderer renderer in particles)
+            {
+                if (renderer.renderMode != ParticleSystemRenderMode.Stretch) continue;
+                Assert(renderer.GetComponent<ParticleSystem>().particleCount > 0,
+                    "LightBeamBlast 광선 파티클이 실제로 생성됨");
+                Mesh mesh = new Mesh();
+                try
+                {
+                    renderer.BakeMesh(mesh, Camera.main, ParticleSystemBakeMeshOptions.BakeRotationAndScale);
+                    Assert(mesh.vertexCount > 0, "파티클 광선의 렌더링 메시 생성");
+                    Vector3 direction = (point.transform.position - start).normalized;
+                    float min = float.PositiveInfinity, max = float.NegativeInfinity;
+                    foreach (Vector3 vertex in mesh.vertices)
+                    {
+                        float distance = Vector3.Dot(renderer.transform.position + vertex - start, direction);
+                        min = Mathf.Min(min, distance);
+                        max = Mathf.Max(max, distance);
+                    }
+                    float length = Vector3.Distance(start, point.transform.position);
+                    Debug.Log($"[SealBeam geometry] min={min:F3}, max={max:F3}, expected={length:F3}");
+                    Assert(Mathf.Abs(min) < 0.05f && Mathf.Abs(max - length) < 0.05f,
+                        "파티클 광선의 실제 메시가 발사 위치부터 봉인점까지 연결");
+                    visibleBeam = true;
+                }
+                finally { Object.Destroy(mesh); }
+            }
+            Assert(visibleBeam, "지원되는 렌더러로 광선 표시");
+        }
+
+        private static void AssertLineBeamCompatibility()
+        {
+            SealBeamVFX vfx = SealBeamVFX.Active;
+            if (vfx == null) return;
+            GameObject savedPrefab = GetPrivateField<GameObject>(vfx, "beamPrefab");
+            ManaRift rift = null;
+            try
+            {
+                typeof(SealBeamVFX).GetMethod("AdvanceBeams", PrivateInstance).Invoke(vfx, new object[] { 0.3f });
+                var beams = GetPrivateField<System.Collections.IList>(vfx, "beams");
+                Assert(beams.Count == 0, "수명이 끝난 광선 정리");
+                GameObject linePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(
+                    "Assets/Assets/Effects/MagicArsenal/Effects/Prefabs/Beams/Setup/Beam/Light Beam.prefab");
+                Assert(linePrefab != null, "기존 LineRenderer 프리팹 로드");
+                SetPrivateField(vfx, "beamPrefab", linePrefab);
+                rift = SpawnRift("SealBeam_LineCompatibility");
+                rift.transform.position = Camera.main.transform.position + Camera.main.transform.forward * 3f;
+                MagicTarget first = FirstSeal(rift);
+                first.SetDetected(true, Color.yellow);
+                Assert(rift.TryCompleteSealClick(first), "기존 광선 프리팹으로 봉인 성공");
+                AssertSealBeam(first, 1);
+                vfx.enabled = false;
+                Assert(beams.Count == 0, "컴포넌트 비활성화 시 모든 광선 정리");
+            }
+            finally
+            {
+                SetPrivateField(vfx, "beamPrefab", savedPrefab);
+                vfx.enabled = true;
+                if (rift != null) Object.Destroy(rift.gameObject);
+            }
         }
 
         private static void Tick()

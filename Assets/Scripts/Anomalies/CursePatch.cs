@@ -13,6 +13,22 @@ namespace WardShift
         [SerializeField] private Renderer patchRenderer;
         [SerializeField] private Collider aimCollider;
         [SerializeField] private ParticleSystem moteParticles;
+        [Header("패치 외형 (선택)")]
+        [Tooltip("지정하면 기본 원형 MeshRenderer 대신 이 프리팹을 패치 외형으로 표시합니다. Idle VFX 슬롯과 같은 프리팹이면 한 인스턴스만 생성합니다.")]
+        [SerializeField] private GameObject patchAppearancePrefab;
+        [SerializeField, Min(0f)] private float patchAppearanceScale = 1f;
+        [Tooltip("외형 프리팹 로컬 단위의 조준 반경입니다. 0이면 기존 Collider 크기를 유지합니다. 정화 중에는 Collider가 줄지 않습니다.")]
+        [SerializeField, Min(0f)] private float patchAppearanceAimRadius;
+        [Header("개별 패치 VFX (선택)")]
+        [Tooltip("패치가 활성 상태인 동안 반복 재생할 오염 효과입니다.")]
+        [SerializeField] private GameObject idleVfxPrefab;
+        [Tooltip("이 패치의 정화가 진행되는 동안 반복 재생할 효과입니다.")]
+        [SerializeField] private GameObject purifyingVfxPrefab;
+        [Tooltip("이 패치가 정화 완료되는 순간 월드에 남길 효과입니다.")]
+        [SerializeField] private GameObject purifiedVfxPrefab;
+        [Tooltip("비워 두면 패치 루트 위치를 사용합니다. 지정하면 세 효과의 위치 기준으로 사용합니다.")]
+        [SerializeField] private Transform vfxAnchor;
+        [SerializeField, Min(0.1f)] private float purifiedVfxLifetime = 2f;
         [SerializeField, Min(0.1f)] private float dangerRadius = 0.65f;
         [SerializeField, Min(0f)] private float surfaceOffset = 0.02f;
         [SerializeField] private Color stageOneColor = new Color(0.055f, 0.018f, 0.09f, 0.72f);
@@ -22,9 +38,15 @@ namespace WardShift
 
         private Transform visualTransform;
         private Vector3 initialVisualScale;
+        private Vector3 initialAimBoxSize;
+        private float initialAimSphereRadius;
         private int dangerStage = 1;
         private bool purified;
         private MaterialPropertyBlock propertyBlock;
+        private GameObject idleVfxInstance;
+        private GameObject purifyingVfxInstance;
+        private GameObject patchAppearanceInstance;
+        private Vector3 initialPatchAppearanceScale;
 
         private static readonly int BaseColor = Shader.PropertyToID("_BaseColor");
         private static readonly int LegacyColor = Shader.PropertyToID("_Color");
@@ -62,6 +84,8 @@ namespace WardShift
         private void Awake()
         {
             ResolveReferences();
+            if (aimCollider is BoxCollider aimBox) initialAimBoxSize = aimBox.size;
+            if (aimCollider is SphereCollider aimSphere) initialAimSphereRadius = aimSphere.radius;
             if (patchRenderer != null)
             {
                 visualTransform = patchRenderer.transform;
@@ -74,14 +98,22 @@ namespace WardShift
         private void OnEnable()
         {
             ResolveReferences();
+            RefreshPatchRendererVisibility();
             if (purificationTarget != null)
+            {
                 purificationTarget.Completed += OnPurificationCompleted;
+                purificationTarget.CastStarted += StartPurifyingVfx;
+                purificationTarget.CastStopped += StopPurifyingVfx;
+            }
             if (IsPurified)
             {
                 gameObject.SetActive(false);
                 return;
             }
             if (moteParticles != null) moteParticles.Play(false);
+            StartPatchAppearance();
+            StartIdleVfx();
+            if (purificationTarget != null && purificationTarget.IsCasting) StartPurifyingVfx();
             RefreshAppearance();
         }
 
@@ -95,8 +127,13 @@ namespace WardShift
             if (purificationTarget != null)
             {
                 purificationTarget.Completed -= OnPurificationCompleted;
+                purificationTarget.CastStarted -= StartPurifyingVfx;
+                purificationTarget.CastStopped -= StopPurifyingVfx;
                 if (purificationTarget.IsCasting) purificationTarget.CancelCast();
             }
+            StopPurifyingVfx();
+            StopIdleVfx();
+            StopPatchAppearance();
             if (moteParticles != null && moteParticles.isPlaying)
                 moteParticles.Stop(false, ParticleSystemStopBehavior.StopEmittingAndClear);
         }
@@ -104,7 +141,11 @@ namespace WardShift
         private void OnDestroy()
         {
             if (purificationTarget != null)
+            {
                 purificationTarget.Completed -= OnPurificationCompleted;
+                purificationTarget.CastStarted -= StartPurifyingVfx;
+                purificationTarget.CastStopped -= StopPurifyingVfx;
+            }
         }
 
         /// <summary>패치가 화면에 보이는 원형 위험 범위 안에 위치하는지 확인합니다.</summary>
@@ -139,8 +180,82 @@ namespace WardShift
             purified = true;
             if (moteParticles != null)
                 moteParticles.Stop(false, ParticleSystemStopBehavior.StopEmittingAndClear);
+            StopPurifyingVfx();
+            StopIdleVfx();
+            StopPatchAppearance();
+            MagicVfxUtility.SpawnDetached(purifiedVfxPrefab, VfxAnchor.position,
+                VfxAnchor.rotation, purifiedVfxLifetime);
             Purified?.Invoke(this);
         }
+
+        /// <summary>DAY 실패 등으로 패치 효과를 정리할 때 호출합니다.</summary>
+        public void StopEffectsForDayEnd()
+        {
+            if (purificationTarget != null && purificationTarget.IsCasting)
+                purificationTarget.CancelCast();
+            StopPurifyingVfx();
+            StopIdleVfx();
+            StopPatchAppearance();
+            if (moteParticles != null && moteParticles.isPlaying)
+                moteParticles.Stop(false, ParticleSystemStopBehavior.StopEmittingAndClear);
+        }
+
+        private void StartIdleVfx()
+        {
+            if (idleVfxInstance != null || idleVfxPrefab == null) return;
+            if (patchAppearancePrefab != null && idleVfxPrefab == patchAppearancePrefab
+                && patchAppearanceInstance != null)
+            {
+                idleVfxInstance = patchAppearanceInstance;
+                return;
+            }
+            idleVfxInstance = MagicVfxUtility.SpawnAttached(idleVfxPrefab, VfxAnchor);
+        }
+
+        private void StopIdleVfx()
+        {
+            if (idleVfxInstance != patchAppearanceInstance)
+                MagicVfxUtility.StopAndDestroy(idleVfxInstance);
+            idleVfxInstance = null;
+        }
+
+        private void StartPatchAppearance()
+        {
+            if (patchAppearanceInstance != null || patchAppearancePrefab == null) return;
+            patchAppearanceInstance = MagicVfxUtility.SpawnAttached(patchAppearancePrefab, transform);
+            if (patchAppearanceInstance != null)
+                initialPatchAppearanceScale = patchAppearanceInstance.transform.localScale;
+            RefreshPatchRendererVisibility();
+        }
+
+        private void StopPatchAppearance()
+        {
+            if (idleVfxInstance == patchAppearanceInstance) idleVfxInstance = null;
+            MagicVfxUtility.StopAndDestroy(patchAppearanceInstance);
+            patchAppearanceInstance = null;
+            RefreshPatchRendererVisibility();
+        }
+
+        private void RefreshPatchRendererVisibility()
+        {
+            if (patchRenderer != null)
+                patchRenderer.enabled = patchAppearancePrefab == null;
+        }
+
+        private void StartPurifyingVfx()
+        {
+            if (!isActiveAndEnabled || purificationTarget == null || !purificationTarget.IsCasting
+                || purifyingVfxInstance != null || purifyingVfxPrefab == null) return;
+            purifyingVfxInstance = MagicVfxUtility.SpawnAttached(purifyingVfxPrefab, VfxAnchor);
+        }
+
+        private void StopPurifyingVfx()
+        {
+            MagicVfxUtility.StopAndDestroy(purifyingVfxInstance);
+            purifyingVfxInstance = null;
+        }
+
+        private Transform VfxAnchor => vfxAnchor != null ? vfxAnchor : transform;
 
         private void ResolveReferences()
         {
@@ -165,15 +280,19 @@ namespace WardShift
 
         private void RefreshAppearance()
         {
-            if (purificationTarget == null || patchRenderer == null) return;
+            if (purificationTarget == null) return;
             float progress = purificationTarget.IsCasting ? purificationTarget.Progress : 0f;
             float visualScale = StageAreaScale * Mathf.Lerp(1f, 0.46f, progress);
+            RefreshAimColliderFootprint();
             // Keep the aim collider fixed so shrinking visuals cannot cancel the cast.
             if (visualTransform != null)
                 visualTransform.localScale = initialVisualScale * visualScale;
+            if (patchAppearanceInstance != null)
+                patchAppearanceInstance.transform.localScale = initialPatchAppearanceScale
+                    * (visualScale * Mathf.Max(0f, patchAppearanceScale));
 
             // MagicTarget owns the temporary Q highlight. Restore this patch's gradual look otherwise.
-            if (purificationTarget.IsDetected) return;
+            if (patchRenderer == null || purificationTarget.IsDetected) return;
             Color stageColor = dangerStage >= 3 ? stageThreeColor
                 : dangerStage == 2 ? stageTwoColor : stageOneColor;
             Color color = Color.Lerp(stageColor, purifyingColor, progress);
@@ -183,6 +302,26 @@ namespace WardShift
             propertyBlock.SetColor(LegacyColor, color);
             propertyBlock.SetColor(EmissionColor, Color.Lerp(stageColor, Color.white, progress) * 0.35f);
             patchRenderer.SetPropertyBlock(propertyBlock);
+        }
+
+        private void RefreshAimColliderFootprint()
+        {
+            if (aimCollider == null) return;
+            float aimRadius = patchAppearancePrefab != null
+                ? Mathf.Max(0f, patchAppearanceAimRadius) * Mathf.Max(0f, patchAppearanceScale) * StageAreaScale
+                : 0f;
+
+            if (aimCollider is BoxCollider box)
+            {
+                box.size = new Vector3(
+                    Mathf.Max(initialAimBoxSize.x, aimRadius * 2f),
+                    initialAimBoxSize.y,
+                    Mathf.Max(initialAimBoxSize.z, aimRadius * 2f));
+            }
+            else if (aimCollider is SphereCollider sphere)
+            {
+                sphere.radius = Mathf.Max(initialAimSphereRadius, aimRadius);
+            }
         }
 
         private float StageAreaScale => dangerStage >= 3 ? StageThreeAreaScale

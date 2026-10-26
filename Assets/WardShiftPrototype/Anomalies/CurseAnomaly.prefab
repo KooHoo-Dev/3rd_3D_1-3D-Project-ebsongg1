@@ -189,6 +189,14 @@ MonoBehaviour:
   patchRenderer: {fileID: 4765255685074071322}
   aimCollider: {fileID: 7089946088295062915}
   moteParticles: {fileID: 6599263249798285037}
+  patchAppearancePrefab: {fileID: 155376, guid: 9cdfe7e4ba63db3469546b9391c3ce19, type: 3}
+  patchAppearanceScale: 1
+  patchAppearanceAimRadius: 4
+  idleVfxPrefab: {fileID: 155376, guid: 9cdfe7e4ba63db3469546b9391c3ce19, type: 3}
+  purifyingVfxPrefab: {fileID: 100000, guid: b6ac2ba5687816e43984b9ee3a277757, type: 3}
+  purifiedVfxPrefab: {fileID: 0}
+  vfxAnchor: {fileID: 0}
+  purifiedVfxLifetime: 2
   dangerRadius: 0.65
   surfaceOffset: 0.025
   stageOneColor: {r: 0.055, g: 0.018, b: 0.09, a: 0.72}
@@ -255,6 +263,9 @@ MonoBehaviour:
   minimumPatchCount: 4
   maximumPatchCount: 6
   patchSpawnIntervalSeconds: 3
+  spawnVfxPrefab: {fileID: 155376, guid: 9cdfe7e4ba63db3469546b9391c3ce19, type: 3}
+  resolvedVfxPrefab: {fileID: 0}
+  anomalyVfxLifetime: 2
   floorSnapProbeHeight: 2
   floorSnapProbeDistance: 4
   maximumFloorHeightCorrection: 1
@@ -375,6 +386,14 @@ MonoBehaviour:
   patchRenderer: {fileID: 5212078280579427798}
   aimCollider: {fileID: 4968961483132025832}
   moteParticles: {fileID: 4252122995244164520}
+  patchAppearancePrefab: {fileID: 155376, guid: 9cdfe7e4ba63db3469546b9391c3ce19, type: 3}
+  patchAppearanceScale: 1
+  patchAppearanceAimRadius: 4
+  idleVfxPrefab: {fileID: 155376, guid: 9cdfe7e4ba63db3469546b9391c3ce19, type: 3}
+  purifyingVfxPrefab: {fileID: 100000, guid: b6ac2ba5687816e43984b9ee3a277757, type: 3}
+  purifiedVfxPrefab: {fileID: 0}
+  vfxAnchor: {fileID: 0}
+  purifiedVfxLifetime: 2
   dangerRadius: 0.65
   surfaceOffset: 0.025
   stageOneColor: {r: 0.055, g: 0.018, b: 0.09, a: 0.72}
@@ -480,6 +499,14 @@ MonoBehaviour:
   patchRenderer: {fileID: 5158990665388493469}
   aimCollider: {fileID: 7600028978418117966}
   moteParticles: {fileID: 7015173246757650563}
+  patchAppearancePrefab: {fileID: 155376, guid: 9cdfe7e4ba63db3469546b9391c3ce19, type: 3}
+  patchAppearanceScale: 1
+  patchAppearanceAimRadius: 4
+  idleVfxPrefab: {fileID: 155376, guid: 9cdfe7e4ba63db3469546b9391c3ce19, type: 3}
+  purifyingVfxPrefab: {fileID: 100000, guid: b6ac2ba5687816e43984b9ee3a277757, type: 3}
+  purifiedVfxPrefab: {fileID: 0}
+  vfxAnchor: {fileID: 0}
+  purifiedVfxLifetime: 2
   dangerRadius: 0.65
   surfaceOffset: 0.025
   stageOneColor: {r: 0.055, g: 0.018, b: 0.09, a: 0.72}
@@ -10257,6 +10284,14 @@ MonoBehaviour:
   patchRenderer: {fileID: 5396532296373033696}
   aimCollider: {fileID: 4632839693217160898}
   moteParticles: {fileID: 356876492917909331}
+  patchAppearancePrefab: {fileID: 155376, guid: 9cdfe7e4ba63db3469546b9391c3ce19, type: 3}
+  patchAppearanceScale: 1
+  patchAppearanceAimRadius: 4
+  idleVfxPrefab: {fileID: 155376, guid: 9cdfe7e4ba63db3469546b9391c3ce19, type: 3}
+  purifyingVfxPrefab: {fileID: 100000, guid: b6ac2ba5687816e43984b9ee3a277757, type: 3}
+  purifiedVfxPrefab: {fileID: 0}
+  vfxAnchor: {fileID: 0}
+  purifiedVfxLifetime: 2
   dangerRadius: 0.65
   surfaceOffset: 0.025
   stageOneColor: {r: 0.055, g: 0.018, b: 0.09, a: 0.72}
@@ -25230,6 +25265,14 @@ MonoBehaviour:
   patchRenderer: {fileID: 8840543364925782953}
   aimCollider: {fileID: 884502711559425003}
   moteParticles: {fileID: 2767555407303538354}
+  patchAppearancePrefab: {fileID: 155376, guid: 9cdfe7e4ba63db3469546b9391c3ce19, type: 3}
+  patchAppearanceScale: 1
+  patchAppearanceAimRadius: 4
+  idleVfxPrefab: {fileID: 155376, guid: 9cdfe7e4ba63db3469546b9391c3ce19, type: 3}
+  purifyingVfxPrefab: {fileID: 100000, guid: b6ac2ba5687816e43984b9ee3a277757, type: 3}
+  purifiedVfxPrefab: {fileID: 0}
+  vfxAnchor: {fileID: 0}
+  purifiedVfxLifetime: 2
   dangerRadius: 0.65
   surfaceOffset: 0.025
   stageOneColor: {r: 0.055, g: 0.018, b: 0.09, a: 0.72}
@@ -30171,6 +30214,14 @@ MonoBehaviour:
   patchRenderer: {fileID: 5920052200978769792}
   aimCollider: {fileID: 3972533821666953253}
   moteParticles: {fileID: 6721001943425172276}
+  patchAppearancePrefab: {fileID: 155376, guid: 9cdfe7e4ba63db3469546b9391c3ce19, type: 3}
+  patchAppearanceScale: 0.8
+  patchAppearanceAimRadius: 4
+  idleVfxPrefab: {fileID: 155376, guid: 9cdfe7e4ba63db3469546b9391c3ce19, type: 3}
+  purifyingVfxPrefab: {fileID: 100000, guid: b6ac2ba5687816e43984b9ee3a277757, type: 3}
+  purifiedVfxPrefab: {fileID: 0}
+  vfxAnchor: {fileID: 0}
+  purifiedVfxLifetime: 2
   dangerRadius: 0.65
   surfaceOffset: 0.025
   stageOneColor: {r: 0.055, g: 0.018, b: 0.09, a: 0.72}

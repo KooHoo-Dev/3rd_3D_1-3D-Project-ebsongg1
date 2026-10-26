@@ -15,6 +15,12 @@ namespace WardShift
         [SerializeField, Range(4, 6)] private int maximumPatchCount = 6;
         [Tooltip("첫 패치는 즉시 나타나며, 저주 오염이 남아 있을 때 다음 패치가 나타나는 간격입니다.")]
         [SerializeField, Min(0.1f)] private float patchSpawnIntervalSeconds = 3f;
+        [Header("저주 이상현상 VFX (선택)")]
+        [Tooltip("저주 이상현상이 처음 발생할 때 한 번 재생합니다.")]
+        [SerializeField] private GameObject spawnVfxPrefab;
+        [Tooltip("현재 생성된 패치를 모두 정상 정화해 진압했을 때 한 번 재생합니다.")]
+        [SerializeField] private GameObject resolvedVfxPrefab;
+        [SerializeField, Min(0.1f)] private float anomalyVfxLifetime = 2f;
         [Header("바닥 위치 자동 맞춤")]
         [SerializeField, Min(0.1f)] private float floorSnapProbeHeight = 2f;
         [SerializeField, Min(0.1f)] private float floorSnapProbeDistance = 4f;
@@ -47,6 +53,7 @@ namespace WardShift
         private int spawnedPatchCount;
         private float nextPatchSpawnAge;
         private bool hasPlacedPatches;
+        private WardStatus subscribedWardStatus;
 
         /// <summary>이상현상 생성 후 흐른 시간입니다.</summary>
         public float Age => age;
@@ -116,6 +123,16 @@ namespace WardShift
         protected override void OnEnable()
         {
             base.OnEnable();
+            if (Application.isPlaying)
+            {
+                subscribedWardStatus = FindFirstObjectByType<WardStatus>();
+                if (subscribedWardStatus != null)
+                {
+                    subscribedWardStatus.Failed -= OnDayFailed;
+                    subscribedWardStatus.Failed += OnDayFailed;
+                    if (subscribedWardStatus.HasFailed) StopPatchEffects();
+                }
+            }
             if (patches == null) return;
             foreach (CursePatch patch in patches)
             {
@@ -140,6 +157,7 @@ namespace WardShift
             nextPatchSpawnAge = Mathf.Max(0.1f, patchSpawnIntervalSeconds);
             hasPlacedPatches = true;
             RefreshPatchAvailability();
+            SpawnAnomalyVfx(spawnVfxPrefab);
         }
 
         /// <summary>Floor 생성 지점의 자식 PatchPoint에 패치 템플릿을 배치합니다.</summary>
@@ -332,6 +350,7 @@ namespace WardShift
             if (!AllSpawnedPatchesPurified()) return;
             isResolved = true;
             Debug.Log($"저주 오염 진압 완료 ({spawnedPatchCount}개 패치)", this);
+            SpawnAnomalyVfx(resolvedVfxPrefab);
             try
             {
                 onResolved.Invoke();
@@ -355,10 +374,31 @@ namespace WardShift
 
         protected override void OnDisable()
         {
+            if (subscribedWardStatus != null)
+                subscribedWardStatus.Failed -= OnDayFailed;
+            subscribedWardStatus = null;
             if (patches != null)
                 foreach (CursePatch patch in patches)
                     if (patch != null) patch.Purified -= OnPatchPurified;
             base.OnDisable();
+        }
+
+        private void OnDayFailed(string reason)
+        {
+            StopPatchEffects();
+        }
+
+        private void StopPatchEffects()
+        {
+            if (patches == null) return;
+            foreach (CursePatch patch in patches)
+                if (patch != null) patch.StopEffectsForDayEnd();
+        }
+
+        private void SpawnAnomalyVfx(GameObject prefab)
+        {
+            if (prefab == null) return;
+            MagicVfxUtility.SpawnDetached(prefab, transform.position, transform.rotation, anomalyVfxLifetime);
         }
 
         private void OnDrawGizmosSelected()

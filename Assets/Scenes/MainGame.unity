@@ -63821,6 +63821,7 @@ MonoBehaviour:
   beamLifetime: 0.2
   extensionTime: 0.04
   widthMultiplier: 0.03
+  particleScaleMultiplier: 0.3
   playerCamera: {fileID: 2027901765}
   beamOrigin: {fileID: 0}
   cameraLocalOffset: {x: 0.22, y: -0.18, z: 0.45}

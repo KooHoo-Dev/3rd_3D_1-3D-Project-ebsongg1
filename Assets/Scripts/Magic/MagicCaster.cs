@@ -103,6 +103,7 @@ namespace WardShift
                 CancelCast();
                 continuousPurifySession = false;
                 waitingForRelease = true;
+                StopPurifyBeamVfx();
             }
         }
 
@@ -112,6 +113,7 @@ namespace WardShift
             CancelCast();
             StopTrackingSealRift();
             continuousPurifySession = false;
+            StopPurifyBeamVfx();
             LastResult = MagicCastResult.None;
             ResultProgress = 0f;
             CompletedTargetName = null;
@@ -126,11 +128,18 @@ namespace WardShift
             CancelCast();
             continuousPurifySession = false;
             selectedMagic = magic;
+            StopPurifyBeamVfx();
             resultUntil = 0f;
             waitingForRelease = castAction.IsPressed();
         }
 
         private void LateUpdate()
+        {
+            UpdateCastingInput();
+            UpdatePurifyBeamVfx();
+        }
+
+        private void UpdateCastingInput()
         {
             bool pressed = castAction.IsPressed();
             if (InputBlocked)
@@ -232,6 +241,24 @@ namespace WardShift
             }
 
             aimed.CompleteInstantly(MagicType.Seal);
+        }
+
+        private void UpdatePurifyBeamVfx()
+        {
+            SealBeamVFX beamVfx = SealBeamVFX.Active;
+            if (beamVfx == null) return;
+
+            MagicTarget target = selectedMagic == MagicType.Purify && !InputBlocked
+                ? castingTarget : null;
+            if (target != null && target.RequiredMagic == MagicType.Purify && target.IsCasting)
+                beamVfx.SetContinuousPurifyTarget(target);
+            else
+                beamVfx.StopContinuousPurifyBeam();
+        }
+
+        private static void StopPurifyBeamVfx()
+        {
+            if (SealBeamVFX.Active != null) SealBeamVFX.Active.StopContinuousPurifyBeam();
         }
 
         private void TrackSealRift(ManaRift rift)
@@ -351,7 +378,7 @@ namespace WardShift
         private void OnApplicationFocus(bool focused)
         {
             hasFocus = focused;
-            if (!focused) { CancelCast(); waitingForRelease = true; }
+            if (!focused) { CancelCast(); waitingForRelease = true; StopPurifyBeamVfx(); }
         }
 
         private void OnDisable()
@@ -360,6 +387,7 @@ namespace WardShift
             CancelCast();
             StopTrackingSealRift();
             continuousPurifySession = false;
+            StopPurifyBeamVfx();
             waitingForRelease = true;
             // canceled 콜백으로 판정하지 않으므로 액션 비활성화가 성공을 발생시키지 않음.
             castAction.Disable(); sealAction.Disable(); purifyAction.Disable(); stabilizeAction.Disable();
