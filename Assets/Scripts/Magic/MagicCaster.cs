@@ -297,6 +297,11 @@ namespace WardShift
                 return;
             }
 
+            // 이동 중 조준선이 패치 표면에서 잠깐 벗어나도, 사거리와 시야가 유지되면
+            // 누르고 있던 패치의 정화를 계속합니다. 다른 패치를 직접 조준하면 기존 연쇄 전환을 따릅니다.
+            if (aimed == null && castingTarget != null && CanContinuePurifying(castingTarget))
+                aimed = castingTarget;
+
             if (castingTarget != null && (aimed != castingTarget || !castingTarget.IsCasting))
             {
                 MagicTarget previous = castingTarget;
@@ -320,6 +325,19 @@ namespace WardShift
             continuousPurifySession = true;
             resultUntil = 0f;
             ChargeContinuousPurify(aimed);
+        }
+
+        private bool CanContinuePurifying(MagicTarget target)
+        {
+            if (target == null || !target.IsAvailable || !target.IsCasting || interactor == null)
+                return false;
+            CursePatch patch = target.GetComponent<CursePatch>();
+            if (patch == null || patch.AimCollider == null) return false;
+            Vector3 offset = target.transform.position - transform.position;
+            offset.y = 0f;
+            float range = Mathf.Max(0.1f, cursePatchPurifyRange);
+            return offset.sqrMagnitude <= range * range
+                && interactor.HasClearPathToTarget(patch.AimCollider);
         }
 
         private void ChargeContinuousPurify(MagicTarget target)

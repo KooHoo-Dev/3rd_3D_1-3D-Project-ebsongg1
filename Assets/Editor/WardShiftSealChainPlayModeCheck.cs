@@ -5,6 +5,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.LowLevel;
+using TMPro;
 using WardShift;
 using Object = UnityEngine.Object;
 
@@ -90,7 +91,6 @@ namespace WardShift.Editor
                 AssertRandomOrderCanVary();
                 AssertOptionalRiftVfx();
                 RunQAndClickInputCheck();
-                AssertLineBeamCompatibility();
 
                 timeoutRift = SpawnRift("SealChain_Timeout");
                 timeoutRift.AdvanceHazard(45f);
@@ -136,6 +136,8 @@ namespace WardShift.Editor
                 "Q 감지 전 두 봉인점이 숨겨짐");
             AssertMarkerVisibility(first, false, "Q 감지 전 첫 번째 파티클 마커 숨김");
             AssertMarkerVisibility(second, false, "Q 감지 전 두 번째 파티클 마커 숨김");
+            AssertOrderNumber(first, "1", false);
+            AssertOrderNumber(second, "2", false);
 
             QueueKeyboard(keyboard, true);
             InputSystem.Update();
@@ -146,6 +148,8 @@ namespace WardShift.Editor
                 "Q 감지 시 1번만 강조되고 2번은 순서를 드러내지 않는 색상");
             AssertMarkerVisibility(first, true, "Q 감지 시 첫 번째 파티클 마커 표시");
             AssertMarkerVisibility(second, true, "Q 감지 시 두 번째 파티클 마커 표시");
+            AssertOrderNumber(first, "1", true);
+            AssertOrderNumber(second, "2", true);
 
             caster.enabled = false;
             SetPrivateField(caster, "inputEnabled", true);
@@ -163,9 +167,13 @@ namespace WardShift.Editor
             Invoke(caster, "LateUpdate");
             Assert(first.IsCompleted && rift.IsSealChainInProgress && rift.CompletedSealCount == 1,
                 "첫 번째 좌클릭 즉시 시작하고 첫 성공부터 연쇄 상태가 됨");
+            Assert(!first.GetComponent<Collider>().enabled,
+                "완료된 첫 점의 숫자는 남아도 두 번째 점의 Raycast는 가리지 않음");
             AssertSealBeam(first, 1);
             Assert(second.GetComponent<SealPointVisual>().CurrentState == SealPointVisual.State.Active,
                 "첫 성공 후 두 번째 봉인점 활성 강조");
+            AssertOrderNumber(first, "1", true);
+            AssertOrderNumber(second, "2", true);
 
             QueueKeyboard(keyboard, false);
             InputSystem.Update();
@@ -173,6 +181,8 @@ namespace WardShift.Editor
             Assert(!second.IsDetected && rift.IsSealChainInProgress,
                 "연쇄 시작 후 Q를 놓아도 봉인 시도가 유지됨");
             AssertMarkerVisibility(second, true, "연쇄 시작 후 Q를 놓아도 다음 파티클 마커 표시 유지");
+            AssertOrderNumber(first, "1", true);
+            AssertOrderNumber(second, "2", true);
 
             SetPrivateField(interactor, "currentTarget", second);
             QueueMouse(mouse, true);
@@ -208,80 +218,37 @@ namespace WardShift.Editor
             if (vfx == null || GetPrivateField<GameObject>(vfx, "beamPrefab") == null) return;
             var beams = GetPrivateField<System.Collections.IList>(vfx, "beams");
             Assert(beams.Count == expectedCount, "봉인 성공마다 독립 광선 인스턴스 생성");
-            typeof(SealBeamVFX).GetMethod("AdvanceBeams", PrivateInstance).Invoke(vfx, new object[] { 0.04f });
             object beam = beams[beams.Count - 1];
             GameObject root = (GameObject)beam.GetType().GetField("Root").GetValue(beam);
             Vector3 start = (Vector3)beam.GetType().GetField("Start").GetValue(beam);
             Assert(root != null && root.activeInHierarchy, "광선 프리팹이 삭제되지 않고 활성 상태 유지");
-            LineRenderer[] lines = root.GetComponentsInChildren<LineRenderer>(true);
-            ParticleSystemRenderer[] particles = root.GetComponentsInChildren<ParticleSystemRenderer>(true);
-            bool visibleBeam = false;
-            foreach (LineRenderer line in lines)
+            GameObject prefab = GetPrivateField<GameObject>(vfx, "beamPrefab");
+            Assert(root.name.StartsWith(prefab.name), "광선 오브젝트가 연결된 원본 프리팹 이름을 유지");
+            Camera beamCamera = GetPrivateField<Camera>(vfx, "playerCamera");
+            Transform origin = GetPrivateField<Transform>(vfx, "beamOrigin");
+            if (origin == null && beamCamera != null)
             {
-                Assert(Vector3.Distance(line.GetPosition(0), start) < 0.001f
-                    && Vector3.Distance(line.GetPosition(1), point.transform.position) < 0.001f,
-                    "LineRenderer 광선이 발사 위치와 봉인점을 연결");
-                visibleBeam = true;
+                Vector3 offset = GetPrivateField<Vector3>(vfx, "cameraLocalOffset");
+                Assert(Vector3.Distance(start, beamCamera.transform.TransformPoint(offset)) < 0.001f,
+                    "광선 시작점이 Main Camera의 오른쪽 아래 전방 오프셋과 일치");
             }
-            foreach (ParticleSystemRenderer renderer in particles)
+            ParticleSystemRenderer[] originalRenderers = prefab.GetComponentsInChildren<ParticleSystemRenderer>(true);
+            ParticleSystemRenderer[] instanceRenderers = root.GetComponentsInChildren<ParticleSystemRenderer>(true);
+            Assert(originalRenderers.Length > 0 && instanceRenderers.Length == originalRenderers.Length,
+                "원본 프리팹의 파티클 렌더러 구성을 유지");
+            for (int i = 0; i < originalRenderers.Length; i++)
             {
-                if (renderer.renderMode != ParticleSystemRenderMode.Stretch) continue;
-                Assert(renderer.GetComponent<ParticleSystem>().particleCount > 0,
-                    "LightBeamBlast 광선 파티클이 실제로 생성됨");
-                Mesh mesh = new Mesh();
-                try
-                {
-                    renderer.BakeMesh(mesh, Camera.main, ParticleSystemBakeMeshOptions.BakeRotationAndScale);
-                    Assert(mesh.vertexCount > 0, "파티클 광선의 렌더링 메시 생성");
-                    Vector3 direction = (point.transform.position - start).normalized;
-                    float min = float.PositiveInfinity, max = float.NegativeInfinity;
-                    foreach (Vector3 vertex in mesh.vertices)
-                    {
-                        float distance = Vector3.Dot(renderer.transform.position + vertex - start, direction);
-                        min = Mathf.Min(min, distance);
-                        max = Mathf.Max(max, distance);
-                    }
-                    float length = Vector3.Distance(start, point.transform.position);
-                    Debug.Log($"[SealBeam geometry] min={min:F3}, max={max:F3}, expected={length:F3}");
-                    Assert(Mathf.Abs(min) < 0.05f && Mathf.Abs(max - length) < 0.05f,
-                        "파티클 광선의 실제 메시가 발사 위치부터 봉인점까지 연결");
-                    visibleBeam = true;
-                }
-                finally { Object.Destroy(mesh); }
+                Assert(instanceRenderers[i].renderMode == originalRenderers[i].renderMode
+                    && instanceRenderers[i].sharedMaterial == originalRenderers[i].sharedMaterial,
+                    "광선 파티클 모드와 원본 머티리얼 유지");
             }
-            Assert(visibleBeam, "지원되는 렌더러로 광선 표시");
-        }
-
-        private static void AssertLineBeamCompatibility()
-        {
-            SealBeamVFX vfx = SealBeamVFX.Active;
-            if (vfx == null) return;
-            GameObject savedPrefab = GetPrivateField<GameObject>(vfx, "beamPrefab");
-            ManaRift rift = null;
-            try
-            {
-                typeof(SealBeamVFX).GetMethod("AdvanceBeams", PrivateInstance).Invoke(vfx, new object[] { 0.3f });
-                var beams = GetPrivateField<System.Collections.IList>(vfx, "beams");
-                Assert(beams.Count == 0, "수명이 끝난 광선 정리");
-                GameObject linePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(
-                    "Assets/Assets/Effects/MagicArsenal/Effects/Prefabs/Beams/Setup/Beam/Light Beam.prefab");
-                Assert(linePrefab != null, "기존 LineRenderer 프리팹 로드");
-                SetPrivateField(vfx, "beamPrefab", linePrefab);
-                rift = SpawnRift("SealBeam_LineCompatibility");
-                rift.transform.position = Camera.main.transform.position + Camera.main.transform.forward * 3f;
-                MagicTarget first = FirstSeal(rift);
-                first.SetDetected(true, Color.yellow);
-                Assert(rift.TryCompleteSealClick(first), "기존 광선 프리팹으로 봉인 성공");
-                AssertSealBeam(first, 1);
-                vfx.enabled = false;
-                Assert(beams.Count == 0, "컴포넌트 비활성화 시 모든 광선 정리");
-            }
-            finally
-            {
-                SetPrivateField(vfx, "beamPrefab", savedPrefab);
-                vfx.enabled = true;
-                if (rift != null) Object.Destroy(rift.gameObject);
-            }
+            ParticleSystem[] systems = root.GetComponentsInChildren<ParticleSystem>(true);
+            Assert(systems.Length > 0, "원본 광선 프리팹의 파티클 시스템 재생");
+            foreach (ParticleSystem system in systems)
+                Assert(system.isPlaying, "원본 파티클 시스템이 재생 중");
+            Vector3 direction = (point.transform.position - start).normalized;
+            Assert(Vector3.Angle(root.transform.forward, direction) < 0.1f,
+                "원본 프리팹이 봉인점 방향을 향함");
         }
 
         private static void Tick()
@@ -308,6 +275,8 @@ namespace WardShift.Editor
                     Assert(!timeoutRift.IsSealChainInProgress && timeoutRift.CompletedSealCount == 0
                         && !first.IsCompleted && !second.IsCompleted,
                         "2초 초과 시 두 봉인점과 연쇄 진행 상태 초기화");
+                    Assert(first.GetComponent<Collider>().enabled && second.GetComponent<Collider>().enabled,
+                        "실패 후 두 봉인점의 조준 Collider 복구");
                     Assert(timeoutRift.Age >= timeoutStartAge && timeoutRift.DangerStage == 2,
                         "제한 시간 실패가 성장 타이머와 위험 단계를 초기화하지 않음");
                     Object.Destroy(timeoutRift.gameObject);
@@ -458,6 +427,14 @@ namespace WardShift.Editor
         private static MagicTarget FirstSeal(ManaRift rift) => rift.FirstSealPoint;
 
         private static MagicTarget SecondSeal(ManaRift rift) => rift.SecondSealPoint;
+
+        private static void AssertOrderNumber(MagicTarget point, string number, bool visible)
+        {
+            TextMeshPro label = point.GetComponentInChildren<TextMeshPro>(true);
+            Assert(label != null && label.text == number && label.enabled == visible
+                && label.GetComponent<Collider>() == null,
+                $"봉인 순서 {number} 표시/조준 비간섭 상태");
+        }
 
         private static void QueueKeyboard(Keyboard keyboard, bool pressed)
         {

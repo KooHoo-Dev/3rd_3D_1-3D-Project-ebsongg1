@@ -17,7 +17,7 @@ namespace WardShift
         [Tooltip("지정하면 기본 원형 MeshRenderer 대신 이 프리팹을 패치 외형으로 표시합니다. Idle VFX 슬롯과 같은 프리팹이면 한 인스턴스만 생성합니다.")]
         [SerializeField] private GameObject patchAppearancePrefab;
         [SerializeField, Min(0f)] private float patchAppearanceScale = 1f;
-        [Tooltip("외형 프리팹 로컬 단위의 조준 반경입니다. 0이면 기존 Collider 크기를 유지합니다. 정화 중에는 Collider가 줄지 않습니다.")]
+        [Tooltip("VFX 크기와 독립적인 패치 로컬 조준 반경입니다. 0이면 기존 Target Collider 크기를 유지합니다. 정화 중에는 Collider가 줄지 않습니다.")]
         [SerializeField, Min(0f)] private float patchAppearanceAimRadius;
         [Header("개별 패치 VFX (선택)")]
         [Tooltip("패치가 활성 상태인 동안 반복 재생할 오염 효과입니다.")]
@@ -308,7 +308,7 @@ namespace WardShift
         {
             if (aimCollider == null) return;
             float aimRadius = patchAppearancePrefab != null
-                ? Mathf.Max(0f, patchAppearanceAimRadius) * Mathf.Max(0f, patchAppearanceScale) * StageAreaScale
+                ? Mathf.Max(0f, patchAppearanceAimRadius) * StageAreaScale
                 : 0f;
 
             if (aimCollider is BoxCollider box)

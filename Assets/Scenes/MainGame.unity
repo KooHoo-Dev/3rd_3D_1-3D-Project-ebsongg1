@@ -27539,11 +27539,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 4436804870720534, guid: 0de15a58e1f74ac7894934ec380d4b9c, type: 3}
   m_PrefabInstance: {fileID: 588112410}
   m_PrefabAsset: {fileID: 0}
---- !u!1 &588464428 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 100008, guid: 55c8c75e4878c3b459dd3f7e4a875a00, type: 3}
-  m_PrefabInstance: {fileID: 1325441312}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1 &591294287
 GameObject:
   m_ObjectHideFlags: 0
@@ -64221,15 +64216,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e4cf386bd20341f5a710d12a5666ac28, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WardShift.SealBeamVFX
-  beamPrefab: {fileID: 588464428}
-  beamLifetime: 0.2
-  extensionTime: 0.04
-  widthMultiplier: 0.03
-  particleScaleMultiplier: 0.3
-  continuousPurifyBeamPrefab: {fileID: 0}
+  beamPrefab: {fileID: 171424, guid: 33fa9eb9b5b7b784abdb65ad8c16ee80, type: 3}
+  beamLifetime: 0.3
   playerCamera: {fileID: 2027901765}
   beamOrigin: {fileID: 0}
-  cameraLocalOffset: {x: 0.22, y: -0.18, z: 0.45}
+  cameraLocalOffset: {x: 0.25, y: -0.22, z: 0.65}
+  continuousPurifyBeamPrefab: {fileID: 0}
+  logBeamDiagnostics: 1
 --- !u!1001 &1360095291
 PrefabInstance:
   m_ObjectHideFlags: 0

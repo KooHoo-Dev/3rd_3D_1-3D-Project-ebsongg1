@@ -267,6 +267,8 @@ namespace WardShift
             SealPointVisual first = expectedFirst.GetComponent<SealPointVisual>();
             SealPointVisual second = expectedSecond.GetComponent<SealPointVisual>();
             if (first == null || second == null) return;
+            first.SetOrder(1);
+            second.SetOrder(2);
 
             if (IsShowingSealFailure)
             {

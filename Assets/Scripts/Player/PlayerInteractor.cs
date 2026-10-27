@@ -33,6 +33,27 @@ namespace WardShift
         public Collider CurrentCollider { get; private set; }
         public event Action<MagicTarget> TargetChanged;
 
+        /// <summary>정화 홀드 중 조준점이 흔들려도 대상까지의 실제 시야가 열려 있는지 확인합니다.</summary>
+        public bool HasClearPathToTarget(Collider targetCollider)
+        {
+            if (aimCamera == null || targetCollider == null || !targetCollider.enabled) return false;
+            Vector3 origin = aimCamera.transform.position;
+            Vector3 offset = targetCollider.bounds.center - origin;
+            float distance = offset.magnitude;
+            if (distance < 0.001f || distance > interactionDistance) return false;
+            Collider closest = null;
+            float nearest = float.PositiveInfinity;
+            foreach (RaycastHit hit in Physics.RaycastAll(origin, offset / distance,
+                         distance + 0.05f, raycastLayers, QueryTriggerInteraction.Ignore))
+            {
+                if (playerRoot != null && hit.collider.transform.IsChildOf(playerRoot)) continue;
+                if (hit.distance >= nearest) continue;
+                nearest = hit.distance;
+                closest = hit.collider;
+            }
+            return closest == targetCollider;
+        }
+
         private void Awake()
         {
             if (playerRoot == null)
@@ -80,61 +101,36 @@ namespace WardShift
                 }
             }
 
-            // Coplanar CursePatch aim boxes can still overlap at their edges. RaycastAll
-            // does not guarantee hit order, so keep the closest patch center as the winner.
+            // 겹친 패치에서는 첫 표면의 미세한 깊이 차보다 조준점에 가까운 중심을 우선합니다.
             MagicTarget nearestTarget = CurrentCollider != null
                 ? CurrentCollider.GetComponentInParent<MagicTarget>()
                 : null;
             if (nearestTarget != null && nearestTarget.GetComponent<CursePatch>() != null)
             {
-                const float coplanarTieDistance = 0.02f;
-                bool keptCurrentTarget = false;
-                if (currentTarget != null && currentTarget.IsAvailable
-                    && currentTarget.GetComponent<CursePatch>() != null)
+                const float sameSurfaceDepth = 0.12f;
+                float bestCenterDistance = PlanarDistanceSqr(nearestHit.point, nearestTarget.transform.position);
+                int bestInstanceId = nearestTarget.GetInstanceID();
+                foreach (RaycastHit hit in hits)
                 {
-                    foreach (RaycastHit hit in hits)
-                    {
-                        if (hit.collider == null || Mathf.Abs(hit.distance - nearestDistance) > coplanarTieDistance)
-                            continue;
-                        if (playerRoot != null && hit.collider.transform.IsChildOf(playerRoot))
-                            continue;
-                        if (hit.collider.GetComponentInParent<MagicTarget>() != currentTarget)
-                            continue;
+                    if (hit.collider == null || hit.distance > nearestDistance + sameSurfaceDepth)
+                        continue;
+                    if (playerRoot != null && hit.collider.transform.IsChildOf(playerRoot))
+                        continue;
 
-                        nearestTarget = currentTarget;
-                        CurrentCollider = hit.collider;
-                        keptCurrentTarget = true;
-                        break;
-                    }
-                }
+                    MagicTarget patchTarget = hit.collider.GetComponentInParent<MagicTarget>();
+                    if (patchTarget == null || !patchTarget.IsAvailable
+                        || patchTarget.GetComponent<CursePatch>() == null) continue;
 
-                // Keep a still-hit current patch during a cast; otherwise choose the nearest center.
-                if (!keptCurrentTarget)
-                {
-                    float bestCenterDistance = PlanarDistanceSqr(nearestHit.point, nearestTarget.transform.position);
-                    int bestInstanceId = nearestTarget.GetInstanceID();
-                    foreach (RaycastHit hit in hits)
-                    {
-                        if (hit.collider == null || Mathf.Abs(hit.distance - nearestDistance) > coplanarTieDistance)
-                            continue;
-                        if (playerRoot != null && hit.collider.transform.IsChildOf(playerRoot))
-                            continue;
+                    float centerDistance = PlanarDistanceSqr(hit.point, patchTarget.transform.position);
+                    int instanceId = patchTarget.GetInstanceID();
+                    if (centerDistance > bestCenterDistance + 0.0001f
+                        || (Mathf.Abs(centerDistance - bestCenterDistance) <= 0.0001f
+                            && patchTarget != currentTarget && instanceId >= bestInstanceId)) continue;
 
-                        MagicTarget patchTarget = hit.collider.GetComponentInParent<MagicTarget>();
-                        if (patchTarget == null || patchTarget.GetComponent<CursePatch>() == null)
-                            continue;
-
-                        float centerDistance = PlanarDistanceSqr(hit.point, patchTarget.transform.position);
-                        int instanceId = patchTarget.GetInstanceID();
-                        if (centerDistance > bestCenterDistance
-                            || (Mathf.Approximately(centerDistance, bestCenterDistance) && instanceId >= bestInstanceId))
-                            continue;
-
-                        bestCenterDistance = centerDistance;
-                        bestInstanceId = instanceId;
-                        nearestTarget = patchTarget;
-                        CurrentCollider = hit.collider;
-                    }
+                    bestCenterDistance = centerDistance;
+                    bestInstanceId = instanceId;
+                    nearestTarget = patchTarget;
+                    CurrentCollider = hit.collider;
                 }
             }
 

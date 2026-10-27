@@ -155,7 +155,8 @@ namespace WardShift.Editor
                 AssertVfxIsNonInteractive(idleA);
 
                 TestPatch assetPatch = CreateTestPatch("VfxCheck_AreaDamageShadow",
-                    areaDamageShadowPrefab, purifyingPrefab, purifiedPrefab, null, areaDamageShadowPrefab, 4f);
+                    areaDamageShadowPrefab, purifyingPrefab, purifiedPrefab, null,
+                    areaDamageShadowPrefab, 0.5f, 0.075f);
                 assetPatchObject = assetPatch.Patch.gameObject;
                 assetPatchObject.transform.position = new Vector3(9000f, 9000f, 9000f);
                 GameObject actualAppearance = GetField<GameObject>(assetPatch.Patch, "patchAppearanceInstance");
@@ -167,16 +168,22 @@ namespace WardShift.Editor
                 Assert(Quaternion.Angle(actualAppearance.transform.localRotation,
                     areaDamageShadowPrefab.transform.localRotation) < 0.01f,
                     "The replacement patch must preserve the AreaDamageShadow prefab's authored orientation.");
+                Assert(actualAppearance.transform.localScale.x < 0.05f,
+                    "The large VFX asset must be reduced to the patch-sized appearance.");
                 AssertVfxIsNonInteractive(actualAppearance);
                 float initialAimWidth = actualAimCollider.size.x;
-                Assert(initialAimWidth >= 4.4f,
-                    "The patch aim collider must cover the AreaDamageShadow visual footprint.");
+                Assert(initialAimWidth <= 1.1f,
+                    "The patch target collider must stay independent of the large VFX footprint.");
                 Physics.SyncTransforms();
-                Ray visualEdgeRay = new Ray(assetPatchObject.transform.position + Vector3.left * 5f, Vector3.right);
-                Assert(Physics.Raycast(visualEdgeRay, out RaycastHit visualEdgeHit, 10f)
-                    && visualEdgeHit.collider == actualAimCollider
-                    && visualEdgeHit.collider.GetComponentInParent<MagicTarget>() == assetPatch.Target,
-                    "A ray aimed through the visible prefab's outer area must resolve to its patch MagicTarget.");
+                Ray centerRay = new Ray(assetPatchObject.transform.position + Vector3.up * 5f, Vector3.down);
+                Assert(Physics.Raycast(centerRay, out RaycastHit centerHit, 10f)
+                    && centerHit.collider == actualAimCollider
+                    && centerHit.collider.GetComponentInParent<MagicTarget>() == assetPatch.Target,
+                    "The first Raycast hit at the patch center must be its MagicTarget collider.");
+                Ray outerVfxRay = new Ray(assetPatchObject.transform.position
+                    + Vector3.right * 1.5f + Vector3.up * 5f, Vector3.down);
+                Assert(!Physics.Raycast(outerVfxRay, 10f),
+                    "The oversized VFX must not create an invisible aim collider outside the target footprint.");
                 assetPatch.Target.AdvanceCast(MagicType.Purify, 0.1f);
                 Invoke(assetPatch.Patch, "LateUpdate");
                 Assert(actualAppearance.transform.localScale.x
@@ -349,7 +356,8 @@ namespace WardShift.Editor
 
         private static TestPatch CreateTestPatch(string name, GameObject idlePrefab,
             GameObject purifyingPrefab, GameObject purifiedPrefab, Transform parent = null,
-            GameObject appearancePrefab = null, float appearanceAimRadius = 1.5f)
+            GameObject appearancePrefab = null, float appearanceAimRadius = 1.5f,
+            float appearanceScale = 1f)
         {
             GameObject root = new GameObject(name);
             root.SetActive(false);
@@ -371,6 +379,7 @@ namespace WardShift.Editor
             SetField(patch, "patchRenderer", visualObject.GetComponent<Renderer>());
             SetField(patch, "aimCollider", root.GetComponent<Collider>());
             SetField(patch, "patchAppearancePrefab", appearancePrefab != null ? appearancePrefab : idlePrefab);
+            SetField(patch, "patchAppearanceScale", appearanceScale);
             SetField(patch, "idleVfxPrefab", idlePrefab);
             SetField(patch, "patchAppearanceAimRadius", appearanceAimRadius);
             SetField(patch, "purifyingVfxPrefab", purifyingPrefab);

@@ -190,8 +190,8 @@ MonoBehaviour:
   aimCollider: {fileID: 7089946088295062915}
   moteParticles: {fileID: 6599263249798285037}
   patchAppearancePrefab: {fileID: 155376, guid: 9cdfe7e4ba63db3469546b9391c3ce19, type: 3}
-  patchAppearanceScale: 1
-  patchAppearanceAimRadius: 4
+  patchAppearanceScale: 0.25
+  patchAppearanceAimRadius: 0.5
   idleVfxPrefab: {fileID: 155376, guid: 9cdfe7e4ba63db3469546b9391c3ce19, type: 3}
   purifyingVfxPrefab: {fileID: 100000, guid: b6ac2ba5687816e43984b9ee3a277757, type: 3}
   purifiedVfxPrefab: {fileID: 0}
@@ -387,8 +387,8 @@ MonoBehaviour:
   aimCollider: {fileID: 4968961483132025832}
   moteParticles: {fileID: 4252122995244164520}
   patchAppearancePrefab: {fileID: 155376, guid: 9cdfe7e4ba63db3469546b9391c3ce19, type: 3}
-  patchAppearanceScale: 1
-  patchAppearanceAimRadius: 4
+  patchAppearanceScale: 0.25
+  patchAppearanceAimRadius: 0.5
   idleVfxPrefab: {fileID: 155376, guid: 9cdfe7e4ba63db3469546b9391c3ce19, type: 3}
   purifyingVfxPrefab: {fileID: 100000, guid: b6ac2ba5687816e43984b9ee3a277757, type: 3}
   purifiedVfxPrefab: {fileID: 0}
@@ -500,8 +500,8 @@ MonoBehaviour:
   aimCollider: {fileID: 7600028978418117966}
   moteParticles: {fileID: 7015173246757650563}
   patchAppearancePrefab: {fileID: 155376, guid: 9cdfe7e4ba63db3469546b9391c3ce19, type: 3}
-  patchAppearanceScale: 1
-  patchAppearanceAimRadius: 4
+  patchAppearanceScale: 0.25
+  patchAppearanceAimRadius: 0.5
   idleVfxPrefab: {fileID: 155376, guid: 9cdfe7e4ba63db3469546b9391c3ce19, type: 3}
   purifyingVfxPrefab: {fileID: 100000, guid: b6ac2ba5687816e43984b9ee3a277757, type: 3}
   purifiedVfxPrefab: {fileID: 0}
@@ -10285,8 +10285,8 @@ MonoBehaviour:
   aimCollider: {fileID: 4632839693217160898}
   moteParticles: {fileID: 356876492917909331}
   patchAppearancePrefab: {fileID: 155376, guid: 9cdfe7e4ba63db3469546b9391c3ce19, type: 3}
-  patchAppearanceScale: 1
-  patchAppearanceAimRadius: 4
+  patchAppearanceScale: 0.25
+  patchAppearanceAimRadius: 0.5
   idleVfxPrefab: {fileID: 155376, guid: 9cdfe7e4ba63db3469546b9391c3ce19, type: 3}
   purifyingVfxPrefab: {fileID: 100000, guid: b6ac2ba5687816e43984b9ee3a277757, type: 3}
   purifiedVfxPrefab: {fileID: 0}
@@ -25266,8 +25266,8 @@ MonoBehaviour:
   aimCollider: {fileID: 884502711559425003}
   moteParticles: {fileID: 2767555407303538354}
   patchAppearancePrefab: {fileID: 155376, guid: 9cdfe7e4ba63db3469546b9391c3ce19, type: 3}
-  patchAppearanceScale: 1
-  patchAppearanceAimRadius: 4
+  patchAppearanceScale: 0.25
+  patchAppearanceAimRadius: 0.5
   idleVfxPrefab: {fileID: 155376, guid: 9cdfe7e4ba63db3469546b9391c3ce19, type: 3}
   purifyingVfxPrefab: {fileID: 100000, guid: b6ac2ba5687816e43984b9ee3a277757, type: 3}
   purifiedVfxPrefab: {fileID: 0}
@@ -30215,8 +30215,8 @@ MonoBehaviour:
   aimCollider: {fileID: 3972533821666953253}
   moteParticles: {fileID: 6721001943425172276}
   patchAppearancePrefab: {fileID: 155376, guid: 9cdfe7e4ba63db3469546b9391c3ce19, type: 3}
-  patchAppearanceScale: 0.8
-  patchAppearanceAimRadius: 4
+  patchAppearanceScale: 0.25
+  patchAppearanceAimRadius: 0.5
   idleVfxPrefab: {fileID: 155376, guid: 9cdfe7e4ba63db3469546b9391c3ce19, type: 3}
   purifyingVfxPrefab: {fileID: 100000, guid: b6ac2ba5687816e43984b9ee3a277757, type: 3}
   purifiedVfxPrefab: {fileID: 0}

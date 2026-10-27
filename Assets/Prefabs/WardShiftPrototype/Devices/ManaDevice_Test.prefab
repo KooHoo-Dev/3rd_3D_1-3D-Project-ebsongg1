@@ -660,7 +660,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WardShift.MagicTarget
   displayName: "\uB9C8\uB825 \uC7A5\uCE58 \uC218\uC815"
   requiredMagic: 2
-  castDuration: 18
+  castDuration: 16
   useTimingCast: 0
   preserveProgressOnCancel: 1
   allowHeldPurifyChain: 0

@@ -10,7 +10,7 @@ namespace WardShift
         [SerializeField, Min(0.1f)] private float firstBurstDelaySeconds = 4.5f;
         [SerializeField, Min(0.1f)] private float burstWarningSeconds = 1.5f;
         [Tooltip("방출부터 다음 방출까지의 주기. 다음 방출 전 1.5초는 경고로 사용합니다.")]
-        [SerializeField, Min(0.2f)] private float burstPeriodSeconds = 6.5f;
+        [SerializeField, Min(0.2f)] private float burstPeriodSeconds = 9.5f;
         [SerializeField, Min(0.1f)] private float burstRadius = 4.25f;
         [SerializeField, Min(0f)] private float stageOneBurstContamination = 10f;
         [SerializeField, Min(0f)] private float stageTwoBurstContamination = 15f;

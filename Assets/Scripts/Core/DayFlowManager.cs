@@ -9,8 +9,8 @@ using UnityEngine.Serialization;
 namespace WardShift
 {
     /// <summary>
-    /// DAY 재도전 체크포인트에 상태를 추가할 수 있는 확장 지점입니다.
-    /// 강화 시스템은 이 인터페이스를 구현해 DAY 시작 상태를 저장·복원할 수 있습니다.
+    /// DAY 재도전 체크포인트에 상태를 추가할 수 있는 확장 지점.
+    /// 강화 시스템은 이 인터페이스를 구현해 DAY 시작 상태를 저장·복원할 수 있음.
     /// </summary>
     public interface IDayRetryCheckpointParticipant
     {

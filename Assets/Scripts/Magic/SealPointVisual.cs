@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 
 namespace WardShift
@@ -24,15 +25,24 @@ namespace WardShift
         [SerializeField] private Vector3 billboardRotationOffset = new Vector3(90f, 0f, 0f);
         [Tooltip("월드 미터 기준 화면 오른쪽(X), 위(Y), 카메라 쪽(Z) 위치 보정입니다.")]
         [SerializeField] private Vector3 billboardPositionOffset = new Vector3(0f, 0f, 0.02f);
+        [Header("봉인 순서 숫자")]
+        [Tooltip("봉인점 중심에서 카메라 기준 오른쪽/위/앞으로 띄울 거리(미터).")]
+        [SerializeField] private Vector3 numberOffset = new Vector3(0f, 0.42f, 0.07f);
+        [Tooltip("월드 공간 숫자의 크기. 조준 Collider 크기에는 영향을 주지 않습니다.")]
+        [SerializeField, Min(0.01f)] private float numberWorldScale = 0.22f;
         private Transform cachedBillboardTarget;
         private Vector3 billboardBaseLocalPosition;
 
         private Renderer[] renderers;
         private MaterialPropertyBlock[] originalBlocks;
         private bool[] originallyEnabled;
+        private Collider[] targetColliders;
+        private bool[] targetCollidersOriginallyEnabled;
         private State state;
         private bool detected;
         private Color detectionColor = Color.yellow;
+        private TextMeshPro orderLabel;
+        private int orderNumber;
         private static readonly int BaseColor = Shader.PropertyToID("_BaseColor");
         private static readonly int LegacyColor = Shader.PropertyToID("_Color");
         private static readonly int EmissionColor = Shader.PropertyToID("_EmissionColor");
@@ -42,8 +52,29 @@ namespace WardShift
         private void Awake()
         {
             CacheRenderers();
+            targetColliders = GetComponents<Collider>();
+            targetCollidersOriginallyEnabled = new bool[targetColliders.Length];
+            for (int i = 0; i < targetColliders.Length; i++)
+                targetCollidersOriginallyEnabled[i] = targetColliders[i].enabled;
             CacheBillboardTarget();
+            CreateOrderLabel();
             Apply();
+        }
+
+        private void CreateOrderLabel()
+        {
+            GameObject labelObject = new GameObject("SealOrderNumber");
+            labelObject.transform.SetParent(transform, false);
+            int ignoreRaycast = LayerMask.NameToLayer("Ignore Raycast");
+            if (ignoreRaycast >= 0) labelObject.layer = ignoreRaycast;
+            orderLabel = labelObject.AddComponent<TextMeshPro>();
+            orderLabel.alignment = TextAlignmentOptions.Center;
+            orderLabel.fontSize = 6f;
+            orderLabel.fontStyle = FontStyles.Bold;
+            orderLabel.textWrappingMode = TextWrappingModes.NoWrap;
+            orderLabel.sortingOrder = 10;
+            orderLabel.text = string.Empty;
+            orderLabel.enabled = false;
         }
 
         private void CacheBillboardTarget()
@@ -70,10 +101,20 @@ namespace WardShift
         private void LateUpdate()
         {
             if (cachedBillboardTarget != billboardTarget) CacheBillboardTarget();
-            if (cachedBillboardTarget == null) return;
             if (billboardCamera == null) billboardCamera = Camera.main;
             if (billboardCamera == null) return;
             Transform view = billboardCamera.transform;
+            if (orderLabel != null)
+            {
+                Transform label = orderLabel.transform;
+                Vector3 towardCamera = (view.position - transform.position).normalized;
+                label.position = transform.position + view.right * numberOffset.x
+                    + view.up * numberOffset.y + towardCamera * numberOffset.z;
+                // TextMeshPro의 앞면은 카메라 회전과 같은 방향일 때 정상적으로 읽힙니다.
+                label.rotation = view.rotation;
+                label.localScale = Vector3.one * numberWorldScale / transform.lossyScale.x;
+            }
+            if (cachedBillboardTarget == null) return;
             Vector3 anchor = transform.TransformPoint(billboardBaseLocalPosition);
             Vector3 toCamera = view.position - anchor;
             if (toCamera.sqrMagnitude < 0.000001f) return;
@@ -95,6 +136,14 @@ namespace WardShift
         {
             if (state == value) return;
             state = value;
+            Apply();
+        }
+
+        public void SetOrder(int number)
+        {
+            if (orderNumber == number) return;
+            orderNumber = number;
+            if (orderLabel != null) orderLabel.text = number > 0 ? number.ToString() : string.Empty;
             Apply();
         }
 
@@ -121,6 +170,17 @@ namespace WardShift
                 : state == State.Completed ? completedColor
                 : state == State.Failed ? failedColor
                 : state == State.Discovered ? discoveredColor : detectionColor;
+            if (orderLabel != null)
+            {
+                orderLabel.enabled = visible && orderNumber > 0;
+                orderLabel.color = color;
+            }
+            // 완료된 첫 점은 숫자와 색을 유지하되 두 번째 점의 Raycast를 가리지 않습니다.
+            if (targetColliders != null)
+                for (int i = 0; i < targetColliders.Length; i++)
+                    if (targetColliders[i] != null)
+                        targetColliders[i].enabled = state != State.Completed
+                            && targetCollidersOriginallyEnabled[i];
             for (int i = 0; i < renderers.Length; i++)
             {
                 Renderer renderer = renderers[i];

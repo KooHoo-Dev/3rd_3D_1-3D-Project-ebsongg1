@@ -46,7 +46,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WardShift.ManaDeviceAnomaly
   firstBurstDelaySeconds: 4.5
   burstWarningSeconds: 1.5
-  burstPeriodSeconds: 6.5
+  burstPeriodSeconds: 9.5
   burstRadius: 4.25
   stageOneBurstContamination: 10
   stageTwoBurstContamination: 15

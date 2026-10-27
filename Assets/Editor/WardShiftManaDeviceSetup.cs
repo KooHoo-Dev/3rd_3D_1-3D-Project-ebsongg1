@@ -222,7 +222,7 @@ namespace WardShift
                 SerializedObject data = new SerializedObject(anomaly);
                 data.FindProperty("firstBurstDelaySeconds").floatValue = 4.5f;
                 data.FindProperty("burstWarningSeconds").floatValue = 1.5f;
-                data.FindProperty("burstPeriodSeconds").floatValue = 6.5f;
+                data.FindProperty("burstPeriodSeconds").floatValue = 9.5f;
                 data.FindProperty("burstRadius").floatValue = 4.25f;
                 data.FindProperty("stageOneBurstContamination").floatValue = 10f;
                 data.FindProperty("stageTwoBurstContamination").floatValue = 15f;
@@ -274,7 +274,7 @@ namespace WardShift
             SerializedObject data = new SerializedObject(target);
             data.FindProperty("displayName").stringValue = "마력 장치 수정";
             data.FindProperty("requiredMagic").enumValueIndex = (int)MagicType.Stabilize;
-            data.FindProperty("castDuration").floatValue = 18f;
+            data.FindProperty("castDuration").floatValue = 16f;
             data.FindProperty("useTimingCast").boolValue = false;
             data.FindProperty("preserveProgressOnCancel").boolValue = true;
             data.FindProperty("allowHeldPurifyChain").boolValue = false;
