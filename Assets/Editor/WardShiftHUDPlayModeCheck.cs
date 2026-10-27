@@ -154,8 +154,7 @@ namespace WardShift.Editor
                         break;
                     case 7:
                         // 화면 검증용 상태는 Play Mode 내부에서만 변경하며 씬에 저장하지 않습니다.
-                        Set(day, "state", DayState.Playing);
-                        Set(day, "currentDay", 4);
+                        day.SetDayAndStateForTest(4, DayState.Playing);
                         Invoke(day, "BeginDay", false);
                         day.DeferDaySupplyChoice();
                         spawner.SetSpawningEnabled(false);
@@ -375,11 +374,11 @@ namespace WardShift.Editor
             }
 
             FloodCondition actualCondition = day.ActiveFloodCondition;
-            Set(day, "activeFloodCondition", FloodCondition.None);
+            day.SetActiveFloodConditionForTest(FloodCondition.None);
             Refresh();
             Assert(!Get<TMP_Text>(layout, "floodText").transform.parent.gameObject.activeSelf,
                 "DAY 4 hides the panel when no condition is active");
-            Set(day, "activeFloodCondition", actualCondition);
+            day.SetActiveFloodConditionForTest(actualCondition);
             Refresh();
         }
 

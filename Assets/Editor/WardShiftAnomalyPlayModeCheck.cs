@@ -212,7 +212,7 @@ namespace WardShift.Editor
 
                 case 4:
                     if (secondRift == null || secondRift.Age <= secondAgeAtReuse + 0.2f) return;
-                    SetPrivateField(day, "remainingSeconds", 0f);
+                    day.SetRemainingSecondsForTest(0f);
                     foreach (AnomalyBehaviour anomaly in AnomalyBehaviour.ActiveAnomalies.ToArray())
                         if (anomaly != null) UnityEngine.Object.Destroy(anomaly.gameObject);
                     phase = 5;

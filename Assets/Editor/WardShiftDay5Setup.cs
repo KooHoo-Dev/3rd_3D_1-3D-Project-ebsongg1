@@ -52,6 +52,22 @@ namespace WardShift.Editor
             DayFlowManager dayFlow = Object.FindFirstObjectByType<DayFlowManager>(FindObjectsInactive.Include);
             bool createdDayFlow = dayFlow == null;
             if (createdDayFlow) dayFlow = Undo.AddComponent<DayFlowManager>(systems);
+            if (dayFlow.GetComponent<DayRetryCheckpoint>() == null)
+                Undo.AddComponent<DayRetryCheckpoint>(dayFlow.gameObject);
+            if (dayFlow.GetComponent<DayInputController>() == null)
+                Undo.AddComponent<DayInputController>(dayFlow.gameObject);
+            if (dayFlow.GetComponent<DayPlayerUpgradeEffects>() == null)
+                Undo.AddComponent<DayPlayerUpgradeEffects>(dayFlow.gameObject);
+            if (dayFlow.GetComponent<DaySupplyController>() == null)
+                Undo.AddComponent<DaySupplyController>(dayFlow.gameObject);
+            if (dayFlow.GetComponent<DayUiController>() == null)
+                Undo.AddComponent<DayUiController>(dayFlow.gameObject);
+            if (dayFlow.GetComponent<DayUpgradeController>() == null)
+                Undo.AddComponent<DayUpgradeController>(dayFlow.gameObject);
+            if (dayFlow.GetComponent<DaySceneController>() == null)
+                Undo.AddComponent<DaySceneController>(dayFlow.gameObject);
+            if (dayFlow.GetComponent<DayAnomalyRewardController>() == null)
+                Undo.AddComponent<DayAnomalyRewardController>(dayFlow.gameObject);
             dayFlow.Configure(status, spawner, inventory, caster, playerRoot, startPoint,
                 Object.FindFirstObjectByType<PlayerPickupInteractor>(FindObjectsInactive.Include));
             if (createdDayFlow) dayFlow.ConfigureDaySettings(180f, 1, 2);
@@ -99,6 +115,22 @@ namespace WardShift.Editor
             if (Object.FindFirstObjectByType<ItemPickup>() == null) missing.Add("정화약 월드 픽업");
             DayFlowManager dayFlow = Object.FindFirstObjectByType<DayFlowManager>();
             if (dayFlow != null && !dayFlow.IsConfigured) missing.Add("DayFlowManager 씬 참조");
+            if (dayFlow != null && dayFlow.GetComponent<DayRetryCheckpoint>() == null)
+                missing.Add("DayRetryCheckpoint");
+            if (dayFlow != null && dayFlow.GetComponent<DayInputController>() == null)
+                missing.Add("DayInputController");
+            if (dayFlow != null && dayFlow.GetComponent<DayPlayerUpgradeEffects>() == null)
+                missing.Add("DayPlayerUpgradeEffects");
+            if (dayFlow != null && dayFlow.GetComponent<DaySupplyController>() == null)
+                missing.Add("DaySupplyController");
+            if (dayFlow != null && dayFlow.GetComponent<DayUiController>() == null)
+                missing.Add("DayUiController");
+            if (dayFlow != null && dayFlow.GetComponent<DayUpgradeController>() == null)
+                missing.Add("DayUpgradeController");
+            if (dayFlow != null && dayFlow.GetComponent<DaySceneController>() == null)
+                missing.Add("DaySceneController");
+            if (dayFlow != null && dayFlow.GetComponent<DayAnomalyRewardController>() == null)
+                missing.Add("DayAnomalyRewardController");
             AnomalySpawner spawner = Object.FindFirstObjectByType<AnomalySpawner>();
             if (spawner != null && !spawner.HasSpawnConfiguration) missing.Add("AnomalySpawner 프리팹/생성 지점");
             if (spawner != null && spawner.MaximumConcurrentAnomalies > 1

@@ -18388,6 +18388,14 @@ GameObject:
   - component: {fileID: 411442692}
   - component: {fileID: 411442694}
   - component: {fileID: 411442693}
+  - component: {fileID: 2117000001}
+  - component: {fileID: 2117000002}
+  - component: {fileID: 2117000003}
+  - component: {fileID: 2117000004}
+  - component: {fileID: 2117000005}
+  - component: {fileID: 2117000006}
+  - component: {fileID: 2117000007}
+  - component: {fileID: 2117000008}
   - component: {fileID: 411442695}
   - component: {fileID: 411442696}
   - component: {fileID: 1982756172}
@@ -18539,14 +18547,106 @@ MonoBehaviour:
   startPoint: {fileID: 738035765}
   pickupInteractor: {fileID: 1720121542}
   zoneTracker: {fileID: 1720121543}
-  currentDay: 1
-  state: 0
-  remainingSeconds: 0
-  mobilityUpgradeLevel: 0
-  contaminationResistanceLevel: 0
-  fieldPurificationLevel: 0
-  activeFloodCondition: 0
-  nextDayFloodCondition: 0
+  startingDay: 1
+  startingMobilityLevel: 0
+  startingResistanceLevel: 0
+  startingPurificationLevel: 0
+--- !u!114 &2117000001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 411442690}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d8326ee58787408bab5036aa7bf043f2, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::WardShift.DayRetryCheckpoint
+--- !u!114 &2117000002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 411442690}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bb1e1681891e41c989aead7a86456e22, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::WardShift.DayInputController
+--- !u!114 &2117000003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 411442690}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 22e006990bc64efe8dbd9f3a2d1755fb, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::WardShift.DayPlayerUpgradeEffects
+--- !u!114 &2117000004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 411442690}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bc3770cfedc64e46a060f363087d1732, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::WardShift.DaySupplyController
+--- !u!114 &2117000005
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 411442690}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 43346e36ed064180ba9e52372f158b51, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::WardShift.DayUiController
+--- !u!114 &2117000006
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 411442690}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f401760fec748a1a8e5a45381aa1c8e, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::WardShift.DayUpgradeController
+--- !u!114 &2117000007
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 411442690}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 603e3c237dea43a6bf4d610f0d8a6260, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::WardShift.DaySceneController
+--- !u!114 &2117000008
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 411442690}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 897dbc74ce27469a895007ad895ac2dd, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::WardShift.DayAnomalyRewardController
 --- !u!114 &411442694
 MonoBehaviour:
   m_ObjectHideFlags: 0
