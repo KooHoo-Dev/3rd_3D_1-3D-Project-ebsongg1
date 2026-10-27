@@ -245,10 +245,10 @@ MonoBehaviour:
   crystalLight: {fileID: 5557579244879819838}
   warningLight: {fileID: 8982160939430218991}
   warningRing: {fileID: 1614912270518411588}
-  overloadLoopVFX: {fileID: 139178, guid: 6b3488aa97f1d514d8a4fa45cc3b2dad, type: 3}
+  overloadLoopVFX: {fileID: 1062654583085746, guid: 5c7e7a61390789e4084f6e2753133781, type: 3}
   stabilizingVFX: {fileID: 100000, guid: 0c395858d0318dc41bb0e645e801eeac, type: 3}
   warningVFX: {fileID: 131454, guid: 495b63906f5f3bb40bf58baeb0848011, type: 3}
-  burstVFX: {fileID: 136414, guid: d59fb75f8c3c18040903bc802beec898, type: 3}
+  burstVFX: {fileID: 1591633037243850, guid: e60531ca559f6004d87bb0cda3bf58a2, type: 3}
   recoveryVFX: {fileID: 0}
   resolvedVFX: {fileID: 127662, guid: c70cded20eb22b54b85e9004073a5073, type: 3}
   burstVFXLifetime: 1.5

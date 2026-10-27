@@ -20,6 +20,8 @@ namespace WardShift
         [SerializeField] private GameObject spawnVfxPrefab;
         [Tooltip("현재 생성된 패치를 모두 정상 정화해 진압했을 때 한 번 재생합니다.")]
         [SerializeField] private GameObject resolvedVfxPrefab;
+        [Tooltip("저주 오염이 최종 단계에서 파열될 때 한 번 재생합니다.")]
+        [SerializeField] private GameObject ruptureVfxPrefab;
         [SerializeField, Min(0.1f)] private float anomalyVfxLifetime = 2f;
         [Header("바닥 위치 자동 맞춤")]
         [SerializeField, Min(0.1f)] private float floorSnapProbeHeight = 2f;
@@ -290,6 +292,7 @@ namespace WardShift
             hasRuptured = true;
             stabilityLoss += Mathf.Max(0f, ruptureStabilityDamage);
             Debug.Log("저주 오염 파열: 시설 안정도 피해 후 오염 제거", this);
+            SpawnAnomalyVfx(ruptureVfxPrefab);
             NotifyRuptured();
             Destroy(gameObject);
             return stabilityLoss;

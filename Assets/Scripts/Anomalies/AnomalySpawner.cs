@@ -12,6 +12,8 @@ namespace WardShift
     [DisallowMultipleComponent]
     public sealed class AnomalySpawner : MonoBehaviour
     {
+        private enum SpawnKind { ManaRift, CurseContamination, ManaDeviceOverload, Other }
+
         [Serializable]
         public sealed class DaySpawnProfile
         {
@@ -20,6 +22,11 @@ namespace WardShift
             [SerializeField] private bool allowCurseContamination;
             [SerializeField] private bool allowManaDeviceOverload;
             [SerializeField] private bool allowOtherAnomalies;
+            [Header("이상현상 종류별 생성 가중치 (0이면 생성 안 함)")]
+            [SerializeField, Range(0, 100)] private int manaRiftWeight = 1;
+            [SerializeField, Range(0, 100)] private int curseContaminationWeight = 1;
+            [SerializeField, Range(0, 100)] private int manaDeviceOverloadWeight = 1;
+            [SerializeField, Range(0, 100)] private int otherAnomaliesWeight = 1;
             [SerializeField, Min(1)] private int maximumConcurrentAnomalies = 1;
             [SerializeField, Min(0.1f)] private float spawnIntervalSeconds = 8f;
 
@@ -50,6 +57,15 @@ namespace WardShift
                 if (anomaly is CurseAnomaly) return allowCurseContamination;
                 if (anomaly is ManaDeviceAnomaly) return allowManaDeviceOverload;
                 return allowOtherAnomalies;
+            }
+
+            public int GetSpawnWeight(AnomalyBehaviour anomaly)
+            {
+                if (!Allows(anomaly)) return 0;
+                if (anomaly is ManaRift) return Mathf.Clamp(manaRiftWeight, 0, 100);
+                if (anomaly is CurseAnomaly) return Mathf.Clamp(curseContaminationWeight, 0, 100);
+                if (anomaly is ManaDeviceAnomaly) return Mathf.Clamp(manaDeviceOverloadWeight, 0, 100);
+                return Mathf.Clamp(otherAnomaliesWeight, 0, 100);
             }
         }
 
@@ -199,7 +215,7 @@ namespace WardShift
         {
             if (anomaly == null) return false;
             DaySpawnProfile profile = FindDayProfile(day);
-            return profile == null || profile.Allows(anomaly);
+            return profile == null || profile.GetSpawnWeight(anomaly) > 0;
         }
 
         /// <summary>검증된 생성 지점 기준으로 이 DAY의 동시 슬롯을 채울 수 있는지 확인합니다.</summary>
@@ -212,7 +228,7 @@ namespace WardShift
                 if (point == null || !point.isActiveAndEnabled) continue;
                 foreach (AnomalyBehaviour prefab in GetConfiguredPrefabs())
                 {
-                    if (profile != null && !profile.Allows(prefab)) continue;
+                    if (profile != null && profile.GetSpawnWeight(prefab) <= 0) continue;
                     if (prefab.SpawnSurface != point.Surface) continue;
                     if (prefab is CurseAnomaly curse
                         && !curse.CanConfigureFromSpawnPoint(point.GetCursePatchPoints().Length)) continue;
@@ -284,40 +300,57 @@ namespace WardShift
             }
             WarnMissingCursePatchPoints(availableSpawnPoints, prefabs);
 
-            // - 고정 지점 모드에서는 선택한 지점을 우선 사용
-            // - 점유 중이면 비어 있는 호환 지점을 사용해 동시 생성 지점 분리
-            if (!randomizePoint && selectedPointIndex >= 0 && selectedPointIndex < availableSpawnPoints.Count)
-            {
-                AnomalySpawnPoint preferred = availableSpawnPoints[selectedPointIndex];
-                foreach (AnomalyBehaviour prefab in prefabs)
-                    if (IsValidPrefab(prefab)
-                        && (activeDayProfile == null || activeDayProfile.Allows(prefab))
-                        && CanUse(preferred, prefab))
-                        return TrySpawnAt(preferred, prefab);
-            }
-
-            var choices = new List<SpawnChoice>();
+            // 가능한 지점 수와 무관하게 종류를 먼저 뽑고, 그 종류의 지점을 나중에 뽑습니다.
+            var groups = new List<SpawnGroup>();
             foreach (AnomalyBehaviour prefab in prefabs)
             {
-                if (!IsValidPrefab(prefab) || (activeDayProfile != null && !activeDayProfile.Allows(prefab))) continue;
+                if (!IsValidPrefab(prefab)) continue;
+                int weight = activeDayProfile != null ? activeDayProfile.GetSpawnWeight(prefab) : 1;
+                if (weight <= 0) continue;
+
+                var points = new List<AnomalySpawnPoint>();
                 foreach (AnomalySpawnPoint point in availableSpawnPoints)
+                    if (CanUse(point, prefab)) points.Add(point);
+                if (points.Count == 0) continue;
+
+                SpawnKind kind = GetSpawnKind(prefab);
+                SpawnGroup group = groups.Find(candidate => candidate.Kind == kind);
+                if (group == null)
                 {
-                    if (!CanUse(point, prefab)) continue;
-                    bool duplicate = false;
-                    foreach (SpawnChoice choice in choices)
-                        if (choice.Prefab == prefab && choice.Point == point) { duplicate = true; break; }
-                    if (!duplicate) choices.Add(new SpawnChoice(prefab, point));
+                    group = new SpawnGroup(kind, weight);
+                    groups.Add(group);
                 }
+                group.Options.Add(new SpawnOption(prefab, points));
             }
 
-            if (choices.Count == 0)
+            if (groups.Count == 0)
             {
                 Debug.LogWarning("AnomalySpawner: 활성 상태이며 비어 있는 호환 생성 지점이 없습니다.", this);
                 return false;
             }
 
-            SpawnChoice selected = choices[randomizePoint ? NextRandom(choices.Count) : 0];
-            return TrySpawnAt(selected.Point, selected.Prefab);
+            int totalWeight = 0;
+            foreach (SpawnGroup group in groups) totalWeight += group.Weight;
+            int draw = NextRandom(totalWeight);
+            SpawnGroup selectedGroup = groups[0];
+            foreach (SpawnGroup group in groups)
+            {
+                if (draw < group.Weight) { selectedGroup = group; break; }
+                draw -= group.Weight;
+            }
+
+            SpawnOption selectedOption = selectedGroup.Options[NextRandom(selectedGroup.Options.Count)];
+            AnomalySpawnPoint selectedPoint = SelectPoint(selectedOption.Points, availableSpawnPoints);
+            return TrySpawnAt(selectedPoint, selectedOption.Prefab);
+        }
+
+        private AnomalySpawnPoint SelectPoint(List<AnomalySpawnPoint> compatiblePoints,
+            List<AnomalySpawnPoint> allPoints)
+        {
+            if (!randomizePoint && selectedPointIndex >= 0 && selectedPointIndex < allPoints.Count
+                && compatiblePoints.Contains(allPoints[selectedPointIndex]))
+                return allPoints[selectedPointIndex];
+            return compatiblePoints[randomizePoint ? NextRandom(compatiblePoints.Count) : 0];
         }
 
         private bool TrySpawnPrefab(AnomalyBehaviour prefab, bool manualDebugSpawn = false)
@@ -329,7 +362,8 @@ namespace WardShift
                 ? Mathf.Max(1, maximumConcurrentAnomalies) : MaximumConcurrentAnomalies;
             if (activeAnomalies.Count >= concurrencyLimit) return false;
             if (!IsValidPrefab(prefab)
-                || (!manualDebugSpawn && activeDayProfile != null && !activeDayProfile.Allows(prefab)))
+                || (!manualDebugSpawn && activeDayProfile != null
+                    && activeDayProfile.GetSpawnWeight(prefab) <= 0))
             {
                 Debug.LogWarning("AnomalySpawner: 현재 DAY에서 허용되지 않았거나 활성 Project 프리팹이 아닙니다.", this);
                 return false;
@@ -435,6 +469,14 @@ namespace WardShift
                 && prefab.gameObject.activeSelf && prefab.enabled;
         }
 
+        private static SpawnKind GetSpawnKind(AnomalyBehaviour prefab)
+        {
+            if (prefab is ManaRift) return SpawnKind.ManaRift;
+            if (prefab is CurseAnomaly) return SpawnKind.CurseContamination;
+            if (prefab is ManaDeviceAnomaly) return SpawnKind.ManaDeviceOverload;
+            return SpawnKind.Other;
+        }
+
         private static bool CanUse(AnomalySpawnPoint point, AnomalyBehaviour prefab)
         {
             return point != null && point.isActiveAndEnabled && !point.IsOccupied
@@ -484,14 +526,26 @@ namespace WardShift
             activeAnomalies.Clear();
         }
 
-        private readonly struct SpawnChoice
+        private sealed class SpawnGroup
+        {
+            public readonly SpawnKind Kind;
+            public readonly int Weight;
+            public readonly List<SpawnOption> Options = new List<SpawnOption>();
+            public SpawnGroup(SpawnKind kind, int weight)
+            {
+                Kind = kind;
+                Weight = weight;
+            }
+        }
+
+        private readonly struct SpawnOption
         {
             public readonly AnomalyBehaviour Prefab;
-            public readonly AnomalySpawnPoint Point;
-            public SpawnChoice(AnomalyBehaviour prefab, AnomalySpawnPoint point)
+            public readonly List<AnomalySpawnPoint> Points;
+            public SpawnOption(AnomalyBehaviour prefab, List<AnomalySpawnPoint> points)
             {
                 Prefab = prefab;
-                Point = point;
+                Points = points;
             }
         }
     }
