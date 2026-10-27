@@ -437,7 +437,7 @@ namespace WardShift.Editor
             spawner.SetSpawningEnabled(false);
             spawner.ClearActiveAnomalies();
             string[] paths = { "Assets/Prefabs/ManaRift_Test.prefab", "Assets/Prefabs/ManaRift_Test.prefab",
-                "Assets/WardShiftPrototype/Anomalies/CurseAnomaly.prefab", "Assets/WardShiftPrototype/Devices/ManaDevice_Overload.prefab" };
+                "Assets/Prefabs/WardShiftPrototype/Anomalies/CurseAnomaly.prefab", "Assets/Prefabs/WardShiftPrototype/Devices/ManaDevice_Overload.prefab" };
             for (int i = 0; i < paths.Length; i++)
             {
                 AnomalyBehaviour prefab = AssetDatabase.LoadAssetAtPath<GameObject>(paths[i]).GetComponent<AnomalyBehaviour>();

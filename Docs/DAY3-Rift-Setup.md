@@ -49,8 +49,8 @@ Play 모드 밖에서 정상 작동한 Test_MagicSphere를 두 번 복제합니�
 각 MagicTargetVFX 설정:
 - Target: 같은 구체의 MagicTarget
 - Cast VFX Anchor: 같은 구체 아래의 CastVFXAnchor
-- Cast Loop Prefab: Assets/WardShiftPrototype/VFX/VFX_CastLoop.prefab
-- Cast Complete Prefab: Assets/WardShiftPrototype/VFX/VFX_CastComplete.prefab
+- Cast Loop Prefab: Assets/Prefabs/WardShiftPrototype/VFX/VFX_CastLoop.prefab
+- Cast Complete Prefab: Assets/Prefabs/WardShiftPrototype/VFX/VFX_CastComplete.prefab
 - Complete Lifetime: 1.5
 복제 후 Target과 Anchor가 원래 테스트 구체를 가리키지 않는지 확인합니다.
 구체를 작게 만들면 자식 반복 VFX도 작아집니다. 필요하면 CastVFXAnchor의 Scale만 조정합니다.
@@ -61,7 +61,7 @@ Play 모드 밖에서 정상 작동한 Test_MagicSphere를 두 번 복제합니�
 ManaRift 컴포넌트:
 - Seal Point 01: SealPoint_01
 - Seal Point 02: SealPoint_02
-- Complete VFX Prefab: Assets/WardShiftPrototype/VFX/VFX_CastComplete.prefab
+- Complete VFX Prefab: Assets/Prefabs/WardShiftPrototype/VFX/VFX_CastComplete.prefab
 - Complete VFX Anchor: 루트 아래 CompleteVFXAnchor
 - Complete VFX Lifetime: 1.5
 - On Resolved: 지금은 비워 둡니다.

@@ -12,8 +12,9 @@ namespace WardShift.Editor
     public static class WardShiftCurseAnomalySetup
     {
         private const string MainGamePath = "Assets/Scenes/MainGame.unity";
-        private const string AnomalyFolder = "Assets/WardShiftPrototype/Anomalies";
-        private const string MaterialFolder = "Assets/WardShiftPrototype/Materials";
+        private const string PrototypeFolder = "Assets/Prefabs/WardShiftPrototype";
+        private const string AnomalyFolder = PrototypeFolder + "/Anomalies";
+        private const string MaterialFolder = PrototypeFolder + "/Materials";
         private const string CursePrefabPath = AnomalyFolder + "/CurseAnomaly.prefab";
         private const string PatchMaterialPath = MaterialFolder + "/CursePatch_Transparent.mat";
         private const string ParticleMaterialPath = MaterialFolder + "/CursePatch_Particles.mat";
@@ -56,7 +57,7 @@ namespace WardShift.Editor
                 return;
             }
 
-            EnsureFolder("Assets/WardShiftPrototype");
+            EnsureFolder(PrototypeFolder);
             EnsureFolder(MaterialFolder);
             EnsureFolder(AnomalyFolder);
 

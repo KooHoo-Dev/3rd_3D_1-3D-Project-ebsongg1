@@ -12,7 +12,8 @@ namespace WardShift
     public static class WardShiftManaDeviceSetup
     {
         private const string MainGamePath = "Assets/Scenes/MainGame.unity";
-        private const string DeviceFolder = "Assets/WardShiftPrototype/Devices";
+        private const string PrototypeFolder = "Assets/Prefabs/WardShiftPrototype";
+        private const string DeviceFolder = PrototypeFolder + "/Devices";
         private const string MaterialFolder = DeviceFolder + "/Materials";
         private const string DevicePrefabPath = DeviceFolder + "/ManaDevice_Test.prefab";
         private const string AnomalyPrefabPath = DeviceFolder + "/ManaDevice_Overload.prefab";
@@ -25,7 +26,7 @@ namespace WardShift
         [MenuItem("Tools/WARD SHIFT/Setup Test Mana Device")]
         public static void Run()
         {
-            EnsureFolder("Assets/WardShiftPrototype");
+            EnsureFolder(PrototypeFolder);
             EnsureFolder(DeviceFolder);
             EnsureFolder(MaterialFolder);
 
