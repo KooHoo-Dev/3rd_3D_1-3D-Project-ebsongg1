@@ -168,12 +168,15 @@ namespace WardShift.Editor
             Assert(first.IsCompleted && rift.IsSealChainInProgress && rift.CompletedSealCount == 1,
                 "첫 번째 좌클릭 즉시 시작하고 첫 성공부터 연쇄 상태가 됨");
             Assert(!first.GetComponent<Collider>().enabled,
-                "완료된 첫 점의 숫자는 남아도 두 번째 점의 Raycast는 가리지 않음");
+                "완료된 첫 점의 Raycast가 두 번째 점을 가리지 않음");
             AssertSealBeam(first, 1);
             Assert(second.GetComponent<SealPointVisual>().CurrentState == SealPointVisual.State.Active,
                 "첫 성공 후 두 번째 봉인점 활성 강조");
-            AssertOrderNumber(first, "1", true);
+            AssertMarkerVisibility(first, false, "첫 성공 후 1번 룬 외형 숨김");
+            AssertOrderNumber(first, "1", false);
             AssertOrderNumber(second, "2", true);
+            Invoke(detector, "LateUpdate");
+            Assert(!first.IsDetected, "Q를 계속 눌러도 완료된 1번 봉인점을 다시 감지하지 않음");
 
             QueueKeyboard(keyboard, false);
             InputSystem.Update();
@@ -181,7 +184,7 @@ namespace WardShift.Editor
             Assert(!second.IsDetected && rift.IsSealChainInProgress,
                 "연쇄 시작 후 Q를 놓아도 봉인 시도가 유지됨");
             AssertMarkerVisibility(second, true, "연쇄 시작 후 Q를 놓아도 다음 파티클 마커 표시 유지");
-            AssertOrderNumber(first, "1", true);
+            AssertOrderNumber(first, "1", false);
             AssertOrderNumber(second, "2", true);
 
             SetPrivateField(interactor, "currentTarget", second);
@@ -277,6 +280,8 @@ namespace WardShift.Editor
                         "2초 초과 시 두 봉인점과 연쇄 진행 상태 초기화");
                     Assert(first.GetComponent<Collider>().enabled && second.GetComponent<Collider>().enabled,
                         "실패 후 두 봉인점의 조준 Collider 복구");
+                    AssertMarkerVisibility(first, true, "시간 초과 후 1번 룬 외형 복구");
+                    AssertOrderNumber(first, "1", true);
                     Assert(timeoutRift.Age >= timeoutStartAge && timeoutRift.DangerStage == 2,
                         "제한 시간 실패가 성장 타이머와 위험 단계를 초기화하지 않음");
                     Object.Destroy(timeoutRift.gameObject);
@@ -291,6 +296,8 @@ namespace WardShift.Editor
                     Assert(!acceptedWrongPoint && !timeoutRift.IsSealChainInProgress
                         && timeoutRift.CompletedSealCount == 0 && !first.IsCompleted && !secondWrong.IsCompleted,
                         "연쇄 중 잘못된 봉인점 클릭은 두 점을 모두 초기화");
+                    AssertMarkerVisibility(first, true, "잘못된 클릭 후 1번 룬 외형 복구");
+                    AssertOrderNumber(first, "1", true);
                     Assert(Mathf.Approximately(timeoutRift.Age, timeoutStartAge)
                         && timeoutRift.DangerStage == 2,
                         "잘못된 점 클릭은 성장 타이머와 위험 단계를 변경하지 않음");

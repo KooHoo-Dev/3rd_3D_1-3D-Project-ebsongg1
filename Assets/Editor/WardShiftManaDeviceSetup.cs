@@ -274,7 +274,7 @@ namespace WardShift
             SerializedObject data = new SerializedObject(target);
             data.FindProperty("displayName").stringValue = "마력 장치 수정";
             data.FindProperty("requiredMagic").enumValueIndex = (int)MagicType.Stabilize;
-            data.FindProperty("castDuration").floatValue = 16f;
+            data.FindProperty("castDuration").floatValue = 12f;
             data.FindProperty("useTimingCast").boolValue = false;
             data.FindProperty("preserveProgressOnCancel").boolValue = true;
             data.FindProperty("allowHeldPurifyChain").boolValue = false;

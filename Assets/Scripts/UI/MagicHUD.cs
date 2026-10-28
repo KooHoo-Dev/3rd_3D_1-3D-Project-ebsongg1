@@ -71,8 +71,10 @@ namespace WardShift
                 aimText.rectTransform.sizeDelta = diagnosed != null
                     ? new Vector2(700f, 68f) : new Vector2(600f, 38f);
                 aimText.text = diagnosed != null
-                    ? $"마력 진단 · 다음 방출 {diagnosed.SecondsUntilNextBurst:F1}초 · 위험 반경 {diagnosed.BurstRadius:F1}m\n<size=18>"
-                        + (diagnosed.IsBurstWarningActive ? "방출 예고 중" : "방출 예고 전")
+                    ? $"마력 진단 · 다음 {diagnosed.NextAttackLabel} {diagnosed.SecondsUntilNextAttack:F1}초"
+                        + (diagnosed.NextAttack == ManaDeviceAnomaly.AttackKind.RadialBurst
+                            ? $" · 위험 반경 {diagnosed.BurstRadius:F1}m" : "") + "\n<size=18>"
+                        + (diagnosed.IsBurstWarningActive ? "공격 예고 중" : "공격 예고 전")
                         + (diagnosed.RecoveryRemaining > 0f
                             ? $" · 빠른 안정화 {diagnosed.RecoveryRemaining:F1}초" : "") + "</size>"
                     : recovery != null && recovery.RecoveryRemaining > 0f

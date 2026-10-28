@@ -21,6 +21,8 @@ namespace WardShift
             [SerializeField] private bool allowManaRift = true;
             [SerializeField] private bool allowCurseContamination;
             [SerializeField] private bool allowManaDeviceOverload;
+            [Tooltip("DAY 4 이후 장치 공격을 원형 방출부터 시작해 마력탄과 번갈아 사용합니다.")]
+            [SerializeField] private bool alternateDeviceAttacks;
             [SerializeField] private bool allowOtherAnomalies;
             [Header("이상현상 종류별 생성 가중치 (0이면 생성 안 함)")]
             [SerializeField, Range(0, 100)] private int manaRiftWeight = 1;
@@ -34,6 +36,7 @@ namespace WardShift
             public bool AllowManaRift => allowManaRift;
             public bool AllowCurseContamination => allowCurseContamination;
             public bool AllowManaDeviceOverload => allowManaDeviceOverload;
+            public bool AlternateDeviceAttacks => alternateDeviceAttacks;
             public bool AllowOtherAnomalies => allowOtherAnomalies;
             public int MaximumConcurrentAnomalies => Mathf.Max(1, maximumConcurrentAnomalies);
             public float SpawnIntervalSeconds => Mathf.Max(0.1f, spawnIntervalSeconds);
@@ -47,6 +50,7 @@ namespace WardShift
                 allowManaRift = rift;
                 allowCurseContamination = curse;
                 allowManaDeviceOverload = device;
+                alternateDeviceAttacks = day >= 4;
                 maximumConcurrentAnomalies = maximumConcurrent;
                 spawnIntervalSeconds = interval;
             }
@@ -427,6 +431,9 @@ namespace WardShift
         {
             if (!CanUse(point, prefab)) return false;
             if (!point.TrySpawn(prefab, out AnomalyBehaviour instance)) return false;
+            if (instance is ManaDeviceAnomaly spawnedDevice)
+                spawnedDevice.ConfigureAttackPattern(activeDayProfile != null
+                    && activeDayProfile.AlternateDeviceAttacks);
             activeAnomalies.Add(instance);
             instance.Ended += OnAnomalyEnded;
             AnomalySpawned?.Invoke(instance);

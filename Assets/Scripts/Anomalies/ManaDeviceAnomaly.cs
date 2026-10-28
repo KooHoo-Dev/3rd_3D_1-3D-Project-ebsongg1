@@ -2,19 +2,33 @@ using UnityEngine;
 
 namespace WardShift
 {
-    /// <summary>영구 마력 장치에 연결되는 폭주 수명주기와 회피형 방출을 관리합니다.</summary>
+    /// <summary>영구 마력 장치에 연결되는 폭주 수명주기와 공격 주기를 관리합니다.</summary>
     [DisallowMultipleComponent]
     public sealed class ManaDeviceAnomaly : AnomalyBehaviour
     {
+        public enum AttackKind { RadialBurst, TrackingBolt }
         [Header("방출과 회피")]
+        [Tooltip("장치 생성 후 첫 원형 방출 경고가 시작될 때까지의 대기 시간입니다. 실제 첫 공격은 이 값에 방출 예고 시간을 더한 뒤 발생합니다.")]
         [SerializeField, Min(0.1f)] private float firstBurstDelaySeconds = 4.5f;
         [SerializeField, Min(0.1f)] private float burstWarningSeconds = 1.5f;
-        [Tooltip("방출부터 다음 방출까지의 주기. 다음 방출 전 1.5초는 경고로 사용합니다.")]
+        [Tooltip("공격부터 다음 공격까지의 주기. 각 공격의 경고 시간은 별도로 설정합니다.")]
         [SerializeField, Min(0.2f)] private float burstPeriodSeconds = 9.5f;
         [SerializeField, Min(0.1f)] private float burstRadius = 4.25f;
         [SerializeField, Min(0f)] private float stageOneBurstContamination = 10f;
         [SerializeField, Min(0f)] private float stageTwoBurstContamination = 15f;
         [SerializeField, Min(0f)] private float stageThreeBurstContamination = 20f;
+
+        [Header("추적 마력탄")]
+        [Tooltip("외형 프리팹. 비우면 기본 발광 구체를 생성합니다. 충돌 판정은 별도 컴포넌트가 관리합니다.")]
+        [SerializeField] private GameObject projectileVisualPrefab;
+        [SerializeField, Min(0.1f)] private float projectileWarningSeconds = 1f;
+        [SerializeField, Min(0.1f)] private float projectileSpeed = 4.5f;
+        [SerializeField, Min(0f)] private float projectileHomingSeconds = 0.7f;
+        [SerializeField, Min(0.05f)] private float projectileCollisionRadius = 0.3f;
+        [SerializeField, Min(0.1f)] private float projectileLifetime = 5f;
+        [SerializeField, Min(0f)] private float projectileSpawnHeight = 1.5f;
+        [SerializeField, Min(0f)] private float projectileContamination = 12f;
+        [SerializeField] private LayerMask projectileCollisionLayers = ~0;
 
         [Header("방출 회피 후 안정화")]
         [SerializeField, Min(0f)] private float recoverySeconds = 2f;
@@ -42,6 +56,8 @@ namespace WardShift
         private bool configured;
         private bool workedThisBurstCycle;
         private float recoveryRemaining;
+        private bool alternateAttacks;
+        private AttackKind nextAttack = AttackKind.RadialBurst;
 
         public override string DisplayName => "장치형 마력 폭주";
         public override int DangerStage => dangerStage;
@@ -64,10 +80,18 @@ namespace WardShift
         public float BurstRadius => Mathf.Max(Mathf.Max(0.1f, burstRadius),
             deviceVisuals != null ? deviceVisuals.StabilizeRange + 1.25f : 0.1f);
         public bool IsBurstWarningActive => isBurstWarningActive;
+        public AttackKind NextAttack => nextAttack;
+        public string NextAttackLabel => nextAttack == AttackKind.RadialBurst ? "원형 방출" : "추적 마력탄";
+        public float SecondsUntilNextAttack => SecondsUntilNextBurst;
         public float SecondsUntilNextBurst => IsHazardActive ? Mathf.Max(0f, secondsUntilNextBurst) : 0f;
         public float RecoveryRemaining => IsHazardActive ? Mathf.Max(0f, recoveryRemaining) : 0f;
         public float StabilizationSpeedMultiplier => RecoveryRemaining > 0f
             ? Mathf.Max(1f, recoveryStabilizationMultiplier) : 1f;
+        public void ConfigureAttackPattern(bool alternate)
+        {
+            alternateAttacks = alternate;
+            nextAttack = AttackKind.RadialBurst;
+        }
         public void RecordStabilizationWork(MagicTarget target)
         {
             if (IsHazardActive && target == stabilizationTarget && target.IsAvailable)
@@ -108,6 +132,7 @@ namespace WardShift
             hasRuptured = false;
             isResolved = false;
             isBurstWarningActive = false;
+            nextAttack = AttackKind.RadialBurst;
             workedThisBurstCycle = false;
             recoveryRemaining = 0f;
             secondsUntilNextBurst = Mathf.Max(0.1f, firstBurstDelaySeconds)
@@ -161,10 +186,9 @@ namespace WardShift
         {
             float remaining = deltaTime;
             int transitions = 0;
-            float warningDuration = Mathf.Max(0.1f, burstWarningSeconds);
-            float period = Mathf.Max(warningDuration + 0.1f, burstPeriodSeconds);
             while (remaining > 0f && transitions++ < 8)
             {
+                float warningDuration = WarningDuration;
                 float toTransition = isBurstWarningActive
                     ? Mathf.Max(0f, secondsUntilNextBurst)
                     : Mathf.Max(0f, secondsUntilNextBurst - warningDuration);
@@ -181,27 +205,36 @@ namespace WardShift
                 if (!isBurstWarningActive && secondsUntilNextBurst <= warningDuration)
                 {
                     isBurstWarningActive = true;
-                    if (deviceVisuals != null)
-                        deviceVisuals.SetBurstWarning(true, BurstRadius,
-                            secondsUntilNextBurst / warningDuration);
+                    UpdateWarningVisual(secondsUntilNextBurst / warningDuration);
                     continue;
                 }
 
                 if (isBurstWarningActive && secondsUntilNextBurst <= 0f)
                 {
-                    FireBurst();
-                    secondsUntilNextBurst += period;
+                    if (nextAttack == AttackKind.RadialBurst) FireBurst();
+                    else FireProjectile();
+                    nextAttack = alternateAttacks && nextAttack == AttackKind.RadialBurst
+                        ? AttackKind.TrackingBolt : AttackKind.RadialBurst;
+                    secondsUntilNextBurst += Mathf.Max(WarningDuration + 0.1f, burstPeriodSeconds);
                     isBurstWarningActive = false;
-                    if (deviceVisuals != null) deviceVisuals.SetBurstWarning(false, BurstRadius, 0f);
+                    if (deviceVisuals != null) deviceVisuals.SetAttackWarning(false,
+                        BurstRadius, 0f, false);
                     continue;
                 }
 
                 if (step <= 0f) break;
             }
 
-            if (isBurstWarningActive && deviceVisuals != null)
-                deviceVisuals.SetBurstWarning(true, BurstRadius,
-                    secondsUntilNextBurst / warningDuration);
+            if (isBurstWarningActive) UpdateWarningVisual(secondsUntilNextBurst / WarningDuration);
+        }
+
+        private float WarningDuration => nextAttack == AttackKind.TrackingBolt
+            ? Mathf.Max(0.1f, projectileWarningSeconds) : Mathf.Max(0.1f, burstWarningSeconds);
+
+        private void UpdateWarningVisual(float remainingFraction)
+        {
+            if (deviceVisuals != null) deviceVisuals.SetAttackWarning(true,
+                BurstRadius, remainingFraction, nextAttack == AttackKind.TrackingBolt);
         }
 
         private void FireBurst()
@@ -218,8 +251,34 @@ namespace WardShift
 
             float amount = dangerStage >= 3 ? stageThreeBurstContamination
                 : dangerStage == 2 ? stageTwoBurstContamination : stageOneBurstContamination;
-            player.AddContamination(Mathf.Max(0f, amount));
-            Debug.Log($"장치 마력 방출 피격: 오염도 +{Mathf.Max(0f, amount):F0}", player);
+            ApplyDeviceHit(player, amount);
+        }
+
+        private void FireProjectile()
+        {
+            PlayerContamination player = FindFirstObjectByType<PlayerContamination>();
+            if (deviceVisuals != null) deviceVisuals.ShowProjectileLaunch();
+            workedThisBurstCycle = false;
+            if (player == null) return;
+            Vector3 origin = deviceVisuals != null ? deviceVisuals.transform.position : transform.position;
+            origin += Vector3.up * Mathf.Max(0f, projectileSpawnHeight);
+            Vector3 aim = player.transform.position + Vector3.up;
+            Vector3 direction = (aim - origin).normalized;
+            origin += direction * (Mathf.Max(0.05f, projectileCollisionRadius) + 0.4f);
+            GameObject bolt = new GameObject("ManaTrackingBolt");
+            bolt.transform.SetPositionAndRotation(origin, Quaternion.LookRotation(direction));
+            ManaDeviceProjectile projectile = bolt.AddComponent<ManaDeviceProjectile>();
+            projectile.Initialize(this, player, deviceVisuals != null ? deviceVisuals.transform : transform,
+                projectileVisualPrefab, projectileCollisionLayers, projectileSpeed,
+                projectileHomingSeconds, projectileCollisionRadius, projectileLifetime,
+                projectileContamination, direction);
+        }
+
+        public void ApplyDeviceHit(PlayerContamination player, float amount)
+        {
+            if (player == null || player.InSafeZone || amount <= 0f) return;
+            float applied = player.AddContamination(amount);
+            if (applied > 0f) Debug.Log($"장치 공격 피격: 오염도 +{applied:F0}", player);
         }
 
         private void OnStabilizationCompleted(MagicTarget target)

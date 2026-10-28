@@ -164,7 +164,8 @@ namespace WardShift
         private void Apply()
         {
             if (renderers == null) return;
-            bool visible = state == State.Active || state == State.Completed || state == State.Failed
+            // The completed point keeps its MagicTarget state, but its rune and number disappear.
+            bool visible = state == State.Active || state == State.Failed
                 || (state == State.Discovered && detected);
             Color color = state == State.Active ? activeColor
                 : state == State.Completed ? completedColor
@@ -175,7 +176,7 @@ namespace WardShift
                 orderLabel.enabled = visible && orderNumber > 0;
                 orderLabel.color = color;
             }
-            // 완료된 첫 점은 숫자와 색을 유지하되 두 번째 점의 Raycast를 가리지 않습니다.
+            // 완료된 첫 점은 판정을 막고, 실패 시 ResetForNewUse 후 다시 엽니다.
             if (targetColliders != null)
                 for (int i = 0; i < targetColliders.Length; i++)
                     if (targetColliders[i] != null)

@@ -43,7 +43,15 @@ namespace WardShift
         private TMP_Text overflowText;
         private GameObject anomalyCardTemplate;
         private long nextSpawnOrder;
+        private float directHitUntil;
+        private float directHitAmount;
         public FacilityZoneTracker ZoneTracker => zoneTracker;
+
+        public void ShowContaminationIncrease(float amount)
+        {
+            directHitAmount = amount;
+            directHitUntil = Time.unscaledTime + 0.65f;
+        }
 
         private void Awake()
         {
@@ -76,9 +84,11 @@ namespace WardShift
 
             PlayerContamination player = status.Player;
             bool gameplayActive = dayFlow == null || dayFlow.State == DayState.Playing;
+            if (!gameplayActive) directHitUntil = 0f;
             priorities.Clear();
             seenAnomalies.Clear();
             int burstWarnings = 0;
+            int projectileWarnings = 0;
             IReadOnlyList<AnomalyBehaviour> activeAnomalies = AnomalyBehaviour.ActiveAnomalies;
             for (int i = 0; i < activeAnomalies.Count; i++)
             {
@@ -91,7 +101,12 @@ namespace WardShift
                 if (!gameplayActive || !anomaly.IsHazardActive) continue;
 
                 priorities.Add(anomaly);
-                if (anomaly is ManaDeviceAnomaly device && device.IsBurstWarningActive) burstWarnings++;
+                if (anomaly is ManaDeviceAnomaly device && device.IsBurstWarningActive)
+                {
+                    if (device.NextAttack == ManaDeviceAnomaly.AttackKind.TrackingBolt)
+                        projectileWarnings++;
+                    else burstWarnings++;
+                }
             }
 
             staleAnomalyIds.Clear();
@@ -103,7 +118,16 @@ namespace WardShift
             RefreshAnomalyCards(gameplayActive);
 
             if (stabilityText != null) stabilityText.text = string.Format("시설 안정도  {0:F0} / 100", status.Stability);
-            if (contaminationText != null) contaminationText.text = string.Format("마력 오염도  {0:F0} / 100", player.Value);
+            bool directHitVisible = Time.unscaledTime < directHitUntil;
+            if (contaminationText != null)
+            {
+                contaminationText.text = string.Format("마력 오염도  {0:F0} / 100", player.Value)
+                    + (directHitVisible ? directHitAmount < 1f
+                        ? string.Format("  +{0:F1}", directHitAmount)
+                        : string.Format("  +{0:F0}", directHitAmount) : "");
+                contaminationText.color = directHitVisible ? new Color(1f, 0.55f, 0.8f)
+                    : Color.white;
+            }
             if (locationText != null)
             {
                 ZoneIdentity zone = zoneTracker != null ? zoneTracker.CurrentZone : null;
@@ -114,7 +138,9 @@ namespace WardShift
             if (contaminationFill != null) contaminationFill.fillAmount = player.Value / 100f;
             if (stabilityFill != null) stabilityFill.color = status.Stability <= 20f ? new Color(1, 0.3f, 0.25f)
                 : status.Stability <= 50f ? new Color(1, 0.7f, 0.25f) : WardShiftHUDLayout.StabilityColor;
-            if (contaminationFill != null) contaminationFill.color = player.Value >= 80f ? new Color(1, 0.3f, 0.25f)
+            if (contaminationFill != null) contaminationFill.color = directHitVisible
+                ? new Color(1f, 0.45f, 0.8f)
+                : player.Value >= 80f ? new Color(1, 0.3f, 0.25f)
                 : WardShiftHUDLayout.ContaminationColor;
 
             if (warningText != null)
@@ -127,6 +153,7 @@ namespace WardShift
                     : player.ExposurePerSecond > 0f ? "위험 영역 근처: 오염도 증가 중"
                     : status.HighestStage == 2 ? "이상현상이 2단계로 성장했습니다." : "";
                 warningText.text = status.HasFailed ? "근무 실패"
+                    : projectileWarnings > 0 ? string.Format("마력탄 발사 예고 {0}곳 · 옆으로 회피", projectileWarnings)
                     : burstWarnings > 0 ? string.Format("장치 방출 예고 {0}곳 · 범위 밖 회피", burstWarnings)
                         + (string.IsNullOrEmpty(globalWarning) ? "" : "\n" + globalWarning)
                     : globalWarning;

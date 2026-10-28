@@ -51,6 +51,17 @@ MonoBehaviour:
   stageOneBurstContamination: 10
   stageTwoBurstContamination: 15
   stageThreeBurstContamination: 20
+  projectileVisualPrefab: {fileID: 100008, guid: 7f36e4b612dfce845a0aad05b6fe7d8d, type: 3}
+  projectileWarningSeconds: 3
+  projectileSpeed: 4.5
+  projectileHomingSeconds: 0.7
+  projectileCollisionRadius: 0.3
+  projectileLifetime: 5
+  projectileSpawnHeight: 1.5
+  projectileContamination: 12
+  projectileCollisionLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
   recoverySeconds: 2
   recoveryStabilizationMultiplier: 1.5
   stageTwoAt: 40

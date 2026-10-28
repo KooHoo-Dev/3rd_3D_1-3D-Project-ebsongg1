@@ -1,5 +1,6 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 namespace WardShift
@@ -13,6 +14,13 @@ namespace WardShift
         [SerializeField] private DayFlowManager dayFlow;
         [SerializeField] private MagicCaster caster;
         [SerializeField] private Sprite gaugeSprite;
+        [Header("중앙 조준점")]
+        [Tooltip("Crosshair Image의 가로·세로 크기만 변경합니다. 기존 6px의 1.4배는 8.4px입니다.")]
+        [SerializeField, Min(1f)] private float crosshairSize = 8.4f;
+        [SerializeField] private Color crosshairOutlineColor = new Color(0.08f, 0.04f, 0.16f, 0.8f);
+        [Header("오염도 증가 피드백")]
+        [Tooltip("오염도가 실제로 증가할 때 재생합니다. 비워 두어도 화면 효과는 동작합니다.")]
+        [FormerlySerializedAs("deviceHitSfx"), SerializeField] private AudioClip contaminationIncreaseSfx;
         [SerializeField] private RectTransform hudRoot;
         [SerializeField] private TMP_Text dayStatusText;
         [SerializeField] private TMP_Text floodText;
@@ -59,6 +67,8 @@ namespace WardShift
                     if (image.type == Image.Type.Filled && image.sprite != null) { gaugeSprite = image.sprite; break; }
             if (hudRoot != null)
             {
+                ConfigureCrosshair();
+                ConfigureHitFeedback();
                 foreach (Image image in hudRoot.GetComponentsInChildren<Image>(true))
                     if (image.type == Image.Type.Filled && image.sprite == null) image.sprite = gaugeSprite;
                 ApplyReadableMetrics();
@@ -90,6 +100,7 @@ namespace WardShift
             hudRoot.offsetMin = hudRoot.offsetMax = Vector2.zero;
             Transform crosshair = FindDescendant(transform, "Crosshair");
             if (crosshair != null) crosshair.SetParent(hudRoot, false);
+            ConfigureCrosshair();
 
             BuildStatus(wardHUD);
             BuildCast(magicHUD);
@@ -103,6 +114,31 @@ namespace WardShift
             Place(pickupText.rectTransform, new Vector2(0.5f, 0), new Vector2(0.5f, 0),
                 new Vector2(0, 208), new Vector2(600, 42));
             ApplyReadableMetrics();
+            ConfigureHitFeedback();
+        }
+
+        private void ConfigureHitFeedback()
+        {
+            ContaminationHitFeedback feedback = GetComponent<ContaminationHitFeedback>();
+            if (feedback == null) feedback = gameObject.AddComponent<ContaminationHitFeedback>();
+            feedback.Configure(this, contaminationIncreaseSfx);
+        }
+
+        private void ConfigureCrosshair()
+        {
+            Transform crosshair = FindDescendant(transform, "Crosshair");
+            if (crosshair == null || !(crosshair is RectTransform rect)) return;
+            rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = Vector2.zero;
+            rect.sizeDelta = Vector2.one * Mathf.Max(1f, crosshairSize);
+            Image image = crosshair.GetComponent<Image>();
+            if (image == null) return;
+            image.raycastTarget = false;
+            Outline outline = crosshair.GetComponent<Outline>();
+            if (outline == null) outline = crosshair.gameObject.AddComponent<Outline>();
+            outline.effectColor = crosshairOutlineColor;
+            outline.effectDistance = new Vector2(1f, -1f);
+            outline.useGraphicAlpha = true;
         }
 
         private void ApplyReadableMetrics()

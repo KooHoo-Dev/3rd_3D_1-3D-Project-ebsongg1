@@ -32,6 +32,7 @@ namespace WardShift
         [SerializeField] private Color normalColor = new Color(0.15f, 0.78f, 1f, 1f);
         [SerializeField] private Color overloadColor = new Color(1f, 0.2f, 0.5f, 1f);
         [SerializeField] private Color warningColor = new Color(1f, 0.08f, 0.025f, 1f);
+        [SerializeField] private Color projectileWarningColor = new Color(0.85f, 0.25f, 1f, 1f);
         [SerializeField] private Color recoveryColor = new Color(0.16f, 1f, 0.65f, 1f);
         [SerializeField] private Color diagnosisColor = new Color(0.15f, 0.85f, 1f, 0.7f);
         [SerializeField, Min(0f)] private float normalEmission = 1.7f;
@@ -45,6 +46,7 @@ namespace WardShift
         private bool overloaded;
         private bool ruptured;
         private bool warningActive;
+        private bool projectileWarning;
         private bool diagnosisActive;
         private bool recoveryActive;
         private bool impactWasActive;
@@ -103,6 +105,7 @@ namespace WardShift
             if (!CanBeginOverload) return false;
             warningRadius = Mathf.Max(0.1f, radius);
             warningActive = false;
+            projectileWarning = false;
             warningFraction = 0f;
             diagnosisActive = false;
             recoveryActive = false;
@@ -135,12 +138,27 @@ namespace WardShift
         }
 
         public void SetBurstWarning(bool active, float radius, float remainingFraction)
+            => SetAttackWarning(active, radius, remainingFraction, false);
+
+        public void SetAttackWarning(bool active, float radius, float remainingFraction, bool projectile)
         {
             warningActive = overloaded && active;
+            projectileWarning = warningActive && projectile;
             warningRadius = Mathf.Max(0.1f, radius);
             warningFraction = Mathf.Clamp01(remainingFraction);
-            SetWarningRing(warningActive);
+            SetWarningRing(warningActive && !projectileWarning);
             SetDiagnosisRing(diagnosisActive && !warningActive);
+            ApplyAppearance();
+            RefreshVFX();
+        }
+
+        public void ShowProjectileLaunch()
+        {
+            impactUntil = Time.time + 0.25f;
+            impactWasActive = true;
+            warningActive = false;
+            projectileWarning = false;
+            SetWarningRing(false);
             ApplyAppearance();
             RefreshVFX();
         }
@@ -150,6 +168,7 @@ namespace WardShift
             impactUntil = Time.time + 0.3f;
             impactWasActive = true;
             warningActive = false;
+            projectileWarning = false;
             SetWarningRing(false);
             ApplyAppearance();
             StopInstance(ref burstInstance);
@@ -172,6 +191,7 @@ namespace WardShift
             ActiveAnomaly = null;
             ruptured = false;
             warningActive = false;
+            projectileWarning = false;
             diagnosisActive = false;
             recoveryActive = false;
             warningFraction = 0f;
@@ -191,6 +211,7 @@ namespace WardShift
             ActiveAnomaly = null;
             ruptured = true;
             warningActive = false;
+            projectileWarning = false;
             diagnosisActive = false;
             recoveryActive = false;
             impactUntil = 0f;
@@ -209,6 +230,7 @@ namespace WardShift
             ActiveAnomaly = null;
             ruptured = false;
             warningActive = false;
+            projectileWarning = false;
             diagnosisActive = false;
             recoveryActive = false;
             warningFraction = 0f;
@@ -324,10 +346,11 @@ namespace WardShift
         private void ApplyAppearance()
         {
             bool warning = warningActive;
+            Color attackWarningColor = projectileWarning ? projectileWarningColor : warningColor;
             bool impact = Time.time < impactUntil;
             bool normal = !overloaded && !ruptured && !warning && !impact && !recoveryActive;
             Color color = ruptured ? warningColor * 0.65f
-                : warning || impact ? warningColor
+                : warning || impact ? attackWarningColor
                 : recoveryActive ? recoveryColor
                 : overloaded ? overloadColor : normalColor;
             float emission = ruptured ? warningEmission * 0.55f
@@ -348,7 +371,7 @@ namespace WardShift
                     if (normal) renderer.SetPropertyBlock(null);
                     else ApplyRendererColor(renderer, color, emission);
                 }
-            ApplyRendererColor(warningBeaconRenderer, warning ? warningColor : overloadColor,
+            ApplyRendererColor(warningBeaconRenderer, warning ? attackWarningColor : overloadColor,
                 warning ? warningEmission : overloadEmission);
             if (warningBeaconRenderer != null)
                 warningBeaconRenderer.enabled = warning || impact || ruptured;
@@ -362,7 +385,7 @@ namespace WardShift
             }
             if (warningLight != null)
             {
-                warningLight.color = warningColor;
+                warningLight.color = attackWarningColor;
                 warningLight.enabled = warning || impact || ruptured;
                 warningLight.intensity = warning
                     ? 1f + (1f - warningFraction) * 2.5f : impact ? 3f : ruptured ? 0.8f : 0f;

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -16,6 +17,10 @@ namespace WardShift
         public float ExposurePerSecond { get; private set; }
         public float SafeZoneRecoveryPerSecond => Mathf.Max(0f, recoveryPerSecond)
             * safeZoneRecoveryMultiplier;
+        /// <summary>실제로 증가한 직접 피격 오염량. UI/SFX는 이 이벤트만 구독합니다.</summary>
+        public event Action<float> DirectDamageApplied;
+        /// <summary>위험 영역에 머무르는 동안 실제로 증가한 오염량.</summary>
+        public event Action<float> ExposureContaminationApplied;
 
         /// <summary>강화 효과를 절대 배수로 설정합니다. 호출할 때마다 중첩되지 않습니다.</summary>
         public void SetContaminationGainMultiplier(float multiplier)
@@ -38,10 +43,14 @@ namespace WardShift
         }
 
         /// <summary>장치 방출 등 한 번의 직접 피격으로 오염도를 올립니다.</summary>
-        public void AddContamination(float amount)
+        public float AddContamination(float amount)
         {
-            if (amount <= 0f) return;
+            if (amount <= 0f) return 0f;
+            float previous = contamination;
             contamination = Mathf.Clamp(contamination + amount * contaminationGainMultiplier, 0f, 100f);
+            float applied = contamination - previous;
+            if (applied > 0f) DirectDamageApplied?.Invoke(applied);
+            return applied;
         }
 
         /// <summary>새 게임 초기화에만 사용.</summary>
@@ -75,7 +84,10 @@ namespace WardShift
                     if (anomaly != null) ExposurePerSecond += anomaly.ContaminationRateAt(transform.position);
             if (!InSafeZone) ExposurePerSecond *= contaminationGainMultiplier;
             float rate = InSafeZone ? -SafeZoneRecoveryPerSecond : ExposurePerSecond;
+            float previous = contamination;
             contamination = Mathf.Clamp(contamination + rate * Mathf.Max(0f, deltaTime), 0f, 100f);
+            float applied = contamination - previous;
+            if (applied > 0f) ExposureContaminationApplied?.Invoke(applied);
         }
     }
 }

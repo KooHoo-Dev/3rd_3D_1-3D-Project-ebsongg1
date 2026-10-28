@@ -257,6 +257,7 @@ MonoBehaviour:
   normalColor: {r: 0.15, g: 0.78, b: 1, a: 1}
   overloadColor: {r: 1, g: 0.2, b: 0.5, a: 1}
   warningColor: {r: 1, g: 0.08, b: 0.025, a: 1}
+  projectileWarningColor: {r: 0.85, g: 0.25, b: 1, a: 1}
   recoveryColor: {r: 0.16, g: 1, b: 0.65, a: 1}
   diagnosisColor: {r: 0.15, g: 0.85, b: 1, a: 0.7}
   normalEmission: 1.7
@@ -660,7 +661,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WardShift.MagicTarget
   displayName: "\uB9C8\uB825 \uC7A5\uCE58 \uC218\uC815"
   requiredMagic: 2
-  castDuration: 16
+  castDuration: 12
   useTimingCast: 0
   preserveProgressOnCancel: 1
   allowHeldPurifyChain: 0
