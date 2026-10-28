@@ -8,6 +8,7 @@ namespace WardShift
     public sealed class DayAnomalyRewardController : MonoBehaviour
     {
         private readonly HashSet<int> rewardedAnomalyIds = new HashSet<int>();
+        private readonly Dictionary<int, int> cleanupRewardCaps = new Dictionary<int, int>();
         private readonly List<AnomalyBehaviour> subscribedAnomalies = new List<AnomalyBehaviour>();
         private DayFlowManager manager;
         private PlayerInventory inventory;
@@ -21,7 +22,17 @@ namespace WardShift
         public void ResetForDay()
         {
             rewardedAnomalyIds.Clear();
+            cleanupRewardCaps.Clear();
             UnsubscribeAll();
+        }
+
+        public void FreezeRewardsForCleanup(IReadOnlyList<AnomalyBehaviour> anomalies)
+        {
+            cleanupRewardCaps.Clear();
+            if (anomalies == null) return;
+            foreach (AnomalyBehaviour anomaly in anomalies)
+                if (anomaly != null && !anomaly.IsEnded)
+                    cleanupRewardCaps[anomaly.GetInstanceID()] = anomaly.ResolutionReward;
         }
 
         public void Register(AnomalyBehaviour anomaly)
@@ -38,6 +49,8 @@ namespace WardShift
             int id = anomaly.GetInstanceID();
             if (!rewardedAnomalyIds.Add(id)) return;
             int reward = anomaly.ResolutionReward;
+            if (reward >= 0 && cleanupRewardCaps.TryGetValue(id, out int cap) && cap >= 0)
+                reward = Mathf.Min(reward, cap);
             if (reward < 0)
             {
                 int min = Mathf.Max(0, manager.MinimumAnomalyReward);
@@ -63,6 +76,7 @@ namespace WardShift
         private void OnAnomalyEnded(AnomalyBehaviour anomaly, AnomalyEndReason reason)
         {
             if (anomaly == null) return;
+            cleanupRewardCaps.Remove(anomaly.GetInstanceID());
             anomaly.ResolutionCompleted -= RewardResolution;
             anomaly.Ended -= OnAnomalyEnded;
             subscribedAnomalies.Remove(anomaly);

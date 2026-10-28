@@ -9,6 +9,9 @@ namespace WardShift
         public int CurrentDay => currentDay;
         public DayState State => state;
         public float RemainingSeconds => remainingSeconds;
+        public bool IsCleaningUp => Session.IsCleaningUp;
+        public int CleanupAnomalyCount => IsCleaningUp && anomalySpawner != null
+            ? anomalySpawner.ActiveAnomalyCount : 0;
         public float DayDurationSeconds => dayDurationSeconds;
         public float SpawnStopBeforeEndSeconds => spawnStopBeforeEndSeconds;
         public int FinalDay => Mathf.Max(1, finalDay);

@@ -144,7 +144,8 @@ namespace WardShift
             for (int i = beams.Count - 1; i >= 0; i--)
             {
                 Beam beam = beams[i];
-                beam.Age += Time.deltaTime;
+                // 마지막 진압 직후 DAY CLEAR가 게임 시간을 멈춰도 봉인 빔과 반복 사운드를 종료한다.
+                beam.Age += Time.unscaledDeltaTime;
                 if (beam.Root == null || beam.Age >= beam.Lifetime)
                 {
                     if (beam.Root != null) Destroy(beam.Root);

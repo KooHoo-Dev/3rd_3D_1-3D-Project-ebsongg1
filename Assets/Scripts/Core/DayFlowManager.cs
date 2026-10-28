@@ -161,7 +161,16 @@ namespace WardShift
                     anomalySpawner.SetSpawningEnabled(false);
                     anomalySpawner.SetSpawnWindowOpen(false);
                 }
-                dayScene.ClearAllAnomalies();
+                int activeCount = anomalySpawner != null ? anomalySpawner.ActiveAnomalyCount : 0;
+                if (activeCount > 0)
+                {
+                    if (!session.IsCleaningUp)
+                    {
+                        anomalyRewards.FreezeRewardsForCleanup(anomalySpawner.ActiveAnomalies);
+                        session.BeginCleanup();
+                    }
+                    return;
+                }
                 if (HasSurvivedDay()) CompleteDay();
                 else if (wardStatus == null || !wardStatus.HasFailed)
                     OnDayFailed("근무 종료 시 생존 조건을 만족하지 못했습니다.");

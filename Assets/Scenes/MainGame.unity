@@ -18678,7 +18678,7 @@ MonoBehaviour:
     manaDeviceOverloadWeight: 1
     otherAnomaliesWeight: 1
     maximumConcurrentAnomalies: 1
-    spawnIntervalSeconds: 8
+    spawnIntervalSeconds: 17
   - day: 2
     allowManaRift: 1
     allowCurseContamination: 1
@@ -18690,7 +18690,7 @@ MonoBehaviour:
     manaDeviceOverloadWeight: 1
     otherAnomaliesWeight: 1
     maximumConcurrentAnomalies: 2
-    spawnIntervalSeconds: 7
+    spawnIntervalSeconds: 16
   - day: 3
     allowManaRift: 1
     allowCurseContamination: 1
@@ -18702,7 +18702,7 @@ MonoBehaviour:
     manaDeviceOverloadWeight: 1
     otherAnomaliesWeight: 1
     maximumConcurrentAnomalies: 2
-    spawnIntervalSeconds: 6
+    spawnIntervalSeconds: 15
   - day: 4
     allowManaRift: 1
     allowCurseContamination: 1
@@ -18714,7 +18714,7 @@ MonoBehaviour:
     manaDeviceOverloadWeight: 1
     otherAnomaliesWeight: 1
     maximumConcurrentAnomalies: 2
-    spawnIntervalSeconds: 5.5
+    spawnIntervalSeconds: 12
   - day: 5
     allowManaRift: 1
     allowCurseContamination: 1
@@ -18726,7 +18726,7 @@ MonoBehaviour:
     manaDeviceOverloadWeight: 1
     otherAnomaliesWeight: 1
     maximumConcurrentAnomalies: 2
-    spawnIntervalSeconds: 5
+    spawnIntervalSeconds: 11
   - day: 6
     allowManaRift: 1
     allowCurseContamination: 1
@@ -18738,7 +18738,7 @@ MonoBehaviour:
     manaDeviceOverloadWeight: 1
     otherAnomaliesWeight: 1
     maximumConcurrentAnomalies: 3
-    spawnIntervalSeconds: 4.5
+    spawnIntervalSeconds: 10
   - day: 7
     allowManaRift: 1
     allowCurseContamination: 1
@@ -18750,7 +18750,7 @@ MonoBehaviour:
     manaDeviceOverloadWeight: 1
     otherAnomaliesWeight: 1
     maximumConcurrentAnomalies: 3
-    spawnIntervalSeconds: 4
+    spawnIntervalSeconds: 9.5
 --- !u!114 &411442693
 MonoBehaviour:
   m_ObjectHideFlags: 0

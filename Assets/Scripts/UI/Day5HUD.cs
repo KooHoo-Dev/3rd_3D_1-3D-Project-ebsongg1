@@ -71,7 +71,9 @@ namespace WardShift
         private void Update()
         {
             if (dayFlow == null || inventory == null) return;
-            dayStatusText.text = $"<color=#E8C26E>DAY {dayFlow.CurrentDay}</color>   남은 {FormatTime(dayFlow.RemainingSeconds)}\n"
+            dayStatusText.text = (dayFlow.IsCleaningUp
+                    ? $"<color=#E8C26E>DAY {dayFlow.CurrentDay}</color>\n<size=20>잔여 이상현상 정리 중 ({dayFlow.CleanupAnomalyCount}개)</size>\n"
+                    : $"<color=#E8C26E>DAY {dayFlow.CurrentDay}</color>   남은 {FormatTime(dayFlow.RemainingSeconds)}\n")
                 + $"마력 결정  {inventory.ManaCrystals}개"
                 + (dayFlow.DaySupplyPending ? "\n<size=20>T  보급 선택 가능</size>" : "");
             ItemPickup pickup = dayFlow.PickupInteractor != null

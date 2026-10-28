@@ -8,6 +8,7 @@ namespace WardShift
         public int CurrentDay { get; private set; }
         public DayState State { get; private set; } = DayState.Preparing;
         public float RemainingSeconds { get; private set; }
+        public bool IsCleaningUp { get; private set; }
         public int DayRandomSeed { get; private set; }
         public FloodCondition ActiveFloodCondition { get; private set; }
         public FloodCondition NextDayFloodCondition { get; private set; }
@@ -34,6 +35,7 @@ namespace WardShift
         public void BeginDay(float durationSeconds)
         {
             RemainingSeconds = Math.Max(1f, durationSeconds);
+            IsCleaningUp = false;
             State = DayState.Playing;
         }
 
@@ -43,16 +45,32 @@ namespace WardShift
                 RemainingSeconds = Math.Max(0f, RemainingSeconds - deltaSeconds);
         }
 
+        public void BeginCleanup()
+        {
+            if (State == DayState.Playing && RemainingSeconds <= 0f)
+                IsCleaningUp = true;
+        }
+
         public void CompleteDay(int finalDay)
         {
             State = CurrentDay >= finalDay ? DayState.Ending : DayState.DayClear;
+            IsCleaningUp = false;
             PreviousDayFloodCondition = ActiveFloodCondition;
             ActiveFloodCondition = FloodCondition.None;
             RemainingSeconds = 0f;
         }
 
-        public void FailDay() => State = DayState.DayFailed;
-        public void PrepareRetry() => State = DayState.Preparing;
+        public void FailDay()
+        {
+            State = DayState.DayFailed;
+            IsCleaningUp = false;
+        }
+
+        public void PrepareRetry()
+        {
+            State = DayState.Preparing;
+            IsCleaningUp = false;
+        }
 
         public void PlanNextDay(int nextDay, int seed, FloodCondition condition)
         {
