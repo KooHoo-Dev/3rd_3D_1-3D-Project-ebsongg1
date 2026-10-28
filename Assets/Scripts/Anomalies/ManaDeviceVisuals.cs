@@ -17,6 +17,8 @@ namespace WardShift
 
         [Header("선택 VFX 프리팹")]
         [SerializeField] private GameObject overloadLoopVFX;
+        [Tooltip("Visual Root 기준 Overload Loop VFX의 로컬 위치. 플레이 중에도 조정할 수 있습니다.")]
+        [SerializeField] private Vector3 overloadLoopVFXLocalOffset;
         [SerializeField] private GameObject stabilizingVFX;
         [SerializeField] private GameObject warningVFX;
         [SerializeField] private GameObject burstVFX;
@@ -86,6 +88,9 @@ namespace WardShift
 
         private void Update()
         {
+            if (overloadInstance != null
+                && overloadInstance.transform.localPosition != overloadLoopVFXLocalOffset)
+                overloadInstance.transform.localPosition = overloadLoopVFXLocalOffset;
             bool impact = Time.time < impactUntil;
             if (!warningActive && !impact && !impactWasActive) return;
             impactWasActive = impact;
@@ -263,6 +268,8 @@ namespace WardShift
         {
             if (!isActiveAndEnabled) { StopAllVFX(); return; }
             SyncLoop(ref overloadInstance, overloadLoopVFX, overloaded);
+            if (overloadInstance != null)
+                overloadInstance.transform.localPosition = overloadLoopVFXLocalOffset;
             SyncLoop(ref stabilizingInstance, stabilizingVFX, overloaded
                 && stabilizationTarget != null && stabilizationTarget.IsCasting);
             SyncLoop(ref warningInstance, warningVFX, overloaded && warningActive);
@@ -318,6 +325,7 @@ namespace WardShift
         {
             bool warning = warningActive;
             bool impact = Time.time < impactUntil;
+            bool normal = !overloaded && !ruptured && !warning && !impact && !recoveryActive;
             Color color = ruptured ? warningColor * 0.65f
                 : warning || impact ? warningColor
                 : recoveryActive ? recoveryColor
@@ -334,7 +342,12 @@ namespace WardShift
 
             if (stateRenderers != null)
                 foreach (Renderer renderer in stateRenderers)
-                    ApplyRendererColor(renderer, color, emission);
+                {
+                    if (renderer == null) continue;
+                    // Restore the material's own texture, tint, and emission while idle.
+                    if (normal) renderer.SetPropertyBlock(null);
+                    else ApplyRendererColor(renderer, color, emission);
+                }
             ApplyRendererColor(warningBeaconRenderer, warning ? warningColor : overloadColor,
                 warning ? warningEmission : overloadEmission);
             if (warningBeaconRenderer != null)
@@ -345,7 +358,7 @@ namespace WardShift
                 crystalLight.color = color;
                 crystalLight.intensity = warning || impact ? 1.5f + emission * 0.3f
                     : ruptured ? 0.5f : overloaded ? 1.1f : 0.65f;
-                crystalLight.enabled = true;
+                crystalLight.enabled = !normal;
             }
             if (warningLight != null)
             {
