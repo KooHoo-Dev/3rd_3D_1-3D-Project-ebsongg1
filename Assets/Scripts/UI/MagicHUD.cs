@@ -56,6 +56,16 @@ namespace WardShift
             if (aimText != null)
             {
                 MagicTarget aimed = caster.AimedTarget;
+                bool sealReady = !blocked && caster.SelectedMagic == MagicType.Seal
+                    && aimed != null && aimed.RequiredMagic == MagicType.Seal
+                    && aimed.IsDetected && aimed.GetComponentInParent<ManaRift>() != null;
+                bool sealOutOfRange = !blocked && caster.SelectedMagic == MagicType.Seal
+                    && aimed == null && caster.DistantDetectedSealTarget != null;
+                bool sealRangeClick = !blocked && caster.SelectedMagic == MagicType.Seal
+                    && aimed == null && caster.RecentOutOfRangeClick;
+                bool wrongSealMagic = !blocked && aimed != null && aimed.IsDetected
+                    && aimed.RequiredMagic == MagicType.Seal
+                    && caster.SelectedMagic != MagicType.Seal;
                 ManaDeviceAnomaly diagnosed = !blocked && detector != null && detector.IsSensing
                     ? detector.DiagnosedDevice : null;
                 MagicTarget focused = casting ? target : aimed;
@@ -67,7 +77,8 @@ namespace WardShift
                     : recovery != null && recovery.RecoveryRemaining > 0f
                     ? new Color(0.3f, 1f, 0.7f)
                     : showingResult && caster.LastResult != MagicCastResult.Success
-                    ? failureColor : chainingSeal ? successColor : Color.white;
+                    ? failureColor : sealOutOfRange || sealRangeClick ? new Color(1f, 0.78f, 0.4f)
+                    : sealReady || chainingSeal ? successColor : Color.white;
                 aimText.rectTransform.sizeDelta = diagnosed != null
                     ? new Vector2(700f, 68f) : new Vector2(600f, 38f);
                 aimText.text = diagnosed != null
@@ -81,6 +92,9 @@ namespace WardShift
                     ? $"빠른 안정화 ×{recovery.StabilizationSpeedMultiplier:F1} · {recovery.RecoveryRemaining:F1}초"
                     : blocked || casting ? ""
                     : showingResult ? $"{caster.CompletedTargetName} · {ResultName(caster.LastResult)}"
+                    : sealOutOfRange || sealRangeClick
+                    ? "<size=18>봉인 사거리 밖 — 더 가까이 접근하세요.</size>"
+                    : wrongSealMagic ? "<size=18>봉인 마법을 선택하세요 [1]</size>"
                     : chainingSeal ? $"{chain.ExpectedSealPoint.DisplayName} · {chain.SealChainTimeRemaining:F1}초"
                     : aimed == null ? ""
                     : $"{aimed.DisplayName} · {MagicName(aimed.RequiredMagic)}";

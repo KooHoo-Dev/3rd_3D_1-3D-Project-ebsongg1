@@ -19,7 +19,7 @@ namespace WardShift
         [SerializeField, Min(1f)] private float crosshairSize = 8.4f;
         [SerializeField] private Color crosshairOutlineColor = new Color(0.08f, 0.04f, 0.16f, 0.8f);
         [Header("오염도 증가 피드백")]
-        [Tooltip("오염도가 실제로 증가할 때 재생합니다. 비워 두어도 화면 효과는 동작합니다.")]
+        [Tooltip("장치 공격처럼 실제 직접 피격으로 오염도가 증가했을 때만 재생합니다. 지속 노출에는 재생하지 않습니다.")]
         [FormerlySerializedAs("deviceHitSfx"), SerializeField] private AudioClip contaminationIncreaseSfx;
         [SerializeField] private RectTransform hudRoot;
         [SerializeField] private TMP_Text dayStatusText;

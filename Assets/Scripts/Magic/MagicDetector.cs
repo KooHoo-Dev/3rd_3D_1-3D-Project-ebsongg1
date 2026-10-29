@@ -30,6 +30,7 @@ namespace WardShift
         [SerializeField] private int detectedCount;
         public bool IsSensing => isSensing;
         public int DetectedCount => detectedCount;
+        public float DetectionRadius => detectionRadius;
 
         private HashSet<MagicTarget> detected = new HashSet<MagicTarget>();
         private HashSet<MagicTarget> nextDetected = new HashSet<MagicTarget>();

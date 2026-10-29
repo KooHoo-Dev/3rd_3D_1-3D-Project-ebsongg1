@@ -29,10 +29,15 @@ namespace WardShift
         private bool inputEnabled;
         private float resultUntil;
         private ManaRift activeSealRift;
+        private MagicDetector detector;
+        private MagicTarget distantSealTarget;
+        private float outOfRangeClickUntil;
         public MagicType SelectedMagic => selectedMagic;
         public MagicTarget CastingTarget => castingTarget;
         public ManaRift ActiveSealRift => activeSealRift != null && activeSealRift.IsSealChainInProgress
             ? activeSealRift : null;
+        public MagicTarget DistantDetectedSealTarget => distantSealTarget;
+        public bool RecentOutOfRangeClick => Time.unscaledTime < outOfRangeClickUntil;
         /// <summary>저주 오염 패치는 선택한 정화 마법의 짧은 사거리 안에서만 조준 대상으로 반환합니다.</summary>
         public MagicTarget AimedTarget
         {
@@ -82,6 +87,7 @@ namespace WardShift
         private void Awake()
         {
             if (interactor == null) interactor = GetComponent<PlayerInteractor>();
+            detector = GetComponent<MagicDetector>();
         }
 
         private void OnEnable()
@@ -118,6 +124,8 @@ namespace WardShift
             ResultProgress = 0f;
             CompletedTargetName = null;
             resultUntil = 0f;
+            outOfRangeClickUntil = 0f;
+            distantSealTarget = null;
             waitingForRelease = castAction.IsPressed();
         }
 
@@ -135,7 +143,19 @@ namespace WardShift
 
         private void LateUpdate()
         {
+            ManaRift chainForRange = ActiveSealRift;
+            distantSealTarget = selectedMagic == MagicType.Seal && detector != null
+                && (detector.IsSensing || chainForRange != null) && interactor != null
+                ? interactor.GetDetectedSealBeyondRange(detector.DetectionRadius,
+                    chainForRange != null ? chainForRange.ExpectedSealPoint : null) : null;
             UpdateCastingInput();
+            if (interactor != null)
+            {
+                MagicTarget aimed = selectedMagic == MagicType.Seal && !InputBlocked ? AimedTarget : null;
+                ManaRift rift = aimed != null ? aimed.GetComponentInParent<ManaRift>() : null;
+                interactor.SetSealReady(rift != null && aimed.RequiredMagic == MagicType.Seal
+                    && aimed == rift.ExpectedSealPoint);
+            }
             UpdatePurifyBeamVfx();
         }
 
@@ -221,6 +241,8 @@ namespace WardShift
 
         private void HandleSealClick(MagicTarget aimed)
         {
+            if (aimed == null && distantSealTarget != null)
+                outOfRangeClickUntil = Time.unscaledTime + 0.8f;
             if (activeSealRift != null && activeSealRift.IsSealChainInProgress)
             {
                 ManaRift chain = activeSealRift;
@@ -415,6 +437,9 @@ namespace WardShift
             continuousPurifySession = false;
             StopPurifyBeamVfx();
             waitingForRelease = true;
+            distantSealTarget = null;
+            outOfRangeClickUntil = 0f;
+            if (interactor != null) interactor.SetSealReady(false);
             // canceled 콜백으로 판정하지 않으므로 액션 비활성화가 성공을 발생시키지 않음.
             castAction.Disable(); sealAction.Disable(); purifyAction.Disable(); stabilizeAction.Disable();
         }

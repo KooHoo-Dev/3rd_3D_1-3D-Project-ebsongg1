@@ -59,6 +59,20 @@ namespace StarterAssets
 		private float _rotationVelocity;
 		private float _verticalVelocity;
 		private float _terminalVelocity = 53.0f;
+		private Vector3 _externalDisplacement;
+		private bool _hadExternalDisplacementLastFrame;
+
+		/// <summary>WARD SHIFT 피격 이동을 기존 CharacterController.Move에 합칩니다.</summary>
+		public void QueueExternalDisplacement(Vector3 displacement)
+		{
+			_externalDisplacement += displacement;
+		}
+
+		public void ClearExternalDisplacement()
+		{
+			_externalDisplacement = Vector3.zero;
+			_hadExternalDisplacementLastFrame = false;
+		}
 
 		// timeout deltatime
 		private float _jumpTimeoutDelta;
@@ -117,6 +131,11 @@ namespace StarterAssets
 			Move();
 		}
 
+		private void OnDisable()
+		{
+			ClearExternalDisplacement();
+		}
+
 		private void LateUpdate()
 		{
 			CameraRotation();
@@ -163,7 +182,8 @@ namespace StarterAssets
 			if (_input.move == Vector2.zero) targetSpeed = 0.0f;
 
 			// a reference to the players current horizontal velocity
-			float currentHorizontalSpeed = new Vector3(_controller.velocity.x, 0.0f, _controller.velocity.z).magnitude;
+			float currentHorizontalSpeed = _hadExternalDisplacementLastFrame ? _speed
+				: new Vector3(_controller.velocity.x, 0.0f, _controller.velocity.z).magnitude;
 
 			float speedOffset = 0.1f;
 			float inputMagnitude = _input.analogMovement ? _input.move.magnitude : 1f;
@@ -195,7 +215,11 @@ namespace StarterAssets
 			}
 
 			// move the player
-			_controller.Move(inputDirection.normalized * (_speed * Time.deltaTime) + new Vector3(0.0f, _verticalVelocity, 0.0f) * Time.deltaTime);
+			_controller.Move(inputDirection.normalized * (_speed * Time.deltaTime)
+				+ new Vector3(0.0f, _verticalVelocity, 0.0f) * Time.deltaTime
+				+ _externalDisplacement);
+			_hadExternalDisplacementLastFrame = _externalDisplacement.sqrMagnitude > 0f;
+			_externalDisplacement = Vector3.zero;
 		}
 
 		private void JumpAndGravity()

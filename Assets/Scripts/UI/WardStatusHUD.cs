@@ -45,6 +45,12 @@ namespace WardShift
         private long nextSpawnOrder;
         private float directHitUntil;
         private float directHitAmount;
+        private float previousStability = float.NaN;
+        private float previousContamination = float.NaN;
+        private float stabilityEmphasisUntil;
+        private float contaminationEmphasisUntil;
+        private bool emphasizedFirstStabilityLoss;
+        private bool emphasizedFirstContaminationGain;
         public FacilityZoneTracker ZoneTracker => zoneTracker;
 
         public void ShowContaminationIncrease(float amount)
@@ -83,6 +89,20 @@ namespace WardShift
             EnsureAlertHierarchy();
 
             PlayerContamination player = status.Player;
+            if (!emphasizedFirstStabilityLoss && !float.IsNaN(previousStability)
+                && status.Stability < previousStability - 0.001f)
+            {
+                emphasizedFirstStabilityLoss = true;
+                stabilityEmphasisUntil = Time.unscaledTime + 1f;
+            }
+            if (!emphasizedFirstContaminationGain && !float.IsNaN(previousContamination)
+                && player.Value > previousContamination + 0.001f)
+            {
+                emphasizedFirstContaminationGain = true;
+                contaminationEmphasisUntil = Time.unscaledTime + 1f;
+            }
+            previousStability = status.Stability;
+            previousContamination = player.Value;
             bool gameplayActive = dayFlow == null || dayFlow.State == DayState.Playing;
             if (!gameplayActive) directHitUntil = 0f;
             priorities.Clear();
@@ -118,6 +138,8 @@ namespace WardShift
             RefreshAnomalyCards(gameplayActive);
 
             if (stabilityText != null) stabilityText.text = string.Format("시설 안정도  {0:F0} / 100", status.Stability);
+            if (stabilityText != null) stabilityText.color = Time.unscaledTime < stabilityEmphasisUntil
+                ? new Color(1f, 0.76f, 0.36f) : Color.white;
             bool directHitVisible = Time.unscaledTime < directHitUntil;
             if (contaminationText != null)
             {
@@ -125,7 +147,8 @@ namespace WardShift
                     + (directHitVisible ? directHitAmount < 1f
                         ? string.Format("  +{0:F1}", directHitAmount)
                         : string.Format("  +{0:F0}", directHitAmount) : "");
-                contaminationText.color = directHitVisible ? new Color(1f, 0.55f, 0.8f)
+                contaminationText.color = directHitVisible || Time.unscaledTime < contaminationEmphasisUntil
+                    ? new Color(1f, 0.55f, 0.8f)
                     : Color.white;
             }
             if (locationText != null)
@@ -136,9 +159,12 @@ namespace WardShift
             }
             if (stabilityFill != null) stabilityFill.fillAmount = status.Stability / 100f;
             if (contaminationFill != null) contaminationFill.fillAmount = player.Value / 100f;
-            if (stabilityFill != null) stabilityFill.color = status.Stability <= 20f ? new Color(1, 0.3f, 0.25f)
+            if (stabilityFill != null) stabilityFill.color = Time.unscaledTime < stabilityEmphasisUntil
+                ? new Color(1f, 0.76f, 0.36f)
+                : status.Stability <= 20f ? new Color(1, 0.3f, 0.25f)
                 : status.Stability <= 50f ? new Color(1, 0.7f, 0.25f) : WardShiftHUDLayout.StabilityColor;
             if (contaminationFill != null) contaminationFill.color = directHitVisible
+                || Time.unscaledTime < contaminationEmphasisUntil
                 ? new Color(1f, 0.45f, 0.8f)
                 : player.Value >= 80f ? new Color(1, 0.3f, 0.25f)
                 : WardShiftHUDLayout.ContaminationColor;

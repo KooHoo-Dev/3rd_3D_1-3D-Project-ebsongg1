@@ -21,6 +21,10 @@ namespace WardShift
         {
             [TextArea(2, 3)] public string introduction = "당신은 제17 마력 제어소의 현장 조율사입니다. 앞으로 7일 동안 발생하는 이상현상을 진압하세요.";
             [TextArea(2, 3)] public string controls = "WASD로 이동하고 마우스로 시점을 돌리세요. Shift로 달릴 수 있으며, 시설 안정도 0 또는 오염도 100이면 근무에 실패합니다.";
+            [InspectorName("시설 안정도 안내"), TextArea(4, 6)] public string stabilityOverview =
+                "시설 안정도\n이상현상이 2단계 이상으로 성장하면 시설 안정도가 지속적으로 감소합니다. 현상이 파열되면 큰 피해를 입습니다.\n\n시설 안정도가 0이 되면 임무 실패! 수리 키트로 회복할 수 있습니다.";
+            [InspectorName("마력 오염도 안내"), TextArea(4, 6)] public string contaminationOverview =
+                "마력 오염도\n2단계 이상 마력 균열 근처나 저주 오염 구역에 머무르면 오염도가 증가합니다. 마력 장치의 폭주 공격에 맞아도 오염됩니다.\n\n오염도가 최대치에 도달하면 임무 실패! 정화약으로 회복할 수 있습니다.";
             [TextArea(2, 3)] public string sense = "마력 균열이 발생했습니다. 주변의 봉인점을 찾아 Q를 눌러보세요.";
             [TextArea(2, 3)] public string selectSeal = "봉인점이 보이면 1번을 눌러 봉인 마법을 선택하세요.";
             [TextArea(2, 3)] public string firstSeal = "첫 번째 봉인점을 조준해 좌클릭하세요.";
@@ -43,6 +47,7 @@ namespace WardShift
         }
 
         [Header("첫 플레이 안내 문구 (Inspector에서 수정)")]
+        [Tooltip("문구 일부의 서식 예: <size=30><color=#62E9F4>시설 안정도</color></size>. 다른 글자는 그대로 유지됩니다.")]
         [SerializeField] private TutorialCopy tutorialCopy = new TutorialCopy();
         [Header("튜토리얼 UI 위치")]
         [InspectorName("전투 안내창 아래로 이동 (px)")]
@@ -82,6 +87,10 @@ namespace WardShift
             if (tutorialCopy == null) tutorialCopy = new TutorialCopy();
             TutorialCopy defaults = new TutorialCopy();
             if (tutorialCopy.growthOverview == null) tutorialCopy.growthOverview = defaults.growthOverview;
+            if (string.IsNullOrEmpty(tutorialCopy.stabilityOverview))
+                tutorialCopy.stabilityOverview = defaults.stabilityOverview;
+            if (string.IsNullOrEmpty(tutorialCopy.contaminationOverview))
+                tutorialCopy.contaminationOverview = defaults.contaminationOverview;
             if (tutorialCopy.stageTwo == null) tutorialCopy.stageTwo = defaults.stageTwo;
             if (tutorialCopy.stageThree == null) tutorialCopy.stageThree = defaults.stageThree;
             if (tutorialCopy.rupture == null) tutorialCopy.rupture = defaults.rupture;
@@ -111,6 +120,7 @@ namespace WardShift
             tutorialText = CreateText("Message", banner.transform, Vector2.zero, Vector2.one,
                 new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-40f, -12f),
                 22f, TextAlignmentOptions.Center, Color.white);
+            tutorialText.richText = true;
             tutorialPanel = banner;
             ApplyCombatHintPosition();
             banner.SetActive(false);
@@ -123,6 +133,7 @@ namespace WardShift
                 new Vector2(0f, 0.3f), new Vector2(1f, 1f), new Vector2(0.5f, 0.5f),
                 new Vector2(0f, -12f), new Vector2(-70f, -20f), 27f,
                 TextAlignmentOptions.Center, Color.white);
+            introText.richText = true;
             Button next = CreateActionButton("Continue", introPanel.transform,
                 new Vector2(0f, 32f), new Vector2(250f, 56f), "다음",
                 AdvanceIntroduction, true, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f));
@@ -323,11 +334,17 @@ namespace WardShift
 
         private void BeginIntroduction()
         {
-            introPage = 0;
-            introText.text = tutorialCopy.introduction;
-            introButtonText.text = "다음";
+            SetIntroPage(0, tutorialCopy.introduction, "다음");
             introPanel.SetActive(true);
             dayFlow.Status.PauseGameForUI();
+        }
+
+        private void SetIntroPage(int page, string message, string buttonLabel)
+        {
+            introPage = page;
+            introText.fontSize = page == 2 || page == 3 ? 22f : 27f;
+            introText.text = message;
+            introButtonText.text = buttonLabel;
         }
 
         private void ApplyCombatHintPosition()
@@ -341,16 +358,22 @@ namespace WardShift
         {
             if (introPage == 0)
             {
-                introPage = 1;
-                introText.text = tutorialCopy.controls;
-                introButtonText.text = "다음";
+                SetIntroPage(1, tutorialCopy.controls, "다음");
                 return;
             }
             if (introPage == 1)
             {
-                introPage = 2;
-                introText.text = tutorialCopy.growthOverview;
-                introButtonText.text = "근무 시작";
+                SetIntroPage(2, tutorialCopy.stabilityOverview, "다음");
+                return;
+            }
+            if (introPage == 2)
+            {
+                SetIntroPage(3, tutorialCopy.contaminationOverview, "다음");
+                return;
+            }
+            if (introPage == 3)
+            {
+                SetIntroPage(4, tutorialCopy.growthOverview, "근무 시작");
                 return;
             }
             introPage = -2;

@@ -44,6 +44,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c09c391de6a4bc54ea0c9117ef21fcb3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WardShift.ManaDeviceAnomaly
+  displayName: "\uB9C8\uB825 \uC7A5\uCE58 \uD3ED\uC8FC"
   firstBurstDelaySeconds: 4.5
   burstWarningSeconds: 1.5
   burstPeriodSeconds: 9.5
@@ -62,6 +63,10 @@ MonoBehaviour:
   projectileCollisionLayers:
     serializedVersion: 2
     m_Bits: 4294967295
+  hitKnockbackDistance: 2
+  hitKnockbackDuration: 0.5
+  hitShakeIntensity: 0.1
+  hitShakeDuration: 0.5
   recoverySeconds: 2
   recoveryStabilizationMultiplier: 1.5
   stageTwoAt: 40

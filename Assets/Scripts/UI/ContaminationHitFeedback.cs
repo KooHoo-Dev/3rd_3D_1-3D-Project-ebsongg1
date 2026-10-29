@@ -83,7 +83,7 @@ namespace WardShift
         }
 
         private void OnDamage(float amount)
-            => PlayFeedback(amount);
+            => PlayFeedback(amount, true);
 
         private void OnExposure(float amount)
         {
@@ -97,15 +97,16 @@ namespace WardShift
             pendingExposureAmount += amount;
             if (now < nextExposureFeedbackAt) return;
             nextExposureFeedbackAt = now + ExposureFeedbackInterval;
-            PlayFeedback(pendingExposureAmount);
+            PlayFeedback(pendingExposureAmount, false);
             pendingExposureAmount = 0f;
         }
 
-        private void PlayFeedback(float amount)
+        private void PlayFeedback(float amount, bool playSound)
         {
             flashUntil = Time.unscaledTime + FlashSeconds;
             if (statusHUD != null) statusHUD.ShowContaminationIncrease(amount);
-            if (hitSfx != null && audioSource != null) audioSource.PlayOneShot(hitSfx);
+            if (playSound && hitSfx != null && audioSource != null)
+                audioSource.PlayOneShot(hitSfx);
         }
 
         private void LateUpdate()

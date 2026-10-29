@@ -33,6 +33,15 @@ namespace WardShift
         [SerializeField, Min(0f)] private float projectileContamination = 12f;
         [SerializeField] private LayerMask projectileCollisionLayers = ~0;
 
+        [Header("실제 피격 연출")]
+        [Tooltip("피격 시 플레이어가 밀려나는 최대 거리(m). 벽에 막히면 실제 이동 거리는 줄어듭니다.")]
+        [SerializeField, Min(0f)] private float hitKnockbackDistance = 0.65f;
+        [Tooltip("넉백 이동에 걸리는 시간(초). 이동 입력은 계속 사용할 수 있습니다.")]
+        [SerializeField, Min(0.01f)] private float hitKnockbackDuration = 0.22f;
+        [Tooltip("카메라 추적 지점의 최대 흔들림 거리(m). 0이면 흔들리지 않습니다.")]
+        [SerializeField, Min(0f)] private float hitShakeIntensity = 0.055f;
+        [SerializeField, Min(0.01f)] private float hitShakeDuration = 0.22f;
+
         [Header("방출 회피 후 안정화")]
         [SerializeField, Min(0f)] private float recoverySeconds = 2f;
         [SerializeField, Min(1f)] private float recoveryStabilizationMultiplier = 1.5f;
@@ -278,11 +287,19 @@ namespace WardShift
                 projectileContamination, direction);
         }
 
-        public void ApplyDeviceHit(PlayerContamination player, float amount)
+        public void ApplyDeviceHit(PlayerContamination player, float amount, Vector3? impactOrigin = null)
         {
             if (player == null || player.InSafeZone || amount <= 0f) return;
             float applied = player.AddContamination(amount);
-            if (applied > 0f) Debug.Log($"장치 공격 피격: 오염도 +{applied:F0}", player);
+            if (applied <= 0f) return;
+            if (player.GetComponent<CharacterController>() != null)
+            {
+                DeviceHitReaction reaction = player.GetComponent<DeviceHitReaction>();
+                if (reaction == null) reaction = player.gameObject.AddComponent<DeviceHitReaction>();
+                reaction.Play(impactOrigin ?? transform.position, hitKnockbackDistance,
+                    hitKnockbackDuration, hitShakeIntensity, hitShakeDuration);
+            }
+            Debug.Log($"장치 공격 피격: 오염도 +{applied:F0}", player);
         }
 
         private void OnStabilizationCompleted(MagicTarget target)

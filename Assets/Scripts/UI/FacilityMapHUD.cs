@@ -15,6 +15,15 @@ namespace WardShift
         [SerializeField] private FacilityZoneTracker zoneTracker;
         [SerializeField] private ZoneIdentity[] zones = new ZoneIdentity[0];
         [SerializeField] private TMP_FontAsset koreanFont;
+        [Header("플레이어 지도 마커 보정 (정규화 좌표)")]
+        [Tooltip("방 앵커 기준 지도 좌표 전체를 이동합니다. 0.01은 지도 폭/높이의 1%입니다.")]
+        [SerializeField] private Vector2 playerMarkerOffset;
+        [Tooltip("지도 중심(0.5, 0.5)을 기준으로 마커 이동 폭을 조절합니다. 기본값은 (1, 1)입니다.")]
+        [SerializeField] private Vector2 playerMarkerScale = Vector2.one;
+        [Tooltip("지도 화살표 방향의 추가 회전각입니다. 기본값은 0도입니다.")]
+        [SerializeField] private float playerArrowAngleOffset;
+        [Tooltip("방 앵커 X/Z 경계에서 이 거리만큼 더 벗어나면 마커를 숨깁니다.")]
+        [SerializeField, Min(0f)] private float mapWorldOutsidePadding = 30f;
 
         private readonly Dictionary<FacilityZoneId, TMP_Text> roomLabels =
             new Dictionary<FacilityZoneId, TMP_Text>();
@@ -23,7 +32,9 @@ namespace WardShift
         private GameObject overlayRoot;
         private TMP_Text currentLocationText;
         private RectTransform mapArea;
+        private RectTransform playerMarker;
         private readonly List<Image> corridorImages = new List<Image>();
+        private readonly List<ZoneIdentity[]> corridorZones = new List<ZoneIdentity[]>();
         private readonly ActiveAnomalyZoneSnapshot activeAnomalies = new ActiveAnomalyZoneSnapshot();
 
         private static readonly Color PanelColor = new Color(0.045f, 0.07f, 0.11f, 0.98f);
@@ -108,6 +119,13 @@ namespace WardShift
 
             CreateCorridors();
             CreateRoomCards();
+            TMP_Text marker = CreateText("Player_Position_Arrow", mapArea,
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(48f, 48f),
+                39f, TextAlignmentOptions.Center, new Color(0.18f, 0.95f, 1f));
+            marker.text = "▲";
+            marker.fontStyle = FontStyles.Bold;
+            playerMarker = marker.rectTransform;
 
             CreateText("FacilityMap_Legend", panel.transform,
                 new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f),
@@ -143,6 +161,7 @@ namespace WardShift
                     Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg);
                 line.color = CorridorColor;
                 corridorImages.Add(line);
+                corridorZones.Add(new[] { from, to });
             }
         }
 
@@ -151,9 +170,8 @@ namespace WardShift
             foreach (ZoneIdentity zone in zones)
             {
                 if (zone == null) continue;
-                Vector2 point = MapPoint(zone.MapPosition);
                 Image room = CreateImage($"Room_{zone.Id}", mapArea,
-                    new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), point, RoomColor);
+                    zone.MapPosition, zone.MapPosition, Vector2.zero, RoomColor);
                 room.rectTransform.sizeDelta = new Vector2(245f, 145f);
                 TMP_Text label = CreateText("RoomContents", room.transform,
                     Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f),
@@ -173,6 +191,8 @@ namespace WardShift
                     ? $"현재 위치  ·  {current.DisplayName}" : "현재 위치 확인 중";
 
             activeAnomalies.Refresh(zones);
+            RefreshCorridors();
+            RefreshPlayerMarker();
 
             foreach (ZoneIdentity zone in zones)
             {
@@ -208,6 +228,76 @@ namespace WardShift
                     : highestStage == 2 ? new Color(1f, 0.76f, 0.38f)
                     : highestStage == 1 ? new Color(1f, 0.9f, 0.5f) : Color.white;
             }
+        }
+
+        private void RefreshCorridors()
+        {
+            for (int i = 0; i < corridorImages.Count; i++)
+            {
+                ZoneIdentity[] pair = corridorZones[i];
+                Vector2 a = MapPoint(pair[0].MapPosition);
+                Vector2 b = MapPoint(pair[1].MapPosition);
+                Vector2 delta = b - a;
+                RectTransform rect = corridorImages[i].rectTransform;
+                rect.anchoredPosition = (a + b) * 0.5f;
+                rect.sizeDelta = new Vector2(delta.magnitude, 9f);
+                rect.localRotation = Quaternion.Euler(0f, 0f,
+                    Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg);
+            }
+        }
+
+        private void RefreshPlayerMarker()
+        {
+            if (playerMarker == null || zoneTracker == null || zones == null) return;
+            Vector3 world = zoneTracker.transform.position;
+            Vector2 weighted = Vector2.zero;
+            float totalWeight = 0f;
+            Vector2 min = new Vector2(float.PositiveInfinity, float.PositiveInfinity);
+            Vector2 max = new Vector2(float.NegativeInfinity, float.NegativeInfinity);
+            // 기존 방 앵커의 실제 X/Z와 간이도 위치를 기준점으로 사용합니다.
+            // Y는 층 높이에 따라 달라지므로 평면 위치 계산에서 제외합니다.
+            foreach (ZoneIdentity zone in zones)
+            {
+                if (zone == null) continue;
+                Vector3 anchor = zone.transform.position;
+                min = Vector2.Min(min, new Vector2(anchor.x, anchor.z));
+                max = Vector2.Max(max, new Vector2(anchor.x, anchor.z));
+                float distanceSqr = (new Vector2(world.x - anchor.x, world.z - anchor.z)).sqrMagnitude;
+                if (distanceSqr < 0.0001f)
+                {
+                    weighted = zone.MapPosition;
+                    totalWeight = -1f;
+                    break;
+                }
+                float weight = 1f / distanceSqr;
+                weighted += zone.MapPosition * weight;
+                totalWeight += weight;
+            }
+            if (totalWeight == 0f) { playerMarker.gameObject.SetActive(false); return; }
+            if (world.x < min.x - mapWorldOutsidePadding || world.x > max.x + mapWorldOutsidePadding
+                || world.z < min.y - mapWorldOutsidePadding || world.z > max.y + mapWorldOutsidePadding)
+            {
+                playerMarker.gameObject.SetActive(false);
+                return;
+            }
+            if (totalWeight > 0f) weighted /= totalWeight;
+            Vector2 markerScale = playerMarkerScale.sqrMagnitude > 0.0001f
+                ? playerMarkerScale : Vector2.one;
+            weighted = Vector2.Scale(weighted - new Vector2(0.5f, 0.5f), markerScale)
+                + new Vector2(0.5f, 0.5f) + playerMarkerOffset;
+            // 시설 밖에서는 가장자리에 고정하여 UI 밖으로 튀지 않게 합니다.
+            weighted.x = Mathf.Clamp(weighted.x, 0.025f, 0.975f);
+            weighted.y = Mathf.Clamp(weighted.y, 0.025f, 0.975f);
+            playerMarker.anchorMin = weighted;
+            playerMarker.anchorMax = weighted;
+            playerMarker.anchoredPosition = Vector2.zero;
+            Vector3 forward = zoneTracker.transform.forward;
+            Vector2 mapForward = new Vector2(-forward.x, -forward.z);
+            if (mapForward.sqrMagnitude > 0.0001f)
+                playerMarker.localRotation = Quaternion.Euler(0f, 0f,
+                    Mathf.Atan2(mapForward.y, mapForward.x) * Mathf.Rad2Deg - 90f
+                    + playerArrowAngleOffset);
+            if (!playerMarker.gameObject.activeSelf) playerMarker.gameObject.SetActive(true);
         }
 
         private Vector2 MapPoint(Vector2 normalized)

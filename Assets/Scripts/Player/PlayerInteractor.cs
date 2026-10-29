@@ -22,6 +22,7 @@ namespace WardShift
         [SerializeField] private Graphic crosshair;
         [SerializeField] private Color normalColor = Color.white;
         [SerializeField] private Color targetColor = Color.cyan;
+        [SerializeField] private Color sealReadyColor = new Color(0.3f, 1f, 0.65f);
 
         [Header("실행 상태 확인 (Current Target은 직접 연결하지 않음)")]
         [SerializeField] private MagicTarget currentTarget;
@@ -32,6 +33,40 @@ namespace WardShift
         public Transform PlayerRoot => playerRoot;
         public Collider CurrentCollider { get; private set; }
         public event Action<MagicTarget> TargetChanged;
+        private bool sealReady;
+
+        public void SetSealReady(bool ready)
+        {
+            if (sealReady == ready) return;
+            sealReady = ready;
+            RefreshCrosshair();
+        }
+
+        /// <summary>기존 4m 조준 검사 밖의 첫 표면이 Q로 감지된 봉인점인지 확인합니다.</summary>
+        public MagicTarget GetDetectedSealBeyondRange(float maxDistance, MagicTarget chainTarget = null)
+        {
+            if (aimCamera == null || !aimCamera.isActiveAndEnabled
+                || maxDistance <= interactionDistance) return null;
+            Ray viewportRay = aimCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+            Ray ray = new Ray(aimCamera.transform.position, viewportRay.direction);
+            Collider nearest = null;
+            float nearestDistance = float.PositiveInfinity;
+            foreach (RaycastHit hit in Physics.RaycastAll(ray, maxDistance, raycastLayers,
+                         QueryTriggerInteraction.Ignore))
+            {
+                if (playerRoot != null && hit.collider.transform.IsChildOf(playerRoot)) continue;
+                if (hit.distance >= nearestDistance) continue;
+                nearest = hit.collider;
+                nearestDistance = hit.distance;
+            }
+            if (nearest == null || nearestDistance <= interactionDistance) return null;
+            MagicTarget target = nearest.GetComponentInParent<MagicTarget>();
+            ManaRift rift = target != null ? target.GetComponentInParent<ManaRift>() : null;
+            return target != null && target.IsAvailable && rift != null
+                && target == rift.ExpectedSealPoint
+                && (target.IsDetected || target == chainTarget)
+                && target.RequiredMagic == MagicType.Seal ? target : null;
+        }
 
         /// <summary>정화 홀드 중 조준점이 흔들려도 대상까지의 실제 시야가 열려 있는지 확인합니다.</summary>
         public bool HasClearPathToTarget(Collider targetCollider)
@@ -168,12 +203,14 @@ namespace WardShift
         private void RefreshCrosshair()
         {
             if (crosshair != null)
-                crosshair.color = currentTarget != null ? targetColor : normalColor;
+                crosshair.color = sealReady ? sealReadyColor
+                    : currentTarget != null ? targetColor : normalColor;
         }
 
         private void OnDisable()
         {
             CurrentCollider = null;
+            sealReady = false;
             SetTarget(null);
         }
     }

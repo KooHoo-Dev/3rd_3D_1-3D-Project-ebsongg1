@@ -129,7 +129,7 @@ namespace WardShift
         {
             consumed = true;
             PlayerContamination hitPlayer = collider.GetComponentInParent<PlayerContamination>();
-            if (hitPlayer == player) source.ApplyDeviceHit(player, damage);
+            if (hitPlayer == player) source.ApplyDeviceHit(player, damage, transform.position);
             Destroy(gameObject);
         }
 
