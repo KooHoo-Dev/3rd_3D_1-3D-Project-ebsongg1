@@ -7,6 +7,9 @@ namespace WardShift
     public sealed class ManaDeviceAnomaly : AnomalyBehaviour
     {
         public enum AttackKind { RadialBurst, TrackingBolt }
+        [Header("UI 표시")]
+        [InspectorName("이상현상 UI 이름")]
+        [SerializeField] private string displayName = "마력 장치 폭주";
         [Header("방출과 회피")]
         [Tooltip("장치 생성 후 첫 원형 방출 경고가 시작될 때까지의 대기 시간입니다. 실제 첫 공격은 이 값에 방출 예고 시간을 더한 뒤 발생합니다.")]
         [SerializeField, Min(0.1f)] private float firstBurstDelaySeconds = 4.5f;
@@ -59,7 +62,8 @@ namespace WardShift
         private bool alternateAttacks;
         private AttackKind nextAttack = AttackKind.RadialBurst;
 
-        public override string DisplayName => "장치형 마력 폭주";
+        public override string DisplayName => string.IsNullOrWhiteSpace(displayName)
+            ? "마력 장치 폭주" : displayName.Trim();
         public override int DangerStage => dangerStage;
         public override float SecondsUntilRupture
         {

@@ -9,7 +9,7 @@ namespace WardShift
     /// <summary>DAY 표시, 인벤토리, DAY CLEAR/FAILED 창을 기본 Unity UI로 만듬.</summary>
     [DisallowMultipleComponent]
     [DefaultExecutionOrder(10007)]
-    public sealed class Day5HUD : MonoBehaviour
+    public sealed partial class Day5HUD : MonoBehaviour
     {
         [SerializeField] private DayFlowManager dayFlow;
         [SerializeField] private PlayerInventory inventory;
@@ -23,6 +23,7 @@ namespace WardShift
         private Button[] slotButtons = new Button[PlayerInventory.SlotCount];
         private readonly UpgradeCardView[] upgradeCards = new UpgradeCardView[3];
         private GameObject inventoryPanel;
+        private RectTransform overlayRoot;
         private GameObject clearPanel;
         private GameObject failedPanel;
         private GameObject endingPanel;
@@ -58,6 +59,7 @@ namespace WardShift
             if (inventory == null && dayFlow != null) inventory = dayFlow.Inventory;
             if (inventory == null) inventory = FindFirstObjectByType<PlayerInventory>();
             BuildUI();
+            BuildTutorialUI();
         }
 
         /// <summary>셋업 메뉴에서 진행 관리자와 인벤토리를 연결.</summary>
@@ -71,6 +73,8 @@ namespace WardShift
         private void Update()
         {
             if (dayFlow == null || inventory == null) return;
+            UpdateTutorial();
+            FitOverlaysToScreen();
             dayStatusText.text = (dayFlow.IsCleaningUp
                     ? $"<color=#E8C26E>DAY {dayFlow.CurrentDay}</color>\n<size=20>잔여 이상현상 정리 중 ({dayFlow.CleanupAnomalyCount}개)</size>\n"
                     : $"<color=#E8C26E>DAY {dayFlow.CurrentDay}</color>   남은 {FormatTime(dayFlow.RemainingSeconds)}\n")
@@ -96,7 +100,9 @@ namespace WardShift
                     + $"이번 근무 획득 결정 +{inventory.CrystalsEarnedToday}개  ·  현재 보유 {inventory.ManaCrystals}개\n"
                     + (dayFlow.UpgradePurchasedThisClear
                         ? "이번 근무 강화 구매 완료 · 추가 구매 불가"
-                        : "강화는 이번 근무에 한 종류만 구매할 수 있습니다.");
+                        : dayFlow.CurrentDay == 1 && !Learned(Clear)
+                            ? tutorialCopy.firstClear
+                            : "강화는 이번 근무에 한 종류만 구매할 수 있습니다.");
             if (clearConditionText != null)
             {
                 int nextDay = dayFlow.CurrentDay + 1;
@@ -116,7 +122,8 @@ namespace WardShift
                 failedSummaryText.text = $"{dayFlow.CurrentDay}일차\n"
                     + (dayFlow.Status != null && !string.IsNullOrEmpty(dayFlow.Status.FailureReason)
                         ? dayFlow.Status.FailureReason : "시설 관리 실패")
-                    + "\nDAY 시작 시점의 자원과 픽업을 복원해 재도전합니다.";
+                    + "\nDAY 시작 시점의 자원과 픽업을 복원해 재도전합니다."
+                    + (showRuptureOnFailure ? "\n" + tutorialCopy.rupture : "");
             if (endingSummaryText != null)
                 endingSummaryText.text = $"총 {dayFlow.FinalDay}일 근무를 모두 마쳤습니다.\n"
                     + $"마력 결정: {inventory.ManaCrystals}개\n시설 안정도: "
@@ -138,6 +145,7 @@ namespace WardShift
             dayStatusText = layout.DayStatusText;
             pickupPromptText = layout.PickupText;
             GameObject canvasObject = CreateRectTransformObject("DayOverlays", layout.transform);
+            overlayRoot = canvasObject.GetComponent<RectTransform>();
 
             BuildInventory(canvasObject.transform);
             BuildClearPanel(canvasObject.transform);
@@ -202,6 +210,10 @@ namespace WardShift
                 new Vector2(1f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 24f),
                 new Vector2(-40f, 35f), 19, TextAlignmentOptions.Center, new Color(0.75f, 0.8f, 0.9f))
                 .text = "아이템을 클릭하면 사용합니다 · 효과가 적용될 때만 소모됩니다";
+            CreateActionButton("ResetTutorial", inventoryPanel.transform, new Vector2(0f, 67f),
+                new Vector2(300f, 36f), "튜토리얼 초기화", ResetTutorialProgress, true,
+                new Vector2(0.5f, 0f), new Vector2(0.5f, 0f))
+                .GetComponentInChildren<TMP_Text>().fontSize = 17f;
             inventoryPanel.SetActive(false);
         }
 
@@ -478,7 +490,9 @@ namespace WardShift
             {
                 supplyMessageText.text = exchanging
                     ? $"인벤토리 공간이 없어 {GetItemName(dayFlow.SupplyItemAwaitingExchange)}을(를) 바로 넣을 수 없습니다.\n교환할 슬롯을 고르세요. DAY 시작 기록의 해당 슬롯도 함께 교체됩니다."
-                    : "정화약 또는 비상 수리 키트 중 하나를 선택하세요.\n가득 찬 경우 슬롯을 교환하거나, 선택을 미뤄도 근무를 계속할 수 있습니다.";
+                    : dayFlow.CurrentDay == 2 && !Learned(Supply)
+                        ? tutorialCopy.supply
+                        : "정화약 또는 비상 수리 키트 중 하나를 선택하세요.\n가득 찬 경우 슬롯을 교환하거나, 선택을 미뤄도 근무를 계속할 수 있습니다.";
             }
             if (hasCondition)
             {

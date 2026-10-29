@@ -24,6 +24,8 @@ namespace WardShift
         public bool HasOverloadedAnomaly { get; private set; }
         public bool HasOverloadedRift => HasOverloadedAnomaly;
         private readonly List<Behaviour> stopped = new List<Behaviour>();
+        private readonly List<StarterAssetsInputs> pausedCursorInputs = new List<StarterAssetsInputs>();
+        private readonly List<bool> previousCursorLockedSettings = new List<bool>();
         private float previousTimeScale;
         private bool previousInputBlocked;
         private CursorLockMode previousCursorLock;
@@ -96,6 +98,16 @@ namespace WardShift
                 previousCursorLock = Cursor.lockState;
                 previousCursorVisible = Cursor.visible;
                 previousInputBlocked = caster != null && caster.RawInputBlocked;
+                pausedCursorInputs.Clear();
+                previousCursorLockedSettings.Clear();
+                if (player != null)
+                    foreach (StarterAssetsInputs input in player.GetComponentsInChildren<StarterAssetsInputs>(true))
+                    {
+                        pausedCursorInputs.Add(input);
+                        previousCursorLockedSettings.Add(input.cursorLocked);
+                        // Starter Assets의 OnApplicationFocus가 UI 위에서 커서를 다시 잠그지 않도록 한다.
+                        input.cursorLocked = false;
+                    }
                 hasPauseSnapshot = true;
             }
             if (caster != null) caster.SetInputBlocked(true);
@@ -192,6 +204,11 @@ namespace WardShift
         private void RestorePauseSnapshot()
         {
             if (!hasPauseSnapshot) return;
+            for (int i = 0; i < pausedCursorInputs.Count; i++)
+                if (pausedCursorInputs[i] != null)
+                    pausedCursorInputs[i].cursorLocked = previousCursorLockedSettings[i];
+            pausedCursorInputs.Clear();
+            previousCursorLockedSettings.Clear();
             Time.timeScale = previousTimeScale;
             Cursor.lockState = previousCursorLock;
             Cursor.visible = previousCursorVisible;
