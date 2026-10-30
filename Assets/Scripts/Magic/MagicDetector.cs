@@ -31,6 +31,7 @@ namespace WardShift
         public bool IsSensing => isSensing;
         public int DetectedCount => detectedCount;
         public float DetectionRadius => detectionRadius;
+        public Camera SenseCamera => senseCamera;
 
         private HashSet<MagicTarget> detected = new HashSet<MagicTarget>();
         private HashSet<MagicTarget> nextDetected = new HashSet<MagicTarget>();

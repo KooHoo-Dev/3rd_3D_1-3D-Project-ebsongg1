@@ -18678,7 +18678,7 @@ MonoBehaviour:
     manaDeviceOverloadWeight: 1
     otherAnomaliesWeight: 1
     maximumConcurrentAnomalies: 1
-    spawnIntervalSeconds: 17
+    spawnIntervalSeconds: 14
   - day: 2
     allowManaRift: 1
     allowCurseContamination: 1
@@ -18690,7 +18690,7 @@ MonoBehaviour:
     manaDeviceOverloadWeight: 1
     otherAnomaliesWeight: 1
     maximumConcurrentAnomalies: 2
-    spawnIntervalSeconds: 16
+    spawnIntervalSeconds: 13
   - day: 3
     allowManaRift: 1
     allowCurseContamination: 1
@@ -75155,6 +75155,7 @@ GameObject:
   - component: {fileID: 1608346058}
   - component: {fileID: 1608346057}
   - component: {fileID: 1608346061}
+  - component: {fileID: 1608346062}
   - component: {fileID: 1608346060}
   m_Layer: 0
   m_Name: WardShift_TestHUD
@@ -75288,6 +75289,32 @@ MonoBehaviour:
   - {fileID: 945590148}
   - {fileID: 87245}
   - {fileID: 113448710}
+--- !u!114 &1608346062
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1608346056}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5a99994030be4d0c9886a137daa256d7, type: 3}
+  m_Name: ''
+  m_EditorClassIdentifier: Assembly-CSharp::WardShift.AnomalyDirectionHUD
+  detector: {fileID: 1359426624}
+  senseCamera: {fileID: 2027901765}
+  hudLayout: {fileID: 1608346061}
+  dayFlow: {fileID: 411442693}
+  arrowColor: {r: 0.32, g: 0.9, b: 1, a: 1}
+  glowColor: {r: 0.12, g: 0.72, b: 1, a: 0.22}
+  arrowSize: 44
+  arrowDistanceFromCenter: 82
+  frontBackBias: 1.1
+  targetSearchInterval: 0.12
+  noResponseDuration: 1.1
+  noResponseColor: {r: 0.62, g: 0.92, b: 1, a: 1}
+  noResponseFontSize: 22
+  noResponseOffsetFromCenter: {x: 0, y: -96}
 --- !u!1001 &1608914660
 PrefabInstance:
   m_ObjectHideFlags: 0
