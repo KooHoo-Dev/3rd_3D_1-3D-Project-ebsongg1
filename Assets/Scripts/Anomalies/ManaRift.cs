@@ -1,11 +1,12 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.Serialization;
 
 namespace WardShift
 {
-    /// <summary>두 봉인점이 모두 완료되면 효과와 완료 이벤트를 한 번 발생시키고 균열을 제거.</summary>
+    /// <summary>성장 단계에 맞는 봉인점 연쇄가 완료되면 균열을 제거합니다.</summary>
     [DisallowMultipleComponent]
     [DefaultExecutionOrder(10003)]
     public sealed class ManaRift : AnomalyBehaviour
@@ -13,9 +14,14 @@ namespace WardShift
         [Header("봉인점 (서로 다른 자식 MagicTarget)")]
         [SerializeField] private MagicTarget sealPoint01;
         [SerializeField] private MagicTarget sealPoint02;
-        [Header("연쇄 봉인")]
-        [Tooltip("첫 봉인점 클릭부터 두 번째 클릭까지 허용되는 시간입니다.")]
-        [SerializeField, Range(1.5f, 3f)] private float sealChainTimeout = 2f;
+        [Tooltip("3단계에 사용할 추가 봉인점입니다. 3번, 4번 순서로 배치하세요.")]
+        [SerializeField] private MagicTarget[] additionalSealPoints = new MagicTarget[2];
+
+        [Header("성장 단계별 연쇄 봉인 제한 시간")]
+        [Tooltip("첫 봉인점 성공부터 남은 봉인점을 모두 처리할 때까지의 시간입니다. 중간에 초기화되지 않습니다.")]
+        [FormerlySerializedAs("sealChainTimeout"), SerializeField, Min(0.1f)] private float stageOneSealChainTimeout = 2f;
+        [SerializeField, Min(0.1f)] private float stageTwoSealChainTimeout = 2f;
+        [SerializeField, Min(0.1f)] private float stageThreeSealChainTimeout = 2f;
 
         [Header("균열 전체 완료 효과")]
         [Tooltip("프로젝트 창의 GameObject 프리팹. 비워 두어도 진압은 가능합니다.")]
@@ -29,9 +35,8 @@ namespace WardShift
         [SerializeField] private bool isResolved;
         private bool completionPending;
         private int sealStep;
-        private MagicTarget firstSealPoint;
-        private MagicTarget secondSealPoint;
-        private bool sealOrderInitialized;
+        private readonly List<MagicTarget> configuredSealPoints = new List<MagicTarget>(4);
+        private readonly List<MagicTarget> sealOrder = new List<MagicTarget>(4);
         private float sealChainDeadline;
         private float sealFailureUntil;
         private bool showingSealFailure;
@@ -69,7 +74,8 @@ namespace WardShift
         public override bool HasOverloaded => hasRuptured;
         public override int ResolutionReward => dangerStage;
         public override AnomalySpawnPoint.SurfaceType SpawnSurface => AnomalySpawnPoint.SurfaceType.Wall;
-        public override bool IsHazardActive => isActiveAndEnabled && !isResolved && !hasRuptured && CompletedSealCount < 2;
+        public override bool IsHazardActive => isActiveAndEnabled && !isResolved && !hasRuptured
+            && CompletedSealCount < SealPointCount;
         public override float SecondsUntilNextStage
         {
             get
@@ -82,6 +88,9 @@ namespace WardShift
             }
         }
         public string NextStageLabel => dangerStage >= 3 ? "파열까지" : $"{dangerStage + 1}단계까지";
+
+        /// <summary>현재 성장 단계에서 필요한 봉인점 수입니다.</summary>
+        public int SealPointCount => GetSealPointCount(dangerStage);
 
         // WardStatus가 프레임별 손실을 합산해 적용. 단계 경계와 프레임이 겹쳐도 초당 손실을 정확히 적분한다.
         public override float AdvanceHazard(float deltaTime)
@@ -97,7 +106,11 @@ namespace WardShift
             int previousStage = dangerStage;
             age = currentAge;
             dangerStage = currentAge >= third ? 3 : currentAge >= second ? 2 : 1;
-            if (dangerStage != previousStage) DangerStageChanged?.Invoke(this, previousStage, dangerStage);
+            if (dangerStage != previousStage)
+            {
+                ResetSealChainForStageChange();
+                DangerStageChanged?.Invoke(this, previousStage, dangerStage);
+            }
 
             float stageTwoSeconds = Mathf.Max(0f, Mathf.Min(currentAge, third) - Mathf.Max(previousAge, second));
             float stageThreeSeconds = Mathf.Max(0f, Mathf.Min(currentAge, rupture) - Mathf.Max(previousAge, third));
@@ -129,28 +142,60 @@ namespace WardShift
         }
 
         public bool IsResolved => isResolved;
-        public bool IsSealChainInProgress => sealStep == 1 && !isResolved && !hasRuptured;
+        public bool IsSealChainInProgress => sealStep > 0 && sealStep < SealPointCount
+            && !isResolved && !hasRuptured;
         public float SealChainTimeRemaining => IsSealChainInProgress
             ? Mathf.Max(0f, sealChainDeadline - Time.time) : 0f;
-        public MagicTarget FirstSealPoint => firstSealPoint != null ? firstSealPoint : sealPoint01;
-        public MagicTarget SecondSealPoint => secondSealPoint != null ? secondSealPoint : sealPoint02;
-        public MagicTarget ExpectedSealPoint => sealStep == 0 ? FirstSealPoint
-            : sealStep == 1 ? SecondSealPoint : null;
+        public MagicTarget FirstSealPoint => sealOrder.Count > 0 ? sealOrder[0] : sealPoint01;
+        public MagicTarget SecondSealPoint => sealOrder.Count > 1 ? sealOrder[1] : sealPoint02;
+        public MagicTarget ExpectedSealPoint => sealStep >= 0 && sealStep < sealOrder.Count
+            ? sealOrder[sealStep] : null;
         public bool IsShowingSealFailure => showingSealFailure && Time.time <= sealFailureUntil;
-        public float SealChainTimeout => Mathf.Clamp(sealChainTimeout, 1.5f, 3f);
+        public float SealChainTimeout => Mathf.Max(0.1f, dangerStage == 3 ? stageThreeSealChainTimeout
+            : dangerStage == 2 ? stageTwoSealChainTimeout : stageOneSealChainTimeout);
         public bool HasValidSealPoints => ValidateSealPoints();
-        public int CompletedSealCount => (sealPoint01 != null && sealPoint01.IsCompleted ? 1 : 0)
-            + (sealPoint02 != null && sealPoint02.IsCompleted ? 1 : 0);
-        public bool IsSealCastInProgress => (sealPoint01 != null && sealPoint01.IsCasting)
-            || (sealPoint02 != null && sealPoint02.IsCasting);
-        public float SealCastProgress => Mathf.Max(
-            sealPoint01 != null && sealPoint01.IsCasting ? sealPoint01.Progress : 0f,
-            sealPoint02 != null && sealPoint02.IsCasting ? sealPoint02.Progress : 0f);
+        public int CompletedSealCount
+        {
+            get
+            {
+                int completed = 0;
+                int count = Mathf.Min(SealPointCount, configuredSealPoints.Count);
+                for (int i = 0; i < count; i++)
+                    if (configuredSealPoints[i] != null && configuredSealPoints[i].IsCompleted) completed++;
+                return completed;
+            }
+        }
+        public bool IsSealCastInProgress
+        {
+            get
+            {
+                int count = Mathf.Min(SealPointCount, configuredSealPoints.Count);
+                for (int i = 0; i < count; i++)
+                    if (configuredSealPoints[i] != null && configuredSealPoints[i].IsCasting) return true;
+                return false;
+            }
+        }
+        public float SealCastProgress
+        {
+            get
+            {
+                float progress = 0f;
+                int count = Mathf.Min(SealPointCount, configuredSealPoints.Count);
+                for (int i = 0; i < count; i++)
+                {
+                    MagicTarget target = configuredSealPoints[i];
+                    if (target != null && target.IsCasting) progress = Mathf.Max(progress, target.Progress);
+                }
+                return progress;
+            }
+        }
 
         /// <summary>균열 전체 진압 시 한 번 발생. 이후 보상/시설 시스템에서 구독 가능.</summary>
         public event Action<ManaRift> Resolved;
         /// <summary>제한 시간 초과 또는 잘못된 대상 클릭으로 연쇄가 초기화될 때 발생.</summary>
         public event Action<ManaRift> SealChainFailed;
+        /// <summary>성장으로 인해 진행 중인 봉인 연쇄가 초기화될 때 발생합니다.</summary>
+        public event Action<ManaRift> SealChainReset;
         /// <summary>위험 단계가 변경될 때 이전 값과 새 값을 전달합니다.</summary>
         public event Action<ManaRift, int, int> DangerStageChanged;
         /// <summary>균열 파열 VFX가 루트 제거 전에 재생될 수 있도록 알립니다.</summary>
@@ -158,18 +203,19 @@ namespace WardShift
 
         public bool OwnsSealPoint(MagicTarget target)
         {
-            return target != null && (target == sealPoint01 || target == sealPoint02);
+            return target != null && configuredSealPoints.Contains(target);
         }
 
-        /// <summary>봉인 마법의 한 번의 클릭을 처리합니다. 두 번째 점만 연쇄 중 유효합니다.</summary>
+        /// <summary>봉인 마법의 한 번의 클릭을 처리합니다. 첫 성공부터 전체 연쇄 시간 제한을 적용합니다.</summary>
         public bool TryCompleteSealClick(MagicTarget target)
         {
             if (!IsHazardActive) return false;
             if (sealStep == 0)
             {
+                MagicTarget first = ExpectedSealPoint;
                 // Q 홀드 감지로 발견한 첫 번째 점만 봉인을 시작할 수 있습니다.
-                if (target != FirstSealPoint || !target.IsDetected) return false;
-                if (!target.CompleteInstantly(MagicType.Seal)) return false;
+                if (target != first || first == null || !first.IsDetected) return false;
+                if (!first.CompleteInstantly(MagicType.Seal)) return false;
                 if (this == null || isResolved || hasRuptured) return true;
                 sealStep = 1;
                 sealChainDeadline = Time.time + SealChainTimeout;
@@ -178,17 +224,17 @@ namespace WardShift
                 return true;
             }
 
-            if (sealStep != 1) return false;
-            MagicTarget expected = SecondSealPoint;
-            if (Time.time > sealChainDeadline || target != expected
-                || expected == null || !expected.CompleteInstantly(MagicType.Seal))
+            if (!IsSealChainInProgress) return false;
+            MagicTarget expected = ExpectedSealPoint;
+            if (Time.time > sealChainDeadline || target != expected || expected == null
+                || !expected.CompleteInstantly(MagicType.Seal))
             {
                 FailSealChain();
                 return false;
             }
 
-            sealStep = 2;
-            sealChainDeadline = 0f;
+            sealStep++;
+            if (sealStep >= SealPointCount) sealChainDeadline = 0f;
             RefreshSealPointVisuals();
             return true;
         }
@@ -196,62 +242,116 @@ namespace WardShift
         protected override void OnEnable()
         {
             base.OnEnable();
+            CacheConfiguredSealPoints();
             if (!ValidateSealPoints())
             {
-                Debug.LogError("ManaRift: 서로 다른 자식 봉인점 두 개를 연결하고 두 대상의 마법을 Seal로 설정하세요.", this);
+                Debug.LogError("ManaRift: 자식 봉인점 네 개를 연결하고 모든 대상의 마법을 Seal로 설정하세요.", this);
                 // 생성 전에 AnomalySpawnPoint도 설정을 검사하며, 직접 활성화된 경우 Removed로 점유를 반환합니다.
                 enabled = false;
                 Destroy(gameObject);
                 return;
             }
-            InitializeSealOrder();
+
+            ResetSealTargetsForCurrentStage();
+            RandomizeSealOrder();
             EnsureSealPointVisuals();
-            sealPoint01.Completed += OnSealCompleted;
-            sealPoint02.Completed += OnSealCompleted;
-            sealPoint01.DetectionChanged += OnSealPointDetectionChanged;
-            sealPoint02.DetectionChanged += OnSealPointDetectionChanged;
-            // 비활성화 중 완료된 경우에도 재활성화 시 실제 상태를 확인.
-            completionPending = !isResolved && CompletedSealCount == 2;
+            foreach (MagicTarget target in configuredSealPoints)
+            {
+                target.Completed += OnSealCompleted;
+                target.DetectionChanged += OnSealPointDetectionChanged;
+            }
+            completionPending = !isResolved && CompletedSealCount == SealPointCount;
             RefreshSealPointVisuals();
         }
 
         private void Awake()
         {
-            InitializeSealOrder();
+            CacheConfiguredSealPoints();
         }
 
-        private void InitializeSealOrder()
+        private void CacheConfiguredSealPoints()
         {
-            if (sealOrderInitialized || sealPoint01 == null || sealPoint02 == null) return;
-            if (UnityEngine.Random.Range(0, 2) == 0)
+            configuredSealPoints.Clear();
+            if (sealPoint01 != null) configuredSealPoints.Add(sealPoint01);
+            if (sealPoint02 != null) configuredSealPoints.Add(sealPoint02);
+            if (additionalSealPoints == null) return;
+            foreach (MagicTarget target in additionalSealPoints)
+                if (target != null) configuredSealPoints.Add(target);
+        }
+
+        private void RandomizeSealOrder()
+        {
+            sealOrder.Clear();
+            int count = Mathf.Min(SealPointCount, configuredSealPoints.Count);
+            for (int i = 0; i < count; i++) sealOrder.Add(configuredSealPoints[i]);
+            for (int i = sealOrder.Count - 1; i > 0; i--)
             {
-                firstSealPoint = sealPoint01;
-                secondSealPoint = sealPoint02;
+                int j = UnityEngine.Random.Range(0, i + 1);
+                (sealOrder[i], sealOrder[j]) = (sealOrder[j], sealOrder[i]);
             }
-            else
-            {
-                firstSealPoint = sealPoint02;
-                secondSealPoint = sealPoint01;
-            }
-            sealOrderInitialized = true;
         }
 
         private bool ValidateSealPoints()
         {
-            return sealPoint01 != null && sealPoint02 != null && sealPoint01 != sealPoint02
-                && sealPoint01.transform != transform && sealPoint02.transform != transform
-                && sealPoint01.transform.IsChildOf(transform) && sealPoint02.transform.IsChildOf(transform)
-                && !sealPoint01.transform.IsChildOf(sealPoint02.transform)
-                && !sealPoint02.transform.IsChildOf(sealPoint01.transform)
-                && sealPoint01.RequiredMagic == MagicType.Seal && sealPoint02.RequiredMagic == MagicType.Seal;
+            CacheConfiguredSealPoints();
+            if (sealPoint01 == null || sealPoint02 == null || configuredSealPoints.Count != 4)
+                return false;
+
+            for (int i = 0; i < configuredSealPoints.Count; i++)
+            {
+                MagicTarget target = configuredSealPoints[i];
+                if (target == null || target.transform == transform || !target.transform.IsChildOf(transform)
+                    || target.RequiredMagic != MagicType.Seal) return false;
+                for (int j = i + 1; j < configuredSealPoints.Count; j++)
+                {
+                    MagicTarget other = configuredSealPoints[j];
+                    if (target == other || target.transform.IsChildOf(other.transform)
+                        || other.transform.IsChildOf(target.transform)) return false;
+                }
+            }
+            return true;
         }
 
         private void EnsureSealPointVisuals()
         {
-            if (sealPoint01.GetComponent<SealPointVisual>() == null)
-                sealPoint01.gameObject.AddComponent<SealPointVisual>();
-            if (sealPoint02.GetComponent<SealPointVisual>() == null)
-                sealPoint02.gameObject.AddComponent<SealPointVisual>();
+            foreach (MagicTarget target in configuredSealPoints)
+                if (target.GetComponent<SealPointVisual>() == null)
+                    target.gameObject.AddComponent<SealPointVisual>();
+        }
+
+        private void ResetSealTargetsForCurrentStage()
+        {
+            int activeCount = Mathf.Min(SealPointCount, configuredSealPoints.Count);
+            for (int i = 0; i < configuredSealPoints.Count; i++)
+            {
+                MagicTarget target = configuredSealPoints[i];
+                if (target == null) continue;
+                target.ResetForNewUse(i < activeCount);
+                target.SetDetected(false, Color.white);
+                if (i < activeCount)
+                {
+                    if (!target.gameObject.activeSelf) target.gameObject.SetActive(true);
+                    target.SetRuntimeAvailable(true);
+                }
+                else
+                {
+                    target.SetRuntimeAvailable(false);
+                    target.gameObject.SetActive(false);
+                }
+            }
+        }
+
+        private void ResetSealChainForStageChange()
+        {
+            bool interruptedChain = IsSealChainInProgress;
+            sealStep = 0;
+            sealChainDeadline = 0f;
+            showingSealFailure = false;
+            completionPending = false;
+            ResetSealTargetsForCurrentStage();
+            RandomizeSealOrder();
+            RefreshSealPointVisuals();
+            if (interruptedChain) SealChainReset?.Invoke(this);
         }
 
         private void OnSealPointDetectionChanged(MagicTarget target, bool detected)
@@ -261,50 +361,51 @@ namespace WardShift
 
         private void RefreshSealPointVisuals()
         {
-            MagicTarget expectedFirst = FirstSealPoint;
-            MagicTarget expectedSecond = SecondSealPoint;
-            if (expectedFirst == null || expectedSecond == null) return;
-            SealPointVisual first = expectedFirst.GetComponent<SealPointVisual>();
-            SealPointVisual second = expectedSecond.GetComponent<SealPointVisual>();
-            if (first == null || second == null) return;
-            first.SetOrder(1);
-            second.SetOrder(2);
-
-            if (IsShowingSealFailure)
+            if (sealOrder.Count == 0) return;
+            for (int i = 0; i < configuredSealPoints.Count; i++)
             {
-                first.SetState(SealPointVisual.State.Failed);
-                second.SetState(SealPointVisual.State.Failed);
-                return;
-            }
+                MagicTarget target = configuredSealPoints[i];
+                if (target == null) continue;
+                SealPointVisual visual = target.GetComponent<SealPointVisual>();
+                if (visual == null) continue;
+                int order = sealOrder.IndexOf(target);
+                visual.SetOrder(order >= 0 ? order + 1 : 0);
+                if (order < 0)
+                {
+                    visual.SetState(SealPointVisual.State.Hidden);
+                    continue;
+                }
 
-            if (sealStep == 1)
-            {
-                first.SetState(SealPointVisual.State.Completed);
-                second.SetState(SealPointVisual.State.Active);
-                return;
-            }
-            if (sealStep == 2 || isResolved)
-            {
-                first.SetState(SealPointVisual.State.Completed);
-                second.SetState(SealPointVisual.State.Completed);
-                return;
-            }
+                if (IsShowingSealFailure)
+                {
+                    visual.SetState(SealPointVisual.State.Failed);
+                    continue;
+                }
+                if (order < sealStep || isResolved)
+                {
+                    visual.SetState(SealPointVisual.State.Completed);
+                    continue;
+                }
+                if (sealStep > 0)
+                {
+                    // Q를 놓은 뒤에도 현재와 이후 순서의 룬·번호를 볼 수 있게 유지합니다.
+                    visual.SetState(order == sealStep
+                        ? SealPointVisual.State.Active : SealPointVisual.State.Queued);
+                    continue;
+                }
 
-            first.SetState(expectedFirst.IsDetected
-                ? SealPointVisual.State.Active : SealPointVisual.State.Hidden);
-            second.SetState(expectedSecond.IsDetected
-                ? SealPointVisual.State.Discovered : SealPointVisual.State.Hidden);
+                visual.SetState(target.IsDetected
+                    ? order == 0 ? SealPointVisual.State.Active : SealPointVisual.State.Discovered
+                    : SealPointVisual.State.Hidden);
+            }
         }
 
         private void FailSealChain()
         {
-            if (sealStep != 1) return;
+            if (!IsSealChainInProgress) return;
             sealStep = 0;
             sealChainDeadline = 0f;
-            sealPoint01.ResetForNewUse();
-            sealPoint02.ResetForNewUse();
-            sealPoint01.SetDetected(false, Color.white);
-            sealPoint02.SetDetected(false, Color.white);
+            ResetSealTargetsForCurrentStage();
             showingSealFailure = true;
             sealFailureUntil = Time.time + 0.45f;
             RefreshSealPointVisuals();
@@ -325,19 +426,19 @@ namespace WardShift
 
         private void OnSealCompleted(MagicTarget target)
         {
-            if (!isResolved && CompletedSealCount == 2) completionPending = true;
+            if (!isResolved && CompletedSealCount == SealPointCount) completionPending = true;
         }
 
         private void LateUpdate()
         {
             if (!completionPending || isResolved || hasRuptured || HasEnded) return;
             completionPending = false;
-            if (CompletedSealCount != 2) return;
-            // 봉인점 Completed 콜백 내부에서 부모를 끄지 않음.
+            if (CompletedSealCount != SealPointCount) return;
             // 마지막 봉인점의 VFX와 다른 완료 구독자가 모두 실행된 뒤 균열을 처리.
             isResolved = true;
+            RefreshSealPointVisuals();
             PlayCompleteEffect();
-            Debug.Log("마력 균열 진압 완료 (2/2)", this);
+            Debug.Log($"마력 균열 진압 완료 ({SealPointCount}/{SealPointCount})", this);
             try
             {
                 Resolved?.Invoke(this);
@@ -365,19 +466,26 @@ namespace WardShift
 
         protected override void OnDisable()
         {
-            if (sealPoint01 != null) sealPoint01.Completed -= OnSealCompleted;
-            if (sealPoint02 != null) sealPoint02.Completed -= OnSealCompleted;
-            if (sealPoint01 != null) sealPoint01.DetectionChanged -= OnSealPointDetectionChanged;
-            if (sealPoint02 != null) sealPoint02.DetectionChanged -= OnSealPointDetectionChanged;
+            foreach (MagicTarget target in configuredSealPoints)
+            {
+                if (target == null) continue;
+                target.Completed -= OnSealCompleted;
+                target.DetectionChanged -= OnSealPointDetectionChanged;
+            }
             completionPending = false;
-            if (!isResolved && !hasRuptured && sealStep == 1)
+            if (!isResolved && !hasRuptured && IsSealChainInProgress)
             {
                 sealStep = 0;
                 sealChainDeadline = 0f;
-                if (sealPoint01 != null) sealPoint01.ResetForNewUse();
-                if (sealPoint02 != null) sealPoint02.ResetForNewUse();
+                ResetSealTargetsForCurrentStage();
+                SealChainReset?.Invoke(this);
             }
             base.OnDisable();
+        }
+
+        private static int GetSealPointCount(int stage)
+        {
+            return stage >= 3 ? 4 : stage == 2 ? 3 : 2;
         }
     }
 }

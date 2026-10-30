@@ -454,9 +454,9 @@ namespace WardShift
             if (anomaly is ManaRift rift)
             {
                 return rift.IsSealCastInProgress
-                    ? string.Format("봉인 진행 {0}% · 봉인점 {1}/2",
-                        Mathf.FloorToInt(rift.SealCastProgress * 100f), rift.CompletedSealCount)
-                    : string.Format("봉인점 {0}/2 완료", rift.CompletedSealCount);
+                    ? string.Format("봉인 진행 {0}% · 봉인점 {1}/{2}",
+                        Mathf.FloorToInt(rift.SealCastProgress * 100f), rift.CompletedSealCount, rift.SealPointCount)
+                    : string.Format("봉인점 {0}/{1} 완료", rift.CompletedSealCount, rift.SealPointCount);
             }
 
             if (anomaly is CurseAnomaly curse)

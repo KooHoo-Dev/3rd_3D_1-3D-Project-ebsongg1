@@ -263,7 +263,8 @@ namespace WardShift
             {
                 ManaRift chain = activeSealRift;
                 chain.TryCompleteSealClick(aimed);
-                if (chain != null && !chain.IsSealChainInProgress && chain.CompletedSealCount == 2)
+                if (chain != null && !chain.IsSealChainInProgress
+                    && chain.CompletedSealCount >= chain.SealPointCount)
                     StopTrackingSealRift();
                 return;
             }
@@ -304,6 +305,7 @@ namespace WardShift
             StopTrackingSealRift();
             activeSealRift = rift;
             activeSealRift.SealChainFailed += OnSealChainFailed;
+            activeSealRift.SealChainReset += OnSealChainReset;
         }
 
         private void OnSealChainFailed(ManaRift rift)
@@ -313,9 +315,18 @@ namespace WardShift
             ShowResult(MagicCastResult.Canceled);
         }
 
+        private void OnSealChainReset(ManaRift rift)
+        {
+            if (activeSealRift == rift) StopTrackingSealRift();
+        }
+
         private void StopTrackingSealRift()
         {
-            if (activeSealRift != null) activeSealRift.SealChainFailed -= OnSealChainFailed;
+            if (activeSealRift != null)
+            {
+                activeSealRift.SealChainFailed -= OnSealChainFailed;
+                activeSealRift.SealChainReset -= OnSealChainReset;
+            }
             activeSealRift = null;
         }
 

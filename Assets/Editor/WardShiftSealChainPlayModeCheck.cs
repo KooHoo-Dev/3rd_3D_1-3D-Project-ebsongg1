@@ -11,7 +11,7 @@ using Object = UnityEngine.Object;
 
 namespace WardShift.Editor
 {
-    /// <summary>연쇄 봉인 입력, 감지, 제한 시간, 실패 복구와 균열 간 독립성을 검사합니다.</summary>
+    /// <summary>성장 단계별 봉인점, 연쇄 입력, 제한 시간, 실패 복구와 균열 간 독립성을 검사합니다.</summary>
     [InitializeOnLoad]
     public static class WardShiftSealChainPlayModeCheck
     {
@@ -89,6 +89,7 @@ namespace WardShift.Editor
                 if (spawner == null) throw new InvalidOperationException("AnomalySpawner를 찾을 수 없습니다.");
                 spawner.SetSpawningEnabled(false);
                 AssertRandomOrderCanVary();
+                AssertStageGrowthAndSealCounts();
                 AssertOptionalRiftVfx();
                 RunQAndClickInputCheck();
 
@@ -306,6 +307,7 @@ namespace WardShift.Editor
                     Assert(timeoutRift.TryCompleteSealClick(first)
                         && timeoutRift.TryCompleteSealClick(secondWrong),
                         "실패 후 첫 번째 봉인점부터 다시 시도 가능");
+                    CompleteRemainingSealPoints(timeoutRift);
                     int resolved = 0;
                     timeoutRift.Resolved += _ => resolved++;
                     Invoke(timeoutRift, "LateUpdate");
@@ -329,8 +331,8 @@ namespace WardShift.Editor
 
                     ManaRift firstRift = SpawnRift("SealChain_Independent_A");
                     ManaRift secondRift = SpawnRift("SealChain_Independent_B");
-                    SetPrivateField(firstRift, "sealChainTimeout", 1.5f);
-                    SetPrivateField(secondRift, "sealChainTimeout", 3f);
+                    SetPrivateField(firstRift, "stageOneSealChainTimeout", 1.5f);
+                    SetPrivateField(secondRift, "stageOneSealChainTimeout", 3f);
                     MagicTarget firstA = FirstSeal(firstRift);
                     MagicTarget firstB = FirstSeal(secondRift);
                     MagicTarget secondB = SecondSeal(secondRift);
@@ -353,7 +355,7 @@ namespace WardShift.Editor
                     Invoke(firstRift, "LateUpdate");
                     Object.Destroy(firstRift.gameObject);
                     Object.Destroy(secondRift.gameObject);
-                    Finish(true, "Q 감지, 두 번의 독립 클릭, 제한 시간, 일시정지, 실패 복구, 균열 간 독립성과 완료 중복 방지를 통과했습니다.");
+                    Finish(true, "성장 단계별 2·3·4점 봉인, Q 감지, 연쇄 제한 시간, 실패 복구, 균열 간 독립성을 통과했습니다.");
                 }
             }
             catch (Exception exception) { Finish(false, exception.ToString()); }
@@ -366,6 +368,154 @@ namespace WardShift.Editor
             ManaRift rift = Object.Instantiate(prefab).GetComponent<ManaRift>();
             rift.name = label;
             return rift;
+        }
+
+        private static void AssertStageGrowthAndSealCounts()
+        {
+            ManaRift rift = SpawnRift("SealChain_GrowthStages");
+            SetPrivateField(rift, "stageTwoAt", 10f);
+            SetPrivateField(rift, "stageThreeAt", 20f);
+            SetPrivateField(rift, "ruptureAt", 30f);
+            MagicTarget[] additional = GetPrivateField<MagicTarget[]>(rift, "additionalSealPoints");
+            ManaRiftVFX vfx = rift.GetComponent<ManaRiftVFX>();
+            GameObject persistent = GetPrivateField<GameObject>(vfx, "persistentInstance");
+            Vector3 baseEffectScale = GetPrivateField<GameObject>(vfx, "persistentRiftPrefab").transform.localScale;
+            Transform coreVisual = GetPrivateField<Transform>(vfx, "coreRiftVisual");
+            Vector3 baseCoreScale = coreVisual.localScale;
+            ManaRift otherRift = SpawnRift("SealChain_GrowthVisualIsolation");
+            ManaRiftVFX otherVfx = otherRift.GetComponent<ManaRiftVFX>();
+            GameObject otherPersistent = GetPrivateField<GameObject>(otherVfx, "persistentInstance");
+            Transform otherCoreVisual = GetPrivateField<Transform>(otherVfx, "coreRiftVisual");
+            Vector3 otherBaseCoreScale = otherCoreVisual.localScale;
+
+            Assert(rift.SealPointCount == 2 && additional[0] != null && additional[1] != null
+                && !additional[0].gameObject.activeSelf && !additional[1].gameObject.activeSelf,
+                "1단계는 봉인점 2개만 활성화하고 3·4번을 숨김");
+            Assert(Mathf.Abs(rift.SealChainTimeout - 2f) < 0.001f
+                && Mathf.Abs(GetPrivateField<float>(vfx, "stageOneSizeMultiplier") - 1f) < 0.001f,
+                "1단계 기본 제한 시간 2초와 효과 배율 1.0");
+
+            MagicTarget first = rift.ExpectedSealPoint;
+            first.SetDetected(true, Color.yellow);
+            Assert(rift.TryCompleteSealClick(first), "성장 중 초기화 확인을 위한 1단계 첫 봉인 성공");
+            rift.AdvanceHazard(10f);
+            Assert(rift.DangerStage == 2 && rift.SealPointCount == 3 && !rift.IsSealChainInProgress
+                && rift.CompletedSealCount == 0 && additional[0].gameObject.activeSelf
+                && additional[0].IsAvailable && !additional[1].gameObject.activeSelf,
+                "2단계 성장 시 연쇄를 초기화하고 세 번째 봉인점을 활성화");
+            Assert(Mathf.Abs(rift.SealChainTimeout - 2f) < 0.001f
+                && Mathf.Abs(GetPrivateField<float>(vfx, "stageTwoSizeMultiplier") - 1.2f) < 0.001f
+                && Vector3.Distance(persistent.transform.localScale, baseEffectScale * 1.2f) < 0.001f
+                && Vector3.Distance(coreVisual.localScale, baseCoreScale * 1.2f) < 0.001f
+                && HasTintedMaterialBlock(persistent, GetPrivateField<Color>(vfx, "stageTwoTint"))
+                && !HasTintedMaterialBlock(persistent, GetPrivateField<Color>(vfx, "stageTwoTint"), true)
+                && !HasTintedMaterialBlock(coreVisual.gameObject, GetPrivateField<Color>(vfx, "stageTwoTint"))
+                && HasTintedMaterialBlock(otherPersistent, GetPrivateField<Color>(otherVfx, "stageOneTint"))
+                && !HasTintedMaterialBlock(otherPersistent, GetPrivateField<Color>(otherVfx, "stageOneTint"), true)
+                && Vector3.Distance(otherCoreVisual.localScale, otherBaseCoreScale) < 0.001f
+                && !HasTintedMaterialBlock(otherCoreVisual.gameObject, GetPrivateField<Color>(otherVfx, "stageOneTint")),
+                "2단계 제한 시간·배율·외곽 색상 적용, 중심 구체 밝기 유지 및 다른 균열 Material 격리");
+
+            first = rift.ExpectedSealPoint;
+            first.SetDetected(true, Color.yellow);
+            Assert(rift.TryCompleteSealClick(first), "2단계 봉인 연쇄 시작");
+            const float remaining = 1.2f;
+            SetPrivateField(rift, "sealChainDeadline", Time.time + remaining);
+            MagicTarget next = rift.ExpectedSealPoint;
+            Assert(rift.TryCompleteSealClick(next) && rift.CompletedSealCount == 2
+                && Mathf.Abs(rift.SealChainTimeRemaining - remaining) < 0.01f,
+                "중간 봉인 성공으로 연쇄 제한 시간이 다시 시작되지 않음");
+
+            rift.AdvanceHazard(10f);
+            Assert(rift.DangerStage == 3 && rift.SealPointCount == 4 && !rift.IsSealChainInProgress
+                && rift.CompletedSealCount == 0 && additional[0].IsAvailable
+                && additional[1].gameObject.activeSelf && additional[1].IsAvailable,
+                "3단계 성장 시 진행 상태를 지우고 네 봉인점을 모두 활성화");
+            Assert(Mathf.Abs(rift.SealChainTimeout - 2f) < 0.001f
+                && Mathf.Abs(GetPrivateField<float>(vfx, "stageThreeSizeMultiplier") - 1.45f) < 0.001f
+                && Vector3.Distance(persistent.transform.localScale, baseEffectScale * 1.45f) < 0.001f
+                && Vector3.Distance(coreVisual.localScale, baseCoreScale * 1.45f) < 0.001f
+                && HasTintedMaterialBlock(persistent, GetPrivateField<Color>(vfx, "stageThreeTint"))
+                && !HasTintedMaterialBlock(persistent, GetPrivateField<Color>(vfx, "stageThreeTint"), true)
+                && !HasTintedMaterialBlock(coreVisual.gameObject, GetPrivateField<Color>(vfx, "stageThreeTint"))
+                && HasTintedMaterialBlock(otherPersistent, GetPrivateField<Color>(otherVfx, "stageOneTint"))
+                && !HasTintedMaterialBlock(otherPersistent, GetPrivateField<Color>(otherVfx, "stageOneTint"), true)
+                && Vector3.Distance(otherCoreVisual.localScale, otherBaseCoreScale) < 0.001f
+                && !HasTintedMaterialBlock(otherCoreVisual.gameObject, GetPrivateField<Color>(otherVfx, "stageOneTint")),
+                "3단계 제한 시간·배율·외곽 색상 적용, 중심 구체 밝기 유지 및 다른 균열 색상 유지");
+
+            var orderNumbers = new System.Collections.Generic.HashSet<string>();
+            foreach (MagicTarget target in new[]
+                     {
+                         GetPrivateField<MagicTarget>(rift, "sealPoint01"),
+                         GetPrivateField<MagicTarget>(rift, "sealPoint02"), additional[0], additional[1]
+                     })
+            {
+                TextMeshPro number = target.GetComponentInChildren<TextMeshPro>(true);
+                Assert(number != null && int.TryParse(number.text, out int parsed) && parsed >= 1 && parsed <= 4,
+                    "3단계 봉인점 번호가 1~4 범위로 표시됨");
+                orderNumbers.Add(number.text);
+            }
+            Assert(orderNumbers.Count == 4, "3단계 네 봉인점에 중복 없는 순서 번호 부여");
+
+            int resolved = 0;
+            rift.Resolved += _ => resolved++;
+            first = rift.ExpectedSealPoint;
+            first.SetDetected(true, Color.yellow);
+            Assert(rift.TryCompleteSealClick(first), "3단계 연쇄 첫 봉인 성공");
+            while (rift.IsSealChainInProgress)
+            {
+                MagicTarget expected = rift.ExpectedSealPoint;
+                foreach (MagicTarget future in new[]
+                         {
+                             GetPrivateField<MagicTarget>(rift, "sealPoint01"),
+                             GetPrivateField<MagicTarget>(rift, "sealPoint02"), additional[0], additional[1]
+                         })
+                {
+                    if (future == expected || future.IsCompleted) continue;
+                    TextMeshPro number = future.GetComponentInChildren<TextMeshPro>(true);
+                    Assert(future.GetComponent<SealPointVisual>().CurrentState == SealPointVisual.State.Queued
+                        && number != null && number.enabled,
+                        "Q를 놓아도 남은 봉인점 룬과 순서 번호가 표시됨");
+                }
+                Assert(expected != null && rift.TryCompleteSealClick(expected),
+                    "3단계에서 다음 순서의 봉인점 처리");
+            }
+            Assert(rift.CompletedSealCount == 4, "네 봉인점을 모두 성공적으로 처리");
+            Invoke(rift, "LateUpdate");
+            Assert(resolved == 1 && rift.IsResolved, "4/4 처리 후 진압 완료 이벤트 1회 발생");
+            Object.Destroy(rift.gameObject);
+            Object.Destroy(otherRift.gameObject);
+        }
+
+        private static bool HasTintedMaterialBlock(GameObject effect, Color tint, bool rootRendererOnly = false)
+        {
+            if (effect == null) return false;
+            Renderer rootRenderer = effect.GetComponent<Renderer>();
+            int baseColorId = Shader.PropertyToID("_BaseColor");
+            int legacyColorId = Shader.PropertyToID("_Color");
+            foreach (Renderer renderer in effect.GetComponentsInChildren<Renderer>(true))
+            {
+                if (rootRendererOnly && renderer != rootRenderer) continue;
+                Material[] materials = renderer.sharedMaterials;
+                for (int i = 0; i < materials.Length; i++)
+                {
+                    Material material = materials[i];
+                    if (material == null) continue;
+                    int propertyId = material.HasProperty(baseColorId) ? baseColorId
+                        : material.HasProperty(legacyColorId) ? legacyColorId : -1;
+                    if (propertyId < 0) continue;
+                    var block = new MaterialPropertyBlock();
+                    renderer.GetPropertyBlock(block, i);
+                    Color expected = material.GetColor(propertyId) * tint;
+                    Color actual = block.GetColor(propertyId);
+                    if (Mathf.Abs(actual.r - expected.r) < 0.01f
+                        && Mathf.Abs(actual.g - expected.g) < 0.01f
+                        && Mathf.Abs(actual.b - expected.b) < 0.01f
+                        && Mathf.Abs(actual.a - expected.a) < 0.01f) return true;
+                }
+            }
+            return false;
         }
 
         private static void AssertRandomOrderCanVary()
@@ -391,6 +541,16 @@ namespace WardShift.Editor
             }
             Assert(point01WasFirst && point02WasFirst,
                 "균열 생성마다 독립적으로 첫 봉인점 순서를 무작위 선택");
+        }
+
+        private static void CompleteRemainingSealPoints(ManaRift rift)
+        {
+            while (rift.IsSealChainInProgress)
+            {
+                MagicTarget expected = rift.ExpectedSealPoint;
+                Assert(expected != null && rift.TryCompleteSealClick(expected),
+                    "성장 단계에 필요한 남은 봉인점을 순서대로 처리");
+            }
         }
 
         private static void AssertOptionalRiftVfx()

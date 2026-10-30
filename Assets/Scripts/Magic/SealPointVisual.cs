@@ -8,7 +8,7 @@ namespace WardShift
     [DefaultExecutionOrder(10001)]
     public sealed class SealPointVisual : MonoBehaviour
     {
-        public enum State { Hidden, Discovered, Active, Completed, Failed }
+        public enum State { Hidden, Discovered, Active, Queued, Completed, Failed }
 
         [Header("임시 연쇄 표시 색상")]
         [SerializeField] private Color discoveredColor = new Color(0.55f, 0.45f, 0.08f, 1f);
@@ -165,12 +165,12 @@ namespace WardShift
         {
             if (renderers == null) return;
             // The completed point keeps its MagicTarget state, but its rune and number disappear.
-            bool visible = state == State.Active || state == State.Failed
+            bool visible = state == State.Active || state == State.Queued || state == State.Failed
                 || (state == State.Discovered && detected);
             Color color = state == State.Active ? activeColor
                 : state == State.Completed ? completedColor
                 : state == State.Failed ? failedColor
-                : state == State.Discovered ? discoveredColor : detectionColor;
+                : state == State.Discovered || state == State.Queued ? discoveredColor : detectionColor;
             if (orderLabel != null)
             {
                 orderLabel.enabled = visible && orderNumber > 0;
