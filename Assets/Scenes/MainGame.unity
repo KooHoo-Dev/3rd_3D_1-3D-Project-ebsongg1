@@ -18751,6 +18751,36 @@ MonoBehaviour:
     otherAnomaliesWeight: 1
     maximumConcurrentAnomalies: 3
     spawnIntervalSeconds: 9.5
+  specialManaRiftSchedule:
+    dayRules:
+    - day: 1
+      enabled: 0
+      spawnAfterSeconds: 0
+      initialDangerStage: 2
+    - day: 2
+      enabled: 0
+      spawnAfterSeconds: 0
+      initialDangerStage: 2
+    - day: 3
+      enabled: 0
+      spawnAfterSeconds: 0
+      initialDangerStage: 2
+    - day: 4
+      enabled: 0
+      spawnAfterSeconds: 0
+      initialDangerStage: 2
+    - day: 5
+      enabled: 1
+      spawnAfterSeconds: 75
+      initialDangerStage: 2
+    - day: 6
+      enabled: 1
+      spawnAfterSeconds: 90
+      initialDangerStage: 2
+    - day: 7
+      enabled: 1
+      spawnAfterSeconds: 100
+      initialDangerStage: 3
 --- !u!114 &411442693
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -18874,9 +18904,8 @@ MonoBehaviour:
       \uD55C \uBC88\uB9CC \uAD6C\uB9E4\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4."
     inventory: "B\uB85C \uC778\uBCA4\uD1A0\uB9AC\uB97C \uC5F4\uACE0 \uD544\uC694\uD55C
       \uC544\uC774\uD15C\uC744 \uD074\uB9AD\uD574 \uC0AC\uC6A9\uD558\uC138\uC694."
-    map: "M\uC73C\uB85C \uC2DC\uC124 \uC9C0\uB3C4\uB97C \uC5F4\uC5B4 \uC774\uC0C1\uD604\uC0C1
-      \uC704\uCE58\uB97C \uD655\uC778\uD558\uC138\uC694. \uC9C0\uB3C4\uB294 \uC2E4\uC81C
-      \uC774\uB3D9 \uACBD\uB85C\uC758 \uCD95\uCC99\uACFC \uB2E4\uB985\uB2C8\uB2E4."
+    map: "TAB\uC73C\uB85C \uC2DC\uC124 \uC9C0\uB3C4\uB97C \uC5F4\uC5B4 \uC774\uC0C1\uD604\uC0C1
+      \uC704\uCE58\uB97C \uD655\uC778\uD558\uC138\uC694."
     growthOverview: "\uC774\uC0C1\uD604\uC0C1\uC740 \uC2DC\uAC04\uC774 \uC9C0\uB098\uBA74
       \uCD5C\uB300 3\uB2E8\uACC4\uAE4C\uC9C0 \uC131\uC7A5\uD569\uB2C8\uB2E4. \uB2A6\uAC8C
       \uC9C4\uC555\uD560\uC218\uB85D \uACB0\uC815 \uBCF4\uC0C1\uC740 \uB298\uC9C0\uB9CC,
@@ -75269,6 +75298,32 @@ MonoBehaviour:
   crosshairSize: 8.4
   crosshairOutlineColor: {r: 0.08, g: 0.04, b: 0.16, a: 0.8}
   contaminationIncreaseSfx: {fileID: 8300000, guid: 139331ff6cd0b8845bf9cd5982c7bbcf, type: 3}
+  threatBannerSize: {x: 920, y: 132}
+  threatBannerTopOffset: {x: 0, y: -252}
+  threatKickerFontSize: 16
+  threatHeadlineFontSize: 28
+  threatDetailFontSize: 19
+  stageWarningDuration: 3.5
+  specialSpawnWarningDuration: 2.2
+  specialSpawnWarningColor: {r: 0.78, g: 0.48, b: 1, a: 1}
+  specialSpawnWarningSfx: {fileID: 0}
+  stageTwoWarningColor: {r: 1, g: 0.62, b: 0.25, a: 1}
+  stageThreeWarningColor: {r: 1, g: 0.24, b: 0.2, a: 1}
+  radialBurstWarningColor: {r: 1, g: 0.34, b: 0.16, a: 1}
+  trackingBoltWarningColor: {r: 0.88, g: 0.32, b: 1, a: 1}
+  radialAttackAlertExtraLeadSeconds: 0
+  trackingAttackAlertExtraLeadSeconds: 0
+  stageEdgeFlashDuration: 1.1
+  threatEdgeThickness: 12
+  threatEdgeLength: 250
+  stageTwoEdgeIntensity: 0.24
+  stageThreeEdgeIntensity: 0.36
+  deviceAttackEdgeIntensity: 0.62
+  threatEdgePulseSpeed: 7
+  stageTwoWarningSfx: {fileID: 0}
+  stageThreeWarningSfx: {fileID: 0}
+  radialBurstWarningSfx: {fileID: 0}
+  trackingBoltWarningSfx: {fileID: 0}
   hudRoot: {fileID: 1056638083}
   dayStatusText: {fileID: 1373657673}
   floodText: {fileID: 973659212}

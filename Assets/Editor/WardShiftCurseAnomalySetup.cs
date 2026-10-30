@@ -109,6 +109,12 @@ namespace WardShift.Editor
                     patches.GetArrayElementAtIndex(i).objectReferenceValue = patchComponents[i];
                 anomalySerialized.FindProperty("minimumPatchCount").intValue = 4;
                 anomalySerialized.FindProperty("maximumPatchCount").intValue = 6;
+                anomalySerialized.FindProperty("stageOnePatchSizeMultiplier").floatValue = 1f;
+                anomalySerialized.FindProperty("stageTwoPatchSizeMultiplier").floatValue = 1.6f;
+                anomalySerialized.FindProperty("stageThreePatchSizeMultiplier").floatValue = 2.3f;
+                anomalySerialized.FindProperty("stageSizeTransitionSeconds").floatValue = 0.65f;
+                anomalySerialized.FindProperty("purificationAreaMultiplier").floatValue = 1f;
+                anomalySerialized.FindProperty("damageAreaMultiplier").floatValue = 1f;
                 anomalySerialized.FindProperty("stageTwoAt").floatValue = 20f;
                 anomalySerialized.FindProperty("stageThreeAt").floatValue = 40f;
                 anomalySerialized.FindProperty("ruptureAt").floatValue = 60f;
@@ -172,9 +178,19 @@ namespace WardShift.Editor
             patchSerialized.FindProperty("dangerRadius").floatValue = radius;
             patchSerialized.FindProperty("surfaceOffset").floatValue = 0.025f;
             patchSerialized.FindProperty("stageOneColor").colorValue = new Color(0.055f, 0.018f, 0.09f, 0.72f);
-            patchSerialized.FindProperty("stageTwoColor").colorValue = new Color(0.12f, 0.025f, 0.2f, 0.78f);
+            patchSerialized.FindProperty("stageTwoColor").colorValue = new Color(0.18f, 0.025f, 0.18f, 0.82f);
             patchSerialized.FindProperty("stageThreeColor").colorValue = new Color(0.28f, 0.025f, 0.12f, 0.86f);
             patchSerialized.FindProperty("purifyingColor").colorValue = new Color(0.72f, 0.48f, 1f, 0.5f);
+            patchSerialized.FindProperty("stageColorTransitionSeconds").floatValue = 0.45f;
+            patchSerialized.FindProperty("stageOnePulseEnabled").boolValue = false;
+            patchSerialized.FindProperty("stageOnePulseSpeed").floatValue = 0.25f;
+            patchSerialized.FindProperty("stageOnePulseIntensity").floatValue = 0.02f;
+            patchSerialized.FindProperty("stageTwoPulseEnabled").boolValue = true;
+            patchSerialized.FindProperty("stageTwoPulseSpeed").floatValue = 0.45f;
+            patchSerialized.FindProperty("stageTwoPulseIntensity").floatValue = 0.05f;
+            patchSerialized.FindProperty("stageThreePulseEnabled").boolValue = true;
+            patchSerialized.FindProperty("stageThreePulseSpeed").floatValue = 0.8f;
+            patchSerialized.FindProperty("stageThreePulseIntensity").floatValue = 0.08f;
             patchSerialized.ApplyModifiedPropertiesWithoutUndo();
             return patch;
         }

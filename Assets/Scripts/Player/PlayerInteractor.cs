@@ -76,17 +76,19 @@ namespace WardShift
             Vector3 offset = targetCollider.bounds.center - origin;
             float distance = offset.magnitude;
             if (distance < 0.001f || distance > interactionDistance) return false;
-            Collider closest = null;
-            float nearest = float.PositiveInfinity;
-            foreach (RaycastHit hit in Physics.RaycastAll(origin, offset / distance,
-                         distance + 0.05f, raycastLayers, QueryTriggerInteraction.Ignore))
+            Ray ray = new Ray(origin, offset / distance);
+            if (!targetCollider.Raycast(ray, out RaycastHit targetHit, distance + 0.05f)) return false;
+            foreach (RaycastHit hit in Physics.RaycastAll(ray, distance + 0.05f,
+                         raycastLayers, QueryTriggerInteraction.Ignore))
             {
                 if (playerRoot != null && hit.collider.transform.IsChildOf(playerRoot)) continue;
-                if (hit.distance >= nearest) continue;
-                nearest = hit.distance;
-                closest = hit.collider;
+                // Other overlapping patches share the same floor surface and must not hide the
+                // selected patch from the continuous-hold line-of-sight check.
+                if (hit.collider == targetCollider || hit.collider.GetComponentInParent<CursePatch>() != null)
+                    continue;
+                if (hit.distance < targetHit.distance - 0.015f) return false;
             }
-            return closest == targetCollider;
+            return true;
         }
 
         private void Awake()
@@ -122,57 +124,65 @@ namespace WardShift
                 QueryTriggerInteraction.Ignore);
 
             CurrentCollider = null;
-            float nearestDistance = float.PositiveInfinity;
-            RaycastHit nearestHit = default;
+            float nearestBlockingDistance = float.PositiveInfinity;
+            RaycastHit nearestBlockingHit = default;
+            bool hasBlockingHit = false;
             foreach (RaycastHit hit in hits)
             {
                 if (playerRoot != null && hit.collider.transform.IsChildOf(playerRoot))
                     continue;
-                if (hit.distance < nearestDistance)
+                CursePatch patch = hit.collider.GetComponentInParent<CursePatch>();
+                if (patch == null && hit.distance < nearestBlockingDistance)
                 {
-                    nearestDistance = hit.distance;
-                    nearestHit = hit;
-                    CurrentCollider = hit.collider;
+                    nearestBlockingDistance = hit.distance;
+                    nearestBlockingHit = hit;
+                    hasBlockingHit = true;
                 }
             }
 
-            // 겹친 패치에서는 첫 표면의 미세한 깊이 차보다 조준점에 가까운 중심을 우선합니다.
-            MagicTarget nearestTarget = CurrentCollider != null
-                ? CurrentCollider.GetComponentInParent<MagicTarget>()
-                : null;
-            if (nearestTarget != null && nearestTarget.GetComponent<CursePatch>() != null)
+            // All overlapping patches remain candidates even if another patch is slightly in
+            // front. Keep the current patch while the aim remains inside its footprint; when it
+            // no longer overlaps the aim point, prefer the patch center nearest the ray contact.
+            MagicTarget selectedPatchTarget = null;
+            Collider selectedPatchCollider = null;
+            float bestCenterDistance = float.PositiveInfinity;
+            foreach (RaycastHit hit in hits)
             {
-                const float sameSurfaceDepth = 0.12f;
-                float bestCenterDistance = PlanarDistanceSqr(nearestHit.point, nearestTarget.transform.position);
-                int bestInstanceId = nearestTarget.GetInstanceID();
-                foreach (RaycastHit hit in hits)
+                if (hit.collider == null || hit.distance > nearestBlockingDistance + 0.015f)
+                    continue;
+                if (playerRoot != null && hit.collider.transform.IsChildOf(playerRoot)) continue;
+
+                CursePatch patch = hit.collider.GetComponentInParent<CursePatch>();
+                MagicTarget patchTarget = patch != null ? patch.PurificationTarget : null;
+                if (patch == null || patchTarget == null || !patchTarget.IsAvailable
+                    || !patch.ContainsAimPoint(hit.point)) continue;
+
+                float centerDistance = patch.AimCenterDistanceSqr(hit.point);
+                if (patchTarget == currentTarget)
                 {
-                    if (hit.collider == null || hit.distance > nearestDistance + sameSurfaceDepth)
-                        continue;
-                    if (playerRoot != null && hit.collider.transform.IsChildOf(playerRoot))
-                        continue;
-
-                    MagicTarget patchTarget = hit.collider.GetComponentInParent<MagicTarget>();
-                    if (patchTarget == null || !patchTarget.IsAvailable
-                        || patchTarget.GetComponent<CursePatch>() == null) continue;
-
-                    float centerDistance = PlanarDistanceSqr(hit.point, patchTarget.transform.position);
-                    int instanceId = patchTarget.GetInstanceID();
-                    if (centerDistance > bestCenterDistance + 0.0001f
-                        || (Mathf.Abs(centerDistance - bestCenterDistance) <= 0.0001f
-                            && patchTarget != currentTarget && instanceId >= bestInstanceId)) continue;
-
-                    bestCenterDistance = centerDistance;
-                    bestInstanceId = instanceId;
-                    nearestTarget = patchTarget;
-                    CurrentCollider = hit.collider;
+                    selectedPatchTarget = patchTarget;
+                    selectedPatchCollider = patch.AimCollider;
+                    break;
                 }
+                if (centerDistance >= bestCenterDistance) continue;
+
+                bestCenterDistance = centerDistance;
+                selectedPatchTarget = patchTarget;
+                selectedPatchCollider = patch.AimCollider;
             }
 
-            // 가장 가까운 표면만 확인하여 벽 뒤의 대상이 선택되지 않도록 함.
-            MagicTarget candidate = CurrentCollider != null
-                ? CurrentCollider.GetComponentInParent<MagicTarget>()
-                : null;
+            MagicTarget candidate;
+            if (selectedPatchTarget != null)
+            {
+                CurrentCollider = selectedPatchCollider;
+                candidate = selectedPatchTarget;
+            }
+            else
+            {
+                // Non-patch targets retain their original nearest-surface occlusion rule.
+                CurrentCollider = hasBlockingHit ? nearestBlockingHit.collider : null;
+                candidate = CurrentCollider != null ? CurrentCollider.GetComponentInParent<MagicTarget>() : null;
+            }
             SetTarget(candidate != null && candidate.IsAvailable ? candidate : null);
 
             if (drawDebugRay)
@@ -191,13 +201,6 @@ namespace WardShift
             if (logTargetChanges)
                 Debug.Log(target != null ? $"조준 대상: {target.DisplayName}" : "조준 대상: 없음", this);
             TargetChanged?.Invoke(target);
-        }
-
-        private static float PlanarDistanceSqr(Vector3 point, Vector3 center)
-        {
-            point.y = 0f;
-            center.y = 0f;
-            return (point - center).sqrMagnitude;
         }
 
         private void RefreshCrosshair()

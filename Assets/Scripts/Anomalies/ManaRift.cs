@@ -99,6 +99,33 @@ namespace WardShift
         /// <summary>현재 성장 단계에서 필요한 봉인점 수입니다.</summary>
         public int SealPointCount => GetSealPointCount(dangerStage);
 
+        /// <summary>
+        /// 생성되기 전에 지정 단계와 그 단계의 경과 시간을 설정합니다.
+        /// 반드시 비활성 계층에 있는 인스턴스에서 호출해 OnEnable의 봉인점/VFX 초기화보다 먼저 적용합니다.
+        /// </summary>
+        public bool ConfigureInitialDangerStage(int stage)
+        {
+            if (gameObject.activeInHierarchy)
+            {
+                Debug.LogError("ManaRift: 최초 위험 단계는 생성 인스턴스가 활성화되기 전에 설정해야 합니다.", this);
+                return false;
+            }
+
+            int initialStage = Mathf.Clamp(stage, 1, 3);
+            float second = Mathf.Max(0.1f, stageTwoAt);
+            float third = Mathf.Max(second + 0.1f, stageThreeAt);
+            age = initialStage >= 3 ? third : initialStage == 2 ? second : 0f;
+            dangerStage = initialStage;
+            isResolved = false;
+            hasRuptured = false;
+            completionPending = false;
+            sealStep = 0;
+            sealChainDeadline = 0f;
+            sealFailureUntil = 0f;
+            showingSealFailure = false;
+            return true;
+        }
+
         // WardStatus가 프레임별 손실을 합산해 적용. 단계 경계와 프레임이 겹쳐도 초당 손실을 정확히 적분한다.
         public override float AdvanceHazard(float deltaTime)
         {

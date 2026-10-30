@@ -88,6 +88,13 @@ namespace WardShift
         /// <summary>표면 종류가 일치하는 비어 있는 지점에 이상현상을 생성하고 점유를 예약합니다.</summary>
         public bool TrySpawn(AnomalyBehaviour prefab, out AnomalyBehaviour instance)
         {
+            return TrySpawn(prefab, 1, out instance);
+        }
+
+        /// <summary>기존 생성 지점을 재사용하고, 필요하면 균열 최초 단계를 활성화 전에 설정합니다.</summary>
+        public bool TrySpawn(AnomalyBehaviour prefab, int initialManaRiftStage,
+            out AnomalyBehaviour instance)
+        {
             instance = null;
             if (!Application.isPlaying || !isActiveAndEnabled || IsOccupied) return false;
             if (prefab == null || prefab.SpawnSurface != surface || prefab.gameObject.scene.IsValid()
@@ -108,7 +115,25 @@ namespace WardShift
             try
             {
                 // 부모의 Scale은 전달하지 않고 월드 위치/회전만 적용합니다.
-                instance = Instantiate(prefab, SpawnPosition, transform.rotation);
+                if (prefab is ManaRift riftPrefab && initialManaRiftStage > 1)
+                {
+                    GameObject stagingRoot = new GameObject("ManaRiftSpawnStaging");
+                    stagingRoot.SetActive(false);
+                    ManaRift stagedRift = Instantiate(riftPrefab, SpawnPosition, transform.rotation,
+                        stagingRoot.transform);
+                    if (!stagedRift.ConfigureInitialDangerStage(initialManaRiftStage))
+                    {
+                        Destroy(stagedRift.gameObject);
+                        Destroy(stagingRoot);
+                        return false;
+                    }
+
+                    // 비활성 부모에서 단계/나이를 먼저 설정한 뒤, 씬 루트로 옮겨 OnEnable 초기화를 진행합니다.
+                    stagedRift.transform.SetParent(null, true);
+                    Destroy(stagingRoot);
+                    instance = stagedRift;
+                }
+                else instance = Instantiate(prefab, SpawnPosition, transform.rotation);
                 if (instance is CurseAnomaly curseInstance && !curseInstance.ConfigureFromSpawnPoint(this))
                 {
                     Destroy(instance.gameObject);
@@ -155,6 +180,14 @@ namespace WardShift
         {
             instance = null;
             if (!TrySpawn((AnomalyBehaviour)prefab, out AnomalyBehaviour anomaly)) return false;
+            instance = anomaly as ManaRift;
+            return instance != null;
+        }
+
+        public bool TrySpawn(ManaRift prefab, int initialDangerStage, out ManaRift instance)
+        {
+            instance = null;
+            if (!TrySpawn((AnomalyBehaviour)prefab, initialDangerStage, out AnomalyBehaviour anomaly)) return false;
             instance = anomaly as ManaRift;
             return instance != null;
         }

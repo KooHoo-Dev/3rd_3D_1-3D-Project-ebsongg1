@@ -15,6 +15,20 @@ namespace WardShift
         [SerializeField, Range(4, 6)] private int maximumPatchCount = 6;
         [Tooltip("첫 패치는 즉시 나타나며, 저주 오염이 남아 있을 때 다음 패치가 나타나는 간격입니다.")]
         [SerializeField, Min(0.1f)] private float patchSpawnIntervalSeconds = 3f;
+        [Header("성장 단계별 패치 크기")]
+        [Tooltip("원래 프리팹 크기에 대한 단계별 평면 크기 배율입니다. 패치 겹침은 허용됩니다.")]
+        [SerializeField, Min(0.1f)] private float stageOnePatchSizeMultiplier = 1f;
+        [Tooltip("2단계의 원래 크기 대비 평면 배율입니다.")]
+        [SerializeField, Min(0.1f)] private float stageTwoPatchSizeMultiplier = 1.6f;
+        [Tooltip("3단계의 원래 크기 대비 평면 배율입니다.")]
+        [SerializeField, Min(0.1f)] private float stageThreePatchSizeMultiplier = 2.3f;
+        [Tooltip("성장 단계가 바뀔 때 기존 패치의 평면 크기가 새 배율로 확장되는 시간입니다.")]
+        [SerializeField, Min(0f)] private float stageSizeTransitionSeconds = 0.65f;
+        [Header("정화 및 피해 범위")]
+        [Tooltip("CursePatch의 정화 조준 반경에 적용하는 배율입니다. 시각 크기 성장과 함께 적용됩니다.")]
+        [SerializeField, Min(0.1f)] private float purificationAreaMultiplier = 1f;
+        [Tooltip("CursePatch의 플레이어 오염 판정 반경에 적용하는 배율입니다. 피해량 자체에는 영향을 주지 않습니다.")]
+        [SerializeField, Min(0.1f)] private float damageAreaMultiplier = 1f;
         [Header("저주 이상현상 VFX (선택)")]
         [Tooltip("저주 이상현상이 처음 발생할 때 한 번 재생합니다.")]
         [SerializeField] private GameObject spawnVfxPrefab;
@@ -339,9 +353,18 @@ namespace WardShift
                 if (patch == null) continue;
                 bool validPoint = registeredPatches != null && i < registeredPatches.Length && registeredPatches[i];
                 bool activate = hasPlacedPatches && validPoint && i < spawnedPatchCount;
+                patch.SetGrowthProfile(dangerStage, GetPatchSizeMultiplier(dangerStage),
+                    stageSizeTransitionSeconds, purificationAreaMultiplier, damageAreaMultiplier);
                 patch.SetStageAvailability(activate, dangerStage);
                 if (patch.IsHazardActive) activePatchCount++;
             }
+        }
+
+        private float GetPatchSizeMultiplier(int stage)
+        {
+            return stage >= 3 ? Mathf.Max(0.1f, stageThreePatchSizeMultiplier)
+                : stage == 2 ? Mathf.Max(0.1f, stageTwoPatchSizeMultiplier)
+                : Mathf.Max(0.1f, stageOnePatchSizeMultiplier);
         }
 
         private bool AdvancePatchSpawns(float currentAge)

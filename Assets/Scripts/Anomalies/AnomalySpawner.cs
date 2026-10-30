@@ -13,6 +13,7 @@ namespace WardShift
     public sealed class AnomalySpawner : MonoBehaviour
     {
         private enum SpawnKind { ManaRift, CurseContamination, ManaDeviceOverload, Other }
+        private enum SpecialSpawnAttempt { NotDue, Spawned, Waiting }
 
         [Serializable]
         public sealed class DaySpawnProfile
@@ -92,6 +93,9 @@ namespace WardShift
         [Header("DAY별 생성 규칙")]
         [SerializeField] private DaySpawnProfile[] daySpawnProfiles = CreateDefaultDayProfiles();
 
+        [Header("DAY 5~7 특별 마력 균열")]
+        [SerializeField] private SpecialManaRiftSchedule specialManaRiftSchedule = new SpecialManaRiftSchedule();
+
         private readonly List<AnomalyBehaviour> activeAnomalies = new List<AnomalyBehaviour>();
         private float spawnCountdown;
         private bool spawningEnabled;
@@ -100,10 +104,14 @@ namespace WardShift
         private DayFlowManager dayFlow;
         private DaySpawnProfile activeDayProfile;
         private System.Random dayRandom;
+        private int activeDay = 1;
+        private bool specialSpawnWaitLogged;
 
         /// <summary>- ManaRift 전용 기존 리스너 호환 이벤트</summary>
         public event Action<ManaRift> RiftSpawned;
         public event Action<AnomalyBehaviour> AnomalySpawned;
+        /// <summary>특별 마력 균열이 실제 생성된 뒤에만 DAY와 함께 발생합니다.</summary>
+        public event Action<ManaRift, int> SpecialManaRiftSpawned;
 
         public bool SpawningEnabled => spawningEnabled;
         public bool SpawnWindowOpen => spawnWindowOpen;
@@ -168,7 +176,7 @@ namespace WardShift
 
         private void Update()
         {
-            if (!Application.isPlaying || !isActiveAndEnabled || !spawningEnabled || !CanSpawnNow()) return;
+            if (!Application.isPlaying || !isActiveAndEnabled || !spawningEnabled) return;
             if (wardStatus == null) wardStatus = FindFirstObjectByType<WardStatus>();
             if (wardStatus != null && wardStatus.HasFailed)
             {
@@ -176,13 +184,16 @@ namespace WardShift
                 return;
             }
 
+            ExpireSpecialEventIfSpawnWindowClosed();
+            if (!CanSpawnNow()) return;
+
             if (spawnCountdown > 0f)
             {
                 spawnCountdown -= Time.deltaTime;
                 if (spawnCountdown > 0f) return;
             }
 
-            if (ActiveAnomalyCount < MaximumConcurrentAnomalies) TrySpawnNextAnomaly();
+            TrySpawnNextAnomaly();
             spawnCountdown = SpawnIntervalSeconds;
         }
 
@@ -197,7 +208,11 @@ namespace WardShift
         /// <summary>DAY별 허용 현상, 동시 상한, 생성 간격과 재도전용 결정적 난수를 적용합니다.</summary>
         public void ConfigureForDay(int day, int deterministicSeed)
         {
+            activeDay = Mathf.Max(1, day);
             activeDayProfile = FindDayProfile(day);
+            if (specialManaRiftSchedule == null) specialManaRiftSchedule = new SpecialManaRiftSchedule();
+            specialManaRiftSchedule.ConfigureForDay(activeDay);
+            specialSpawnWaitLogged = false;
             dayRandom = new System.Random(deterministicSeed);
             spawnCountdown = FirstSpawnDelaySeconds;
             spawnWindowOpen = true;
@@ -288,6 +303,11 @@ namespace WardShift
             if (!Application.isPlaying || !isActiveAndEnabled || !spawningEnabled || !CanSpawnNow()) return false;
             if (wardStatus != null && wardStatus.HasFailed) return false;
             PruneEndedAnomalies();
+
+            SpecialSpawnAttempt specialAttempt = TrySpawnDueSpecialRift();
+            if (specialAttempt != SpecialSpawnAttempt.NotDue)
+                return specialAttempt == SpecialSpawnAttempt.Spawned;
+
             if (activeAnomalies.Count >= MaximumConcurrentAnomalies) return false;
             List<AnomalySpawnPoint> availableSpawnPoints = GetAllSpawnPoints();
             if (availableSpawnPoints.Count == 0)
@@ -346,6 +366,83 @@ namespace WardShift
             SpawnOption selectedOption = selectedGroup.Options[NextRandom(selectedGroup.Options.Count)];
             AnomalySpawnPoint selectedPoint = SelectPoint(selectedOption.Points, availableSpawnPoints);
             return TrySpawnAt(selectedPoint, selectedOption.Prefab);
+        }
+
+        private SpecialSpawnAttempt TrySpawnDueSpecialRift()
+        {
+            if (specialManaRiftSchedule == null || !specialManaRiftSchedule.IsPendingForDay(activeDay))
+                return SpecialSpawnAttempt.NotDue;
+            if (dayFlow == null) dayFlow = FindFirstObjectByType<DayFlowManager>();
+            if (dayFlow == null) return SpecialSpawnAttempt.NotDue;
+
+            float elapsedSeconds = Mathf.Max(0f, dayFlow.DayDurationSeconds - dayFlow.RemainingSeconds);
+            if (!specialManaRiftSchedule.TryGetDueStage(activeDay, elapsedSeconds, out int initialStage))
+                return SpecialSpawnAttempt.NotDue;
+
+            if (activeAnomalies.Count >= MaximumConcurrentAnomalies)
+            {
+                LogSpecialSpawnWaiting("the active anomaly limit is full");
+                return SpecialSpawnAttempt.Waiting;
+            }
+
+            if (!IsValidPrefab(riftPrefab))
+            {
+                LogSpecialSpawnWaiting("the ManaRift prefab is missing or inactive");
+                return SpecialSpawnAttempt.Waiting;
+            }
+
+            List<AnomalySpawnPoint> availableSpawnPoints = GetAllSpawnPoints();
+            var compatiblePoints = new List<AnomalySpawnPoint>();
+            foreach (AnomalySpawnPoint point in availableSpawnPoints)
+                if (CanUse(point, riftPrefab)) compatiblePoints.Add(point);
+            if (compatiblePoints.Count == 0)
+            {
+                LogSpecialSpawnWaiting("no unoccupied compatible ManaRift spawn point is available");
+                return SpecialSpawnAttempt.Waiting;
+            }
+
+            AnomalySpawnPoint selectedPoint = SelectPoint(compatiblePoints, availableSpawnPoints);
+            if (!TrySpawnAt(selectedPoint, riftPrefab, initialStage, true))
+            {
+                LogSpecialSpawnWaiting("the selected spawn point rejected the ManaRift");
+                return SpecialSpawnAttempt.Waiting;
+            }
+
+            specialSpawnWaitLogged = false;
+            return SpecialSpawnAttempt.Spawned;
+        }
+
+        private void ExpireSpecialEventIfSpawnWindowClosed()
+        {
+            if (specialManaRiftSchedule == null
+                || !specialManaRiftSchedule.IsPendingForDay(activeDay)) return;
+
+            bool windowClosed = !spawnWindowOpen;
+            if (dayFlow == null) dayFlow = FindFirstObjectByType<DayFlowManager>();
+            if (dayFlow != null && dayFlow.State == DayState.Playing)
+                windowClosed |= dayFlow.RemainingSeconds - Time.deltaTime
+                    <= dayFlow.SpawnStopBeforeEndSeconds;
+            if (!windowClosed) return;
+
+            float elapsedSeconds = dayFlow != null
+                ? Mathf.Max(0f, dayFlow.DayDurationSeconds - dayFlow.RemainingSeconds) : 0f;
+            bool eventWasDue = specialManaRiftSchedule.TryGetDueStage(activeDay, elapsedSeconds, out _);
+            specialManaRiftSchedule.MarkMissed(activeDay);
+            string reason = specialSpawnWaitLogged
+                ? "대기 중이던 빈 이상현상 슬롯을 확보하지 못했습니다."
+                : eventWasDue
+                    ? "특별 현상이 우선할 다음 일반 스폰 순서 전에 스폰 제한 시간이 끝났습니다."
+                    : "설정된 출현 시간이 스폰 제한 시간 뒤에 있습니다.";
+            Debug.LogWarning($"AnomalySpawner: DAY {activeDay} 특별 마력 균열 미출현. {reason}", this);
+            specialSpawnWaitLogged = false;
+        }
+
+        private void LogSpecialSpawnWaiting(string reason)
+        {
+            if (specialSpawnWaitLogged) return;
+            specialSpawnWaitLogged = true;
+            Debug.Log($"AnomalySpawner: DAY {activeDay} 특별 마력 균열 출현 조건 충족. "
+                + $"기존 슬롯을 비우지 않고 대기합니다: {reason}.", this);
         }
 
         private AnomalySpawnPoint SelectPoint(List<AnomalySpawnPoint> compatiblePoints,
@@ -427,18 +524,30 @@ namespace WardShift
             };
         }
 
-        private bool TrySpawnAt(AnomalySpawnPoint point, AnomalyBehaviour prefab)
+        private bool TrySpawnAt(AnomalySpawnPoint point, AnomalyBehaviour prefab,
+            int initialRiftStage = 1, bool isSpecialManaRift = false)
         {
             if (!CanUse(point, prefab)) return false;
-            if (!point.TrySpawn(prefab, out AnomalyBehaviour instance)) return false;
+            if (!point.TrySpawn(prefab, initialRiftStage, out AnomalyBehaviour instance)) return false;
             if (instance is ManaDeviceAnomaly spawnedDevice)
                 spawnedDevice.ConfigureAttackPattern(activeDayProfile != null
                     && activeDayProfile.AlternateDeviceAttacks);
             activeAnomalies.Add(instance);
             instance.Ended += OnAnomalyEnded;
+            if (isSpecialManaRift && instance is ManaRift)
+                specialManaRiftSchedule?.MarkSpawned(activeDay);
             AnomalySpawned?.Invoke(instance);
-            if (instance is ManaRift rift) RiftSpawned?.Invoke(rift);
+            if (instance is ManaRift rift)
+            {
+                RiftSpawned?.Invoke(rift);
+                if (isSpecialManaRift)
+                {
+                    SpecialManaRiftSpawned?.Invoke(rift, activeDay);
+                }
+            }
             Debug.Log($"이상현상 생성: {point.name} ({instance.GetType().Name})", this);
+            if (isSpecialManaRift)
+                Debug.Log($"특별 마력 균열 생성: DAY {activeDay}, stage {initialRiftStage}", this);
             return true;
         }
 

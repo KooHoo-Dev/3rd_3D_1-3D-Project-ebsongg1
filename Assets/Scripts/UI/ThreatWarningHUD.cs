@@ -5,7 +5,7 @@ using UnityEngine.UI;
 
 namespace WardShift
 {
-    /// <summary>단계 상승과 장치 공격의 비차단형 화면 경고를 관리합니다.</summary>
+    /// <summary>단계 상승, 특별 출현, 장치 공격의 비차단형 화면 경고를 관리합니다.</summary>
     [DisallowMultipleComponent]
     [DefaultExecutionOrder(10012)]
     public sealed class ThreatWarningHUD : MonoBehaviour
@@ -23,6 +23,7 @@ namespace WardShift
 
         private WardShiftHUDLayout layout;
         private DayFlowManager dayFlow;
+        private AnomalySpawner anomalySpawner;
         private ContaminationHitFeedback hitFeedback;
         private RectTransform uiRoot;
         private RectTransform edgeRoot;
@@ -38,6 +39,9 @@ namespace WardShift
         private int currentStage;
         private float stageNoticeRemaining;
         private float stageEdgeRemaining;
+        private float specialSpawnNoticeRemaining;
+        private int specialSpawnNoticeDay;
+        private bool specialSpawnWarningSoundPlayed;
         private bool hasAttackWarning;
         private int activeRadialWarnings;
         private int activeProjectileWarnings;
@@ -48,7 +52,20 @@ namespace WardShift
             layout = hudLayout;
             dayFlow = manager;
             hitFeedback = GetComponent<ContaminationHitFeedback>();
+            EnsureSpawnerSubscription();
             EnsureUI();
+        }
+
+        private void OnEnable()
+        {
+            EnsureSpawnerSubscription();
+        }
+
+        private void OnDisable()
+        {
+            if (anomalySpawner != null)
+                anomalySpawner.SpecialManaRiftSpawned -= OnSpecialManaRiftSpawned;
+            anomalySpawner = null;
         }
 
         private void Update()
@@ -56,6 +73,7 @@ namespace WardShift
             if (layout == null) layout = GetComponent<WardShiftHUDLayout>();
             if (layout == null || layout.HUDRoot == null) return;
             if (dayFlow == null) dayFlow = FindFirstObjectByType<DayFlowManager>();
+            EnsureSpawnerSubscription();
             if (hitFeedback == null) hitFeedback = GetComponent<ContaminationHitFeedback>();
             EnsureUI();
 
@@ -127,19 +145,67 @@ namespace WardShift
             }
             else
             {
-                if (currentStage == 2 && HasPendingStage(3)) PauseStageNotice();
-                if (currentStage > 0 && uiVisible)
+                if (specialSpawnNoticeRemaining > 0f && currentStage > 0) PauseStageNotice();
+                if (specialSpawnNoticeRemaining > 0f && uiVisible)
                 {
-                    stageNoticeRemaining = Mathf.Max(0f, stageNoticeRemaining - Time.unscaledDeltaTime);
-                    if (stageNoticeRemaining <= 0f) ClearActiveStageNotice();
+                    specialSpawnNoticeRemaining = Mathf.Max(0f,
+                        specialSpawnNoticeRemaining - Time.unscaledDeltaTime);
                 }
-                if (currentStage == 0 && uiVisible) StartNextStageNotice();
-                if (currentStage > 0) ConfigureStageBanner();
+                if (specialSpawnNoticeRemaining > 0f)
+                {
+                    if (uiVisible) ConfigureSpecialSpawnBanner();
+                }
+                else
+                {
+                    if (currentStage == 2 && HasPendingStage(3)) PauseStageNotice();
+                    if (currentStage > 0 && uiVisible)
+                    {
+                        stageNoticeRemaining = Mathf.Max(0f, stageNoticeRemaining - Time.unscaledDeltaTime);
+                        if (stageNoticeRemaining <= 0f) ClearActiveStageNotice();
+                    }
+                    if (currentStage == 0 && uiVisible) StartNextStageNotice();
+                    if (currentStage > 0) ConfigureStageBanner();
+                }
             }
 
-            bool showBanner = uiVisible && (hasAttackWarning || currentStage > 0);
+            bool showBanner = uiVisible
+                && (hasAttackWarning || specialSpawnNoticeRemaining > 0f || currentStage > 0);
             if (bannerRoot != null) bannerRoot.gameObject.SetActive(showBanner);
             UpdateEdges(uiVisible, hasAttackWarning, currentStage);
+        }
+
+        private void EnsureSpawnerSubscription()
+        {
+            AnomalySpawner foundSpawner = FindFirstObjectByType<AnomalySpawner>();
+            if (foundSpawner == anomalySpawner) return;
+            if (anomalySpawner != null)
+                anomalySpawner.SpecialManaRiftSpawned -= OnSpecialManaRiftSpawned;
+            anomalySpawner = foundSpawner;
+            if (anomalySpawner != null)
+                anomalySpawner.SpecialManaRiftSpawned += OnSpecialManaRiftSpawned;
+        }
+
+        private void OnSpecialManaRiftSpawned(ManaRift rift, int day)
+        {
+            if (rift == null) return;
+            specialSpawnNoticeDay = day;
+            specialSpawnNoticeRemaining = layout != null
+                ? layout.SpecialSpawnWarningDuration : 2.2f;
+            specialSpawnWarningSoundPlayed = false;
+        }
+
+        private void ConfigureSpecialSpawnBanner()
+        {
+            if (bannerKicker == null || bannerHeadline == null || bannerDetail == null) return;
+            bannerKicker.text = "특별 현상 출현";
+            bannerHeadline.text = specialSpawnNoticeDay == 7
+                ? "위험: 고농도 마력 균열 발생"
+                : "고농도 마력 반응 발생";
+            bannerDetail.text = "지도와 Q 마력 감응으로 위치를 확인할 수 있습니다.";
+            ApplyBannerStyle(layout.SpecialSpawnWarningColor, false);
+            if (specialSpawnWarningSoundPlayed) return;
+            PlayWarningSound(layout.SpecialSpawnWarningSfx);
+            specialSpawnWarningSoundPlayed = true;
         }
 
         private void EnsureUI()

@@ -33,6 +33,14 @@ namespace WardShift
         [Tooltip("2·3단계 상승 안내가 표시되는 시간입니다. 장치 공격 경고 중에는 대기합니다.")]
         [SerializeField, Min(0.1f), InspectorName("단계 경고 표시 시간")]
         private float stageWarningDuration = 3.5f;
+        [Tooltip("특별 마력 균열이 실제 생성된 뒤 비차단형 배너를 표시하는 시간입니다. 장치 공격 경고가 있으면 대기합니다.")]
+        [SerializeField, Min(0.1f), InspectorName("특별 출현 경고 표시 시간")]
+        private float specialSpawnWarningDuration = 2.2f;
+        [SerializeField, InspectorName("특별 출현 경고 색")]
+        private Color specialSpawnWarningColor = new Color(0.78f, 0.48f, 1f, 1f);
+        [Tooltip("비워 두면 특별 마력 균열 출현 경고음을 재생하지 않습니다.")]
+        [SerializeField, InspectorName("특별 출현 경고음")]
+        private AudioClip specialSpawnWarningSfx;
         [SerializeField, InspectorName("2단계 경고 색")] private Color stageTwoWarningColor = new Color(1f, 0.62f, 0.25f, 1f);
         [SerializeField, InspectorName("3단계 경고 색")] private Color stageThreeWarningColor = new Color(1f, 0.24f, 0.2f, 1f);
         [SerializeField, InspectorName("원형 방출 경고 색")] private Color radialBurstWarningColor = new Color(1f, 0.34f, 0.16f, 1f);
@@ -79,6 +87,9 @@ namespace WardShift
         internal float ThreatHeadlineFontSize => Mathf.Max(8f, threatHeadlineFontSize);
         internal float ThreatDetailFontSize => Mathf.Max(8f, threatDetailFontSize);
         internal float StageWarningDuration => Mathf.Max(0.1f, stageWarningDuration);
+        internal float SpecialSpawnWarningDuration => Mathf.Max(0.1f, specialSpawnWarningDuration);
+        internal Color SpecialSpawnWarningColor => specialSpawnWarningColor;
+        internal AudioClip SpecialSpawnWarningSfx => specialSpawnWarningSfx;
         internal Color StageTwoWarningColor => stageTwoWarningColor;
         internal Color StageThreeWarningColor => stageThreeWarningColor;
         internal Color RadialBurstWarningColor => radialBurstWarningColor;
