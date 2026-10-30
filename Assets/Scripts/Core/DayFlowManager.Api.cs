@@ -24,14 +24,12 @@ namespace WardShift
         public bool UpgradePurchasedThisClear => upgrades != null && upgrades.PurchasedThisClear;
         public int MobilityUpgradeLevel => upgrades != null ? upgrades.MobilityLevel : startingMobilityLevel;
         public int ContaminationResistanceLevel => upgrades != null ? upgrades.ResistanceLevel : startingResistanceLevel;
-        public int FieldPurificationLevel => upgrades != null ? upgrades.PurificationLevel : startingPurificationLevel;
+        public int FacilityDefenseLevel => upgrades != null ? upgrades.FacilityDefenseLevel : startingFacilityDefenseLevel;
         public FloodCondition ActiveFloodCondition => activeFloodCondition;
         public FloodCondition NextDayFloodCondition => nextDayFloodCondition;
         public float SafeZoneRecoveryMultiplier => FloodConditionRules.SafeZoneRecoveryMultiplier(activeFloodCondition);
-        public float PotionRecoveryAmount => upgrades != null
-            ? upgrades.PotionRecoveryAmount(activeFloodCondition)
-            : FloodConditionRules.PotionRecoveryAmount(
-                DayUpgradeRules.PotionRecovery(startingPurificationLevel, PlayerInventory.PotionRecovery), activeFloodCondition);
+        public float PotionRecoveryAmount =>
+            FloodConditionRules.PotionRecoveryAmount(PlayerInventory.PotionRecovery, activeFloodCondition);
         public FacilityZoneTracker ZoneTracker => zoneTracker;
         public PlayerInventory Inventory => inventory;
         public WardStatus Status => wardStatus;
@@ -97,15 +95,15 @@ namespace WardShift
             switch (type)
             {
                 case DayUpgradeType.Mobility: return startingMobilityLevel;
+                case DayUpgradeType.FacilityDefense: return startingFacilityDefenseLevel;
                 case DayUpgradeType.ContaminationResistance: return startingResistanceLevel;
-                case DayUpgradeType.FieldPurification: return startingPurificationLevel;
                 default: return 0;
             }
         }
 
         public int GetNextUpgradePrice(DayUpgradeType type)
         {
-            if (GetUpgradeLevel(type) >= 2) return 0;
+            if (GetUpgradeLevel(type) >= DayUpgradeRules.MaximumLevel) return 0;
             EnsureUpgradePrices();
             return upgrades != null ? upgrades.GetNextPrice(type, upgradeStagePrices)
                 : DayUpgradeRules.NextPrice(GetUpgradeLevel(type), upgradeStagePrices);
@@ -113,9 +111,7 @@ namespace WardShift
 
         public string GetUpgradeEffectText(DayUpgradeType type, int level)
         {
-            FloodCondition condition = state == DayState.DayClear
-                ? nextDayFloodCondition : activeFloodCondition;
-            return DayUpgradeController.GetEffectText(type, level, condition);
+            return upgrades != null ? upgrades.GetEffectText(type, level) : string.Empty;
         }
 
         public bool CanPurchaseUpgrade(DayUpgradeType type)
@@ -128,7 +124,6 @@ namespace WardShift
         {
             EnsureUpgradePrices();
             if (upgrades == null || !upgrades.TryPurchase(type, state, upgradeStagePrices)) return false;
-            ApplyUpgradeEffects();
             return true;
         }
 

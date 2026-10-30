@@ -14,6 +14,39 @@ namespace WardShift
         [SerializeField] private DayFlowManager dayFlow;
         [SerializeField] private PlayerInventory inventory;
         [SerializeField] private TMP_FontAsset koreanFont;
+
+        [Header("강화 제목 강조 색상")]
+        [SerializeField, InspectorName("이동 속도 제목")]
+        private Color mobilityTitleHighlightColor = new Color32(110, 200, 255, 255);
+        [SerializeField, InspectorName("시설 방호 제목")]
+        private Color facilityDefenseTitleHighlightColor = new Color32(110, 230, 170, 255);
+        [SerializeField, InspectorName("오염 저항 제목")]
+        private Color contaminationResistanceTitleHighlightColor = new Color32(205, 160, 255, 255);
+
+        [Header("강화 설명 효과 강조 색상")]
+        [SerializeField, InspectorName("이동 속도 설명에서 색칠할 단어")]
+        private string mobilityEffectHighlightWord = "이동속도";
+        [SerializeField, InspectorName("이동 속도 효과 문구")]
+        private Color mobilityEffectHighlightColor = new Color32(110, 200, 255, 255);
+        [SerializeField, InspectorName("시설 방호 설명에서 색칠할 단어")]
+        private string facilityDefenseEffectHighlightWord = "지속 안정도 피해";
+        [SerializeField, InspectorName("시설 방호 효과 문구")]
+        private Color facilityDefenseEffectHighlightColor = new Color32(110, 230, 170, 255);
+        [SerializeField, InspectorName("오염 저항 설명에서 색칠할 단어")]
+        private string contaminationResistanceEffectHighlightWord = "오염도 획득량";
+        [SerializeField, InspectorName("오염 저항 효과 문구")]
+        private Color contaminationResistanceEffectHighlightColor = new Color32(205, 160, 255, 255);
+
+        [Header("구매 정보 강조 색상")]
+        [SerializeField, InspectorName("마력 조각 가격")]
+        private Color upgradePriceHighlightColor = new Color32(255, 210, 110, 255);
+        [SerializeField, InspectorName("구매 가능 상태")]
+        private Color upgradeAvailableHighlightColor = new Color32(105, 225, 165, 255);
+        [SerializeField, InspectorName("구매 불가 상태")]
+        private Color upgradeUnavailableHighlightColor = new Color32(255, 125, 115, 255);
+        [SerializeField, InspectorName("최대 단계·구매 완료 상태")]
+        private Color upgradeCompleteHighlightColor = new Color32(175, 190, 210, 255);
+
         private TMP_Text dayStatusText;
         private TMP_Text pickupPromptText;
         private TMP_Text inventorySummaryText;
@@ -276,10 +309,9 @@ namespace WardShift
             DayUpgradeType[] types =
             {
                 DayUpgradeType.Mobility,
-                DayUpgradeType.ContaminationResistance,
-                DayUpgradeType.FieldPurification
+                DayUpgradeType.FacilityDefense,
+                DayUpgradeType.ContaminationResistance
             };
-            string[] titles = { "기동 조율", "오염 내성", "현장 정화" };
             Vector2[] positions = { new Vector2(-365f, -96f), new Vector2(0f, -96f), new Vector2(365f, -96f) };
             for (int i = 0; i < types.Length; i++)
             {
@@ -287,17 +319,19 @@ namespace WardShift
                 GameObject card = CreatePanel($"Upgrade_{types[i]}", clearPanel.transform,
                     new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
                     positions[i], new Vector2(330f, 322f), new Color(0.09f, 0.13f, 0.2f, 1f));
-                CreateText("Name", card.transform, new Vector2(0f, 1f), new Vector2(1f, 1f),
+                TMP_Text title = CreateText("Name", card.transform, new Vector2(0f, 1f), new Vector2(1f, 1f),
                     new Vector2(0.5f, 1f), new Vector2(0f, -16f), new Vector2(-30f, 44f),
-                    30, TextAlignmentOptions.Center, Color.white).text = titles[i];
+                    27, TextAlignmentOptions.Center, Color.white);
+                title.richText = true;
                 TMP_Text description = CreateText("Effect", card.transform, new Vector2(0f, 1f),
                     new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -64f),
-                    new Vector2(-34f, 154f), 18.5f, TextAlignmentOptions.Top, new Color(0.82f, 0.89f, 1f));
+                    new Vector2(-34f, 154f), 16.5f, TextAlignmentOptions.Top, new Color(0.82f, 0.89f, 1f));
+                description.richText = true;
                 Button button = CreateActionButton("Purchase", card.transform, new Vector2(0f, -110f),
                     new Vector2(270f, 58f), "구매", () => OnUpgradeClicked(types[cardIndex]));
                 TMP_Text buttonLabel = button.GetComponentInChildren<TMP_Text>();
-                buttonLabel.fontSize = 19;
-                upgradeCards[i] = new UpgradeCardView(types[i], description, button,
+                buttonLabel.fontSize = 17;
+                upgradeCards[i] = new UpgradeCardView(types[i], title, description, button,
                     buttonLabel, button.GetComponent<Image>());
             }
             upgradeResultText = CreateText("UpgradeResult", clearPanel.transform,
@@ -471,18 +505,30 @@ namespace WardShift
                 if (card == null) continue;
                 int level = dayFlow.GetUpgradeLevel(card.Type);
                 int price = dayFlow.GetNextUpgradePrice(card.Type);
-                string nextEffect = level < 2
-                    ? dayFlow.GetUpgradeEffectText(card.Type, level + 1) : "최대 단계";
-                card.Description.text = $"단계 {level} / 2\n"
-                    + $"현재 효과: {dayFlow.GetUpgradeEffectText(card.Type, level)}\n"
-                    + $"구매 후: {nextEffect}\n"
-                    + $"필요 결정: {(price > 0 ? price + "개" : "구매 불가")}";
+                bool maxLevel = level >= DayUpgradeRules.MaximumLevel;
                 bool canPurchase = dayFlow.CanPurchaseUpgrade(card.Type);
+                bool purchaseComplete = maxLevel || dayFlow.UpgradePurchasedThisClear;
+                string currentEffect = dayFlow.GetUpgradeEffectText(card.Type, level);
+                string nextEffect = maxLevel
+                    ? "최대 강화 완료" : dayFlow.GetUpgradeEffectText(card.Type, level + 1);
+                string purchaseStatus = maxLevel ? "최대 강화 완료"
+                    : dayFlow.UpgradePurchasedThisClear ? "이번 DAY 구매 완료"
+                    : inventory.ManaCrystals < price ? $"불가 (마력 조각 부족 · {price}개 필요)"
+                    : canPurchase ? "구매 가능" : "현재 구매 불가";
+                Color statusColor = purchaseComplete ? upgradeCompleteHighlightColor
+                    : canPurchase ? upgradeAvailableHighlightColor : upgradeUnavailableHighlightColor;
+                card.Title.text = $"{Colorize(GetUpgradeTitleName(card.Type), GetUpgradeTitleColor(card.Type))} 강화 "
+                    + GetUpgradeStageName(Mathf.Min(level + 1, DayUpgradeRules.MaximumLevel));
+                card.Description.text = $"현재 단계: {level} / {DayUpgradeRules.MaximumLevel}\n"
+                    + $"현재 효과: {ColorizeUpgradeEffect(card.Type, currentEffect)}\n"
+                    + $"강화 후: {ColorizeUpgradeEffect(card.Type, nextEffect)}\n"
+                    + $"필요한 마력 조각: {Colorize(maxLevel ? "없음" : price + "개", upgradePriceHighlightColor)}\n"
+                    + $"구매 가능 여부: {Colorize(purchaseStatus, statusColor)}";
                 card.Button.interactable = canPurchase;
-                card.ButtonLabel.text = level >= 2 ? "최대 단계"
+                card.ButtonLabel.text = maxLevel ? "최대 강화 완료"
                     : dayFlow.UpgradePurchasedThisClear ? "오늘 구매 완료"
-                    : inventory.ManaCrystals < price ? $"결정 부족\n{price}개 필요"
-                    : $"구매 · {price} 결정";
+                    : inventory.ManaCrystals < price ? $"마력 조각 부족\n{price}개 필요"
+                    : $"구매 · {price}개";
                 card.ButtonImage.color = canPurchase ? new Color(0.12f, 0.42f, 0.6f, 1f)
                     : new Color(0.22f, 0.25f, 0.3f, 1f);
             }
@@ -631,27 +677,89 @@ namespace WardShift
 
         private static string GetUpgradeName(DayUpgradeType type)
         {
+            return $"{GetUpgradeTitleName(type)} 강화";
+        }
+
+        private static string GetUpgradeTitleName(DayUpgradeType type)
+        {
             switch (type)
             {
-                case DayUpgradeType.Mobility: return "기동 조율";
-                case DayUpgradeType.ContaminationResistance: return "오염 내성";
-                case DayUpgradeType.FieldPurification: return "현장 정화";
+                case DayUpgradeType.Mobility: return "이동 속도";
+                case DayUpgradeType.FacilityDefense: return "시설 방호";
+                case DayUpgradeType.ContaminationResistance: return "오염 저항";
                 default: return "강화";
+            }
+        }
+
+        private Color GetUpgradeTitleColor(DayUpgradeType type)
+        {
+            switch (type)
+            {
+                case DayUpgradeType.Mobility: return mobilityTitleHighlightColor;
+                case DayUpgradeType.FacilityDefense: return facilityDefenseTitleHighlightColor;
+                case DayUpgradeType.ContaminationResistance: return contaminationResistanceTitleHighlightColor;
+                default: return Color.white;
+            }
+        }
+
+        private Color GetUpgradeEffectColor(DayUpgradeType type)
+        {
+            switch (type)
+            {
+                case DayUpgradeType.Mobility: return mobilityEffectHighlightColor;
+                case DayUpgradeType.FacilityDefense: return facilityDefenseEffectHighlightColor;
+                case DayUpgradeType.ContaminationResistance: return contaminationResistanceEffectHighlightColor;
+                default: return Color.white;
+            }
+        }
+
+        private string ColorizeUpgradeEffect(DayUpgradeType type, string text)
+        {
+            string word = GetUpgradeEffectHighlightWord(type);
+            if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(word)) return text;
+            return text.Replace(word, Colorize(word, GetUpgradeEffectColor(type)));
+        }
+
+        private string GetUpgradeEffectHighlightWord(DayUpgradeType type)
+        {
+            switch (type)
+            {
+                case DayUpgradeType.Mobility: return mobilityEffectHighlightWord;
+                case DayUpgradeType.FacilityDefense: return facilityDefenseEffectHighlightWord;
+                case DayUpgradeType.ContaminationResistance: return contaminationResistanceEffectHighlightWord;
+                default: return string.Empty;
+            }
+        }
+
+        private static string Colorize(string text, Color color)
+        {
+            return $"<color=#{ColorUtility.ToHtmlStringRGBA(color)}>{text}</color>";
+        }
+
+        private static string GetUpgradeStageName(int level)
+        {
+            switch (level)
+            {
+                case 1: return "I";
+                case 2: return "II";
+                default: return "III";
             }
         }
 
         private sealed class UpgradeCardView
         {
             public readonly DayUpgradeType Type;
+            public readonly TMP_Text Title;
             public readonly TMP_Text Description;
             public readonly Button Button;
             public readonly TMP_Text ButtonLabel;
             public readonly Image ButtonImage;
 
-            public UpgradeCardView(DayUpgradeType type, TMP_Text description, Button button,
+            public UpgradeCardView(DayUpgradeType type, TMP_Text title, TMP_Text description, Button button,
                 TMP_Text buttonLabel, Image buttonImage)
             {
                 Type = type;
+                Title = title;
                 Description = description;
                 Button = button;
                 ButtonLabel = buttonLabel;

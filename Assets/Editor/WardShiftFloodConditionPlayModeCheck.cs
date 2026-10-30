@@ -173,11 +173,11 @@ namespace WardShift.Editor
                         Assert(day.NextDayFloodCondition == FloodCondition.PurificationCycle,
                             "The forced DAY 4 preview was not retained on DAY CLEAR.");
                         inventory.AddManaCrystals(
-                            day.GetNextUpgradePrice(DayUpgradeType.FieldPurification));
-                        Assert(day.TryPurchaseUpgrade(DayUpgradeType.FieldPurification),
-                            "Could not buy Field Purification before the forced DAY 4.");
-                        Assert(day.GetUpgradeEffectText(DayUpgradeType.FieldPurification, 1)
-                            .Contains("30 회복"), "DAY CLEAR did not preview the condition-adjusted potion amount.");
+                            day.GetNextUpgradePrice(DayUpgradeType.FacilityDefense));
+                        Assert(day.TryPurchaseUpgrade(DayUpgradeType.FacilityDefense),
+                            "Could not buy Facility Defense before the forced DAY 4.");
+                        Assert(day.GetUpgradeEffectText(DayUpgradeType.FacilityDefense, 1)
+                            .Contains("-5%"), "DAY CLEAR did not preview the configured Facility Defense effect.");
                         day.BeginNextDay();
                         break;
 
@@ -186,8 +186,8 @@ namespace WardShift.Editor
                             "DAY 4 did not keep its forced purification condition.");
                         Assert(Mathf.Approximately(day.SafeZoneRecoveryMultiplier, 2f),
                             "DAY 4 safe zone recovery multiplier is not exactly doubled.");
-                        Assert(Mathf.Approximately(day.PotionRecoveryAmount, 30f),
-                            "Field Purification level 1 plus Purification Cycle should recover 30.");
+                        Assert(Mathf.Approximately(day.PotionRecoveryAmount, 20f),
+                            "Facility Defense changed the 20-point condition-adjusted base potion recovery.");
                         AssertPotionUseAndRepairKitUnaffected();
 
                         int earnedBeforeCleanup = inventory.CrystalsEarnedToday;
@@ -206,8 +206,8 @@ namespace WardShift.Editor
                         Assert(day.ActiveFloodCondition == FloodCondition.EarlySealBonus,
                             "DAY 5 did not keep its forced early-seal condition.");
                         Assert(Mathf.Approximately(day.SafeZoneRecoveryMultiplier, 1f)
-                            && Mathf.Approximately(day.PotionRecoveryAmount, 45f),
-                            "The DAY 4 purification effect remained on DAY 5.");
+                            && Mathf.Approximately(day.PotionRecoveryAmount, 30f),
+                            "Facility Defense changed the base potion recovery on DAY 5.");
                         AssertEarlySealRewardsAndRetry();
                         day.ConfigureFloodConditionTestOverride(false, FloodCondition.None);
                         day.DeferDaySupplyChoice();
@@ -221,8 +221,8 @@ namespace WardShift.Editor
                     Assert(day.ActiveFloodCondition == FloodCondition.PurificationCycle,
                         "DAY 6 should use the other condition after DAY 5.");
                     Assert(Mathf.Approximately(day.SafeZoneRecoveryMultiplier, 2f)
-                        && Mathf.Approximately(day.PotionRecoveryAmount, 30f),
-                        "DAY 6 effects accumulated instead of using the base and upgrade values.");
+                        && Mathf.Approximately(day.PotionRecoveryAmount, 20f),
+                        "DAY 6 effects accumulated or Facility Defense changed potion recovery.");
                     day.CheatAdvanceDay();
                     day.BeginNextDay();
                 }
@@ -366,8 +366,8 @@ namespace WardShift.Editor
             potionSlot = FindItemSlot(ItemType.PurificationPotion);
             Assert(potionSlot >= 0 && inventory.TryUseItem(potionSlot, player, day.Status,
                     day.PotionRecoveryAmount), "The condition-adjusted potion did not apply.");
-            Assert(Mathf.Approximately(player.Value, 50f),
-                "The upgraded potion did not apply the 2/3 condition factor to its 45 base recovery.");
+            Assert(Mathf.Approximately(player.Value, 60f),
+                "Facility Defense changed the 2/3 condition factor applied to the 30-point base potion recovery.");
 
             if (!inventory.TryAddItem(ItemType.EmergencyRepairKit))
                 inventory.TryReplaceItem(0, ItemType.EmergencyRepairKit);

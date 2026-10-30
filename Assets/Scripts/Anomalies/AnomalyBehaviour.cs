@@ -37,6 +37,12 @@ namespace WardShift
         /// <summary>Normal-resolution reward amount. A negative value uses the DAY fallback range.</summary>
         public virtual int ResolutionReward => -1;
         public virtual float AdvanceHazard(float deltaTime) => 0f;
+        /// <summary>Returns continuous stability loss separately from rupture damage for facility upgrades.</summary>
+        public virtual float AdvanceHazard(float deltaTime, out float immediateStabilityDamage)
+        {
+            immediateStabilityDamage = 0f;
+            return AdvanceHazard(deltaTime);
+        }
         public virtual float ContaminationRateAt(Vector3 position) => 0f;
         public ZoneIdentity Zone { get; private set; }
         public string SpawnLocationLabel { get; private set; }

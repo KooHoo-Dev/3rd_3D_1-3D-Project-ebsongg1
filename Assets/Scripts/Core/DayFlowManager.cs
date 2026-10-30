@@ -18,7 +18,8 @@ namespace WardShift
         [FormerlySerializedAs("minimumRiftReward"), SerializeField, Min(0)] private int minimumAnomalyReward = 1;
         [FormerlySerializedAs("maximumRiftReward"), SerializeField, Min(0)] private int maximumAnomalyReward = 2;
         [Header("강화 설정")]
-        [SerializeField, Min(0)] private int[] upgradeStagePrices = { 4, 8 };
+        [SerializeField, Min(0), InspectorName("단계별 마력 조각 가격"),
+         Tooltip("1·2·3단계 구매에 각각 지불하는 가격입니다.")] private int[] upgradeStagePrices = { 4, 7, 10 };
         [Header("DAY 스킵 (Editor / Development Build)")]
         [SerializeField] private bool enableDaySkipCheat = true;
         [Tooltip("Development Build에서 F8 DAY 스킵을 허용합니다. 일반 빌드에서는 이 값과 관계없이 비활성화됩니다.")]
@@ -37,9 +38,10 @@ namespace WardShift
         [Header("시작 설정")]
         [FormerlySerializedAs("currentDay"), SerializeField, Min(1)] private int startingDay = 1;
         [Header("시작 강화 단계")]
-        [FormerlySerializedAs("mobilityUpgradeLevel"), SerializeField, Range(0, 2)] private int startingMobilityLevel;
-        [FormerlySerializedAs("contaminationResistanceLevel"), SerializeField, Range(0, 2)] private int startingResistanceLevel;
-        [FormerlySerializedAs("fieldPurificationLevel"), SerializeField, Range(0, 2)] private int startingPurificationLevel;
+        [FormerlySerializedAs("mobilityUpgradeLevel"), SerializeField, Range(0, 3)] private int startingMobilityLevel;
+        [FormerlySerializedAs("contaminationResistanceLevel"), SerializeField, Range(0, 3)] private int startingResistanceLevel;
+        [FormerlySerializedAs("startingPurificationLevel"), FormerlySerializedAs("fieldPurificationLevel"),
+         SerializeField, Range(0, 3)] private int startingFacilityDefenseLevel;
 
         private DaySession session;
         private DayRetryCheckpoint checkpoint;
@@ -111,7 +113,7 @@ namespace WardShift
             upgrades = GetComponent<DayUpgradeController>();
             if (upgrades == null) upgrades = gameObject.AddComponent<DayUpgradeController>();
             upgrades.Configure(inventory, playerUpgradeEffects,
-                startingMobilityLevel, startingResistanceLevel, startingPurificationLevel);
+                startingMobilityLevel, startingFacilityDefenseLevel, startingResistanceLevel);
             dayInput = GetComponent<DayInputController>();
             if (dayInput == null) dayInput = gameObject.AddComponent<DayInputController>();
             dayInput.Configure(this, CanUseDaySkip, daySkipCheatKey);
@@ -349,7 +351,7 @@ namespace WardShift
 
         private void ApplyUpgradeEffects()
         {
-            if (upgrades != null) upgrades.ApplyEffects(SafeZoneRecoveryMultiplier, Player);
+            if (upgrades != null) upgrades.ApplyEffects(SafeZoneRecoveryMultiplier, Player, wardStatus);
         }
 
         private FloodCondition SelectFloodCondition(int day, int seed, FloodCondition previousCondition)
@@ -375,8 +377,8 @@ namespace WardShift
 
         private void EnsureUpgradePrices()
         {
-            if (upgradeStagePrices == null || upgradeStagePrices.Length != 2)
-                upgradeStagePrices = new[] { 4, 8 };
+            if (upgradeStagePrices == null || upgradeStagePrices.Length != DayUpgradeRules.MaximumLevel)
+                upgradeStagePrices = new[] { 4, 7, 10 };
         }
 
         private void OnValidate()
@@ -384,7 +386,7 @@ namespace WardShift
             EnsureUpgradePrices();
             startingMobilityLevel = DayUpgradeRules.ClampLevel(startingMobilityLevel);
             startingResistanceLevel = DayUpgradeRules.ClampLevel(startingResistanceLevel);
-            startingPurificationLevel = DayUpgradeRules.ClampLevel(startingPurificationLevel);
+            startingFacilityDefenseLevel = DayUpgradeRules.ClampLevel(startingFacilityDefenseLevel);
         }
 
         private static int CreateDaySeed() => UnityEngine.Random.Range(1, int.MaxValue);
@@ -427,6 +429,6 @@ namespace WardShift
 
     /// <summary>하루 진행의 외부에서 확인 가능한 상태.</summary>
     public enum DayState { Preparing, Playing, DayClear, DayFailed, Ending }
-    public enum DayUpgradeType { Mobility, ContaminationResistance, FieldPurification }
+    public enum DayUpgradeType { Mobility, FacilityDefense, ContaminationResistance }
 
 }

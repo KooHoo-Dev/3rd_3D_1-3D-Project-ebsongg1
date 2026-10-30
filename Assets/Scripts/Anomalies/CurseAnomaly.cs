@@ -293,6 +293,13 @@ namespace WardShift
         /// <summary>성장 경계를 넘은 시간을 적분하고 파열 시 공통 시설 피해량을 반환합니다.</summary>
         public override float AdvanceHazard(float deltaTime)
         {
+            float persistentLoss = AdvanceHazard(deltaTime, out float immediateDamage);
+            return persistentLoss + immediateDamage;
+        }
+
+        public override float AdvanceHazard(float deltaTime, out float immediateStabilityDamage)
+        {
+            immediateStabilityDamage = 0f;
             if (!IsHazardActive || deltaTime <= 0f) return 0f;
             float previousAge = Mathf.Max(0f, age);
             float second = Mathf.Max(0.1f, stageTwoAt);
@@ -315,7 +322,7 @@ namespace WardShift
 
             if (!ruptureReached) return stabilityLoss;
             hasRuptured = true;
-            stabilityLoss += Mathf.Max(0f, ruptureStabilityDamage);
+            immediateStabilityDamage = Mathf.Max(0f, ruptureStabilityDamage);
             Debug.Log("저주 오염 파열: 시설 안정도 피해 후 오염 제거", this);
             SpawnAnomalyVfx(ruptureVfxPrefab);
             NotifyRuptured();

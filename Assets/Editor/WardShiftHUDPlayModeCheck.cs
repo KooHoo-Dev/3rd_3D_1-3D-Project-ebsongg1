@@ -182,6 +182,7 @@ namespace WardShift.Editor
                             .Find("Upgrade_Mobility/Purchase").GetComponent<Button>();
                         Assert(purchase.interactable, "Upgrade purchase button is enabled when affordable");
                         purchase.onClick.Invoke();
+                        purchase.onClick.Invoke();
                         Refresh();
                         Assert(day.GetUpgradeLevel(DayUpgradeType.Mobility) == previousLevel + 1
                             && day.Inventory.ManaCrystals == crystalsBeforePurchase - purchasePrice,
@@ -189,7 +190,7 @@ namespace WardShift.Editor
                         Assert(day.UpgradePurchasedThisClear
                             && !Get<GameObject>(dayHUD, "clearPanel").transform.Find("Upgrade_ContaminationResistance/Purchase")
                                 .GetComponent<Button>().interactable
-                            && !Get<GameObject>(dayHUD, "clearPanel").transform.Find("Upgrade_FieldPurification/Purchase")
+                            && !Get<GameObject>(dayHUD, "clearPanel").transform.Find("Upgrade_FacilityDefense/Purchase")
                                 .GetComponent<Button>().interactable,
                             "One-purchase-per-clear limit remains active");
                         int clearDay = day.CurrentDay;
@@ -617,28 +618,28 @@ namespace WardShift.Editor
             RectTransform nextCondition = panel.Find("NextFloodCondition").GetComponent<RectTransform>();
             RectTransform mobility = panel.Find("Upgrade_Mobility").GetComponent<RectTransform>();
             RectTransform contamination = panel.Find("Upgrade_ContaminationResistance").GetComponent<RectTransform>();
-            RectTransform fieldPurification = panel.Find("Upgrade_FieldPurification").GetComponent<RectTransform>();
+            RectTransform facilityDefense = panel.Find("Upgrade_FacilityDefense").GetComponent<RectTransform>();
             RectTransform nextDay = panel.Find("NextDay").GetComponent<RectTransform>();
             RectTransform result = panel.Find("UpgradeResult").GetComponent<RectTransform>();
 
             AssertNoOverlap(title, summary, "Title and reward summary");
             AssertNoOverlap(summary, nextCondition, "Reward summary and next-condition note");
             AssertNoOverlap(nextCondition, mobility, "Condition note and first card");
-            AssertNoOverlap(nextCondition, contamination, "Condition note and second card");
-            AssertNoOverlap(nextCondition, fieldPurification, "Condition note and third card");
-            AssertNoOverlap(mobility, contamination, "First and second upgrade cards");
-            AssertNoOverlap(contamination, fieldPurification, "Second and third upgrade cards");
+            AssertNoOverlap(nextCondition, facilityDefense, "Condition note and second card");
+            AssertNoOverlap(nextCondition, contamination, "Condition note and third card");
+            AssertNoOverlap(mobility, facilityDefense, "First and second upgrade cards");
+            AssertNoOverlap(facilityDefense, contamination, "Second and third upgrade cards");
             AssertNoOverlap(mobility, nextDay, "First card and next-day button");
-            AssertNoOverlap(contamination, nextDay, "Second card and next-day button");
-            AssertNoOverlap(fieldPurification, nextDay, "Third card and next-day button");
+            AssertNoOverlap(facilityDefense, nextDay, "Second card and next-day button");
+            AssertNoOverlap(contamination, nextDay, "Third card and next-day button");
             AssertNoOverlap(result, nextDay, "Purchase result and next-day button");
-            Assert(Mathf.Approximately(mobility.rect.width, contamination.rect.width)
-                && Mathf.Approximately(mobility.rect.width, fieldPurification.rect.width)
-                && Mathf.Approximately(mobility.rect.height, contamination.rect.height)
-                && Mathf.Approximately(mobility.rect.height, fieldPurification.rect.height),
+            Assert(Mathf.Approximately(mobility.rect.width, facilityDefense.rect.width)
+                && Mathf.Approximately(mobility.rect.width, contamination.rect.width)
+                && Mathf.Approximately(mobility.rect.height, facilityDefense.rect.height)
+                && Mathf.Approximately(mobility.rect.height, contamination.rect.height),
                 "Upgrade cards share the same width and height");
 
-            foreach (RectTransform card in new[] { mobility, contamination, fieldPurification })
+            foreach (RectTransform card in new[] { mobility, facilityDefense, contamination })
             {
                 RectTransform name = card.Find("Name").GetComponent<RectTransform>();
                 RectTransform effect = card.Find("Effect").GetComponent<RectTransform>();

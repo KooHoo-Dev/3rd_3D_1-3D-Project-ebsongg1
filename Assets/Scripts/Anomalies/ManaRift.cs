@@ -129,6 +129,13 @@ namespace WardShift
         // WardStatus가 프레임별 손실을 합산해 적용. 단계 경계와 프레임이 겹쳐도 초당 손실을 정확히 적분한다.
         public override float AdvanceHazard(float deltaTime)
         {
+            float persistentLoss = AdvanceHazard(deltaTime, out float immediateDamage);
+            return persistentLoss + immediateDamage;
+        }
+
+        public override float AdvanceHazard(float deltaTime, out float immediateStabilityDamage)
+        {
+            immediateStabilityDamage = 0f;
             if (!IsHazardActive || deltaTime <= 0f) return 0f;
             float previousAge = Mathf.Max(0f, age);
             float second = Mathf.Max(0.1f, stageTwoAt);
@@ -153,7 +160,7 @@ namespace WardShift
 
             if (!ruptureReached) return stabilityLoss;
             hasRuptured = true;
-            stabilityLoss += Mathf.Max(0f, ruptureStabilityDamage);
+            immediateStabilityDamage = Mathf.Max(0f, ruptureStabilityDamage);
             Debug.Log("마력 균열 파열: 시설 안정도 피해 후 제거", this);
             Ruptured?.Invoke(this);
             NotifyRuptured();

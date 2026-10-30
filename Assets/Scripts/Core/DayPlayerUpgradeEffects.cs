@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace WardShift
 {
-    /// <summary>순수 강화 수치를 플레이어 컴포넌트에 적용한다.</summary>
+    /// <summary>영구 강화 배수를 플레이어 이동과 오염 획득에 적용한다.</summary>
     [DisallowMultipleComponent]
     public sealed class DayPlayerUpgradeEffects : MonoBehaviour
     {
@@ -11,32 +11,33 @@ namespace WardShift
         private FirstPersonController firstPersonController;
         private ThirdPersonController thirdPersonController;
         private float firstPersonBaseMoveSpeed;
-        private float firstPersonBaseSprintSpeed;
         private float thirdPersonBaseMoveSpeed;
-        private float thirdPersonBaseSprintSpeed;
         private bool firstPersonSpeedCaptured;
         private bool thirdPersonSpeedCaptured;
 
-        public void Configure(Transform player) => playerRoot = player;
+        public void Configure(Transform player)
+        {
+            RestoreBaseSpeeds();
+            if (playerRoot != player)
+            {
+                firstPersonController = null;
+                thirdPersonController = null;
+                firstPersonSpeedCaptured = false;
+                thirdPersonSpeedCaptured = false;
+            }
+            playerRoot = player;
+        }
 
-        public void Apply(int mobilityLevel, int resistanceLevel, float safeZoneRecoveryMultiplier,
-            PlayerContamination contamination)
+        public void Apply(float movementMultiplier, float contaminationGainMultiplier,
+            float safeZoneRecoveryMultiplier, PlayerContamination contamination)
         {
             CaptureBaseSpeeds();
-            float multiplier = DayUpgradeRules.MovementMultiplier(mobilityLevel);
             if (firstPersonController != null && firstPersonSpeedCaptured)
-            {
-                firstPersonController.MoveSpeed = firstPersonBaseMoveSpeed * multiplier;
-                firstPersonController.SprintSpeed = firstPersonBaseSprintSpeed * multiplier;
-            }
+                firstPersonController.MoveSpeed = firstPersonBaseMoveSpeed * Mathf.Max(0f, movementMultiplier);
             if (thirdPersonController != null && thirdPersonSpeedCaptured)
-            {
-                thirdPersonController.MoveSpeed = thirdPersonBaseMoveSpeed * multiplier;
-                thirdPersonController.SprintSpeed = thirdPersonBaseSprintSpeed * multiplier;
-            }
+                thirdPersonController.MoveSpeed = thirdPersonBaseMoveSpeed * Mathf.Max(0f, movementMultiplier);
             if (contamination == null) return;
-            contamination.SetContaminationGainMultiplier(
-                DayUpgradeRules.ContaminationGainMultiplier(resistanceLevel));
+            contamination.SetContaminationGainMultiplier(contaminationGainMultiplier);
             contamination.SetSafeZoneRecoveryMultiplier(safeZoneRecoveryMultiplier);
         }
 
@@ -50,15 +51,25 @@ namespace WardShift
             if (firstPersonController != null && !firstPersonSpeedCaptured)
             {
                 firstPersonBaseMoveSpeed = firstPersonController.MoveSpeed;
-                firstPersonBaseSprintSpeed = firstPersonController.SprintSpeed;
                 firstPersonSpeedCaptured = true;
             }
             if (thirdPersonController != null && !thirdPersonSpeedCaptured)
             {
                 thirdPersonBaseMoveSpeed = thirdPersonController.MoveSpeed;
-                thirdPersonBaseSprintSpeed = thirdPersonController.SprintSpeed;
                 thirdPersonSpeedCaptured = true;
             }
+        }
+
+        private void OnDisable() => RestoreBaseSpeeds();
+
+        private void OnDestroy() => RestoreBaseSpeeds();
+
+        private void RestoreBaseSpeeds()
+        {
+            if (firstPersonController != null && firstPersonSpeedCaptured)
+                firstPersonController.MoveSpeed = firstPersonBaseMoveSpeed;
+            if (thirdPersonController != null && thirdPersonSpeedCaptured)
+                thirdPersonController.MoveSpeed = thirdPersonBaseMoveSpeed;
         }
     }
 }

@@ -16,6 +16,7 @@ namespace WardShift
         [Tooltip("이동/시점 제어 스크립트, PlayerInput, MagicDetector를 연결. UI와 이 컴포넌트는 제외.")]
         [SerializeField] private Behaviour[] disableOnFailure = new Behaviour[0];
         [SerializeField, Range(0f, 100f)] private float stability = 100f;
+        private float persistentStabilityDamageMultiplier = 1f;
         public float Stability => stability;
         public PlayerContamination Player => player;
         public bool HasFailed { get; private set; }
@@ -62,15 +63,22 @@ namespace WardShift
                 if (activeAnomalies[i] != null) anomalySnapshot.Add(activeAnomalies[i]);
             IReadOnlyList<AnomalyBehaviour> anomalies = anomalySnapshot;
             float previousStability = stability;
+            float persistentStabilityLoss = 0f;
+            float immediateStabilityLoss = 0f;
             HighestStage = 0;
             HasOverloadedAnomaly = false;
             foreach (AnomalyBehaviour anomaly in anomalies)
             {
-                stability = Mathf.Clamp(stability - anomaly.AdvanceHazard(Time.deltaTime), 0f, 100f);
+                persistentStabilityLoss += anomaly.AdvanceHazard(Time.deltaTime,
+                    out float anomalyImmediateStabilityLoss);
+                immediateStabilityLoss += anomalyImmediateStabilityLoss;
                 if (!anomaly.IsHazardActive) continue;
                 HighestStage = Mathf.Max(HighestStage, anomaly.DangerStage);
                 HasOverloadedAnomaly |= anomaly.HasOverloaded;
             }
+            stability = Mathf.Clamp(stability
+                - persistentStabilityLoss * persistentStabilityDamageMultiplier
+                - immediateStabilityLoss, 0f, 100f);
             if (!Mathf.Approximately(previousStability, stability))
                 StabilityChanged?.Invoke(stability);
             if (player.isActiveAndEnabled)
@@ -153,6 +161,12 @@ namespace WardShift
             stability = repairedStability;
             StabilityChanged?.Invoke(stability);
             return true;
+        }
+
+        /// <summary>영구 시설 방호 강화가 줄이는 지속 안정도 피해의 절대 배수입니다.</summary>
+        public void SetPersistentStabilityDamageMultiplier(float multiplier)
+        {
+            persistentStabilityDamageMultiplier = Mathf.Clamp01(multiplier);
         }
 
         /// <summary>DAY 전환 때 임시 위험 표시만 지움. 안정도와 오염도 값은 유지.</summary>
