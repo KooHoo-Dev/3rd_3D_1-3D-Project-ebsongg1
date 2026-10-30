@@ -386,8 +386,8 @@ namespace WardShift
         {
             if (controlsReference == null) return;
             controlsReference.text = "WASD 이동 · 마우스 시점\n마법 선택: 1/2/3 · 휠"
-                + (Learned(Seal) ? "\nQ 감응" : "")
-                + (Learned(Map) || Learned(Inventory) ? "\nM 지도 · B 인벤토리" : "");
+                + (Learned(Seal) ? "\nQ 감지" : "")
+                + (Learned(Map) || Learned(Inventory) ? "\nTAB 지도 · B 인벤토리" : "");
         }
 
         private void FitOverlaysToScreen()

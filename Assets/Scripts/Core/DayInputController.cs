@@ -11,7 +11,7 @@ namespace WardShift
         private readonly InputAction inventoryAction = new InputAction(
             "Toggle Inventory", InputActionType.Button, "<Keyboard>/b");
         private readonly InputAction mapAction = new InputAction(
-            "Toggle Facility Map", InputActionType.Button, "<Keyboard>/m");
+            "Toggle Facility Map", InputActionType.Button, "<Keyboard>/tab");
         private readonly InputAction supplyAction = new InputAction(
             "Open Day Supply", InputActionType.Button, "<Keyboard>/t");
         private InputAction daySkipAction;

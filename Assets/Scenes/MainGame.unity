@@ -5600,7 +5600,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "1 / 2 / 3   \uB9C8\uBC95 \uC120\uD0DD\nQ \uC720\uC9C0   \uB9C8\uB825 \uAC10\uC9C0\nM  
+  m_text: "1 / 2 / 3   \uB9C8\uBC95 \uC120\uD0DD\nQ \uC720\uC9C0   \uB9C8\uB825 \uAC10\uC9C0\nTAB  
     \uC2DC\uC124 \uC9C0\uB3C4\nB   \uC778\uBCA4\uD1A0\uB9AC"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 659ceb8947c683b4a9e1216df0a67515, type: 2}
@@ -18826,8 +18826,8 @@ MonoBehaviour:
       \uB3D9\uC548 \uBC1C\uC0DD\uD558\uB294 \uC774\uC0C1\uD604\uC0C1\uC744 \uC9C4\uC555\uD558\uC138\uC694."
     controls: "WASD\uB85C \uC774\uB3D9\uD558\uACE0 \uB9C8\uC6B0\uC2A4\uB85C \uC2DC\uC810\uC744
       \uB3CC\uB9AC\uC138\uC694. 1/2/3 \uB610\uB294 \uB9C8\uC6B0\uC2A4 \uD720\uB85C
-      \uB9C8\uBC95\uC744 \uC120\uD0DD\uD558\uC138\uC694. \uC2DC\uC124 \uC548\uC815\uB3C4 0
-      \uB610\uB294 \uC624\uC5FC\uB3C4 100\uC774\uBA74 \uADFC\uBB34\uC5D0 \uC2E4\uD328\uD569\uB2C8\uB2E4."
+      \uB9C8\uBC95\uC744 \uC120\uD0DD\uD558\uC138\uC694. \uC2DC\uC124 \uC548\uC815\uB3C4
+      0 \uB610\uB294 \uC624\uC5FC\uB3C4 100\uC774\uBA74 \uADFC\uBB34\uC5D0 \uC2E4\uD328\uD569\uB2C8\uB2E4."
     stabilityOverview: "<size=30><color=#40E0D0>\uC2DC\uC124 \uC548\uC815\uB3C4</color></size>\n\uC774\uC0C1\uD604\uC0C1\uC774
       2\uB2E8\uACC4 \uC774\uC0C1\uC73C\uB85C \uC131\uC7A5\uD558\uBA74 \uC2DC\uC124
       \uC548\uC815\uB3C4\uAC00 \uC9C0\uC18D\uC801\uC73C\uB85C \uAC10\uC18C\uD569\uB2C8\uB2E4.
@@ -18915,11 +18915,18 @@ MonoBehaviour:
   - {fileID: 678404832}
   - {fileID: 504838809}
   - {fileID: 774959335}
+  mapRoot: {fileID: 1871808378}
+  mapReferenceOrigin: {fileID: 1222883017}
   koreanFont: {fileID: 11400000, guid: 659ceb8947c683b4a9e1216df0a67515, type: 2}
-  playerMarkerOffset: {x: 0, y: 0}
-  playerMarkerScale: {x: 1, y: 1}
+  referenceAnchorImagePoint: {x: 150, y: 280}
+  referencePixelsPerUnit: 4
+  referenceImageBoundsMin: {x: 30, y: 4}
+  referenceImageBoundsMax: {x: 288, y: 509}
+  mapRotationDegrees: 180
+  mapScaleMultiplier: 1
+  mapBoundsPaddingUnits: 4
+  markerOutsidePaddingUnits: 8
   playerArrowAngleOffset: 0
-  mapWorldOutsidePadding: 30
 --- !u!1001 &413817289
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -23937,7 +23944,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WardShift.ZoneIdentity
   zoneId: 3
   displayName: "\uBD09\uC778\uC2E4"
-  mapPosition: {x: 0.18, y: 0.62}
 --- !u!1001 &510754041
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -31905,7 +31911,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WardShift.ZoneIdentity
   zoneId: 2
   displayName: "\uC815\uD654\uC2E4"
-  mapPosition: {x: 0.82, y: 0.5}
 --- !u!1 &679068662 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 8164078558771037576, guid: 4ebb9f11fc97ed14993a2b77148cc7f8, type: 3}
@@ -37715,7 +37720,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WardShift.ZoneIdentity
   zoneId: 4
   displayName: "\uB9C8\uB825\uD575\uC2E4"
-  mapPosition: {x: 0.5, y: 0.88}
 --- !u!1001 &775048508
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -48840,8 +48844,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WardShift.ZoneIdentity
   zoneId: 0
-  displayName: "\uC2DC\uC791\uBC29"
-  mapPosition: {x: 0.5, y: 0.12}
+  displayName: "\uC2DC\uC791 \uAD6C\uC5ED"
 --- !u!1001 &1035514204
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -57374,8 +57377,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WardShift.ZoneIdentity
   zoneId: 1
-  displayName: "\uC911\uC559 \uAD00\uC81C\uC2E4"
-  mapPosition: {x: 0.5, y: 0.5}
+  displayName: "\uC911\uC559 \uBCF5\uB3C4"
 --- !u!1001 &1223051323
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -75299,7 +75301,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 5a99994030be4d0c9886a137daa256d7, type: 3}
-  m_Name: ''
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WardShift.AnomalyDirectionHUD
   detector: {fileID: 1359426624}
   senseCamera: {fileID: 2027901765}
@@ -80264,7 +80266,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8616685848737228371, guid: c5efc39a8aaf6e64ea40e9ad573e9b47, type: 3}
       propertyPath: MoveSpeed
-      value: 5.8
+      value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 8616685848737228371, guid: c5efc39a8aaf6e64ea40e9ad573e9b47, type: 3}
       propertyPath: JumpHeight
@@ -80272,7 +80274,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8616685848737228371, guid: c5efc39a8aaf6e64ea40e9ad573e9b47, type: 3}
       propertyPath: SprintSpeed
-      value: 5.8
+      value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 8616685848737228371, guid: c5efc39a8aaf6e64ea40e9ad573e9b47, type: 3}
       propertyPath: RotationSpeed

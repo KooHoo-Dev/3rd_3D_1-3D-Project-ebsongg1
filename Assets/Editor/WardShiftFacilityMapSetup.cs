@@ -8,7 +8,7 @@ using UnityEngine.SceneManagement;
 
 namespace WardShift.Editor
 {
-    /// <summary>MainGame의 기존 방 앵커에 구역 식별 정보와 지도 참조를 연결합니다.</summary>
+    /// <summary>MainGame의 방 앵커와 시설 지도의 좌표 기준을 연결합니다.</summary>
     public static class WardShiftFacilityMapSetup
     {
         private const string MainGamePath = "Assets/Scenes/MainGame.unity";
@@ -21,27 +21,22 @@ namespace WardShift.Editor
             public readonly FacilityZoneId Id;
             public readonly string AnchorName;
             public readonly string Label;
-            public readonly Vector2 MapPosition;
 
-            public ZoneDefinition(FacilityZoneId id, string anchorName, string label, Vector2 mapPosition)
+            public ZoneDefinition(FacilityZoneId id, string anchorName, string label)
             {
                 Id = id;
                 AnchorName = anchorName;
                 Label = label;
-                MapPosition = mapPosition;
             }
         }
 
         private static readonly ZoneDefinition[] Definitions =
         {
-            // Map_Root의 실제 배치를 위에서 바라보는 화면 방향에 맞춰 반영합니다.
-            // 월드 +Z 쪽의 시작방은 아래, -Z 끝의 마력핵실은 위이며,
-            // 월드 좌우는 화면에서 반전되어 정화실이 오른쪽, 봉인실이 왼쪽에 놓입니다.
-            new ZoneDefinition(FacilityZoneId.StartRoom, "Room_00_Start", "시작방", new Vector2(0.50f, 0.12f)),
-            new ZoneDefinition(FacilityZoneId.ControlHall, "Room_01_ControlHall", "중앙 관제실", new Vector2(0.50f, 0.50f)),
-            new ZoneDefinition(FacilityZoneId.PurificationRoom, "Room_02_Purification", "정화실", new Vector2(0.82f, 0.50f)),
-            new ZoneDefinition(FacilityZoneId.SealingRoom, "Room_03_Sealing", "봉인실", new Vector2(0.18f, 0.62f)),
-            new ZoneDefinition(FacilityZoneId.ManaCoreRoom, "Room_04_ManaCore", "마력핵실", new Vector2(0.50f, 0.88f))
+            new ZoneDefinition(FacilityZoneId.StartRoom, "Room_00_Start", "시작 구역"),
+            new ZoneDefinition(FacilityZoneId.ControlHall, "Room_01_ControlHall", "중앙 복도"),
+            new ZoneDefinition(FacilityZoneId.PurificationRoom, "Room_02_Purification", "정화실"),
+            new ZoneDefinition(FacilityZoneId.SealingRoom, "Room_03_Sealing", "봉인실"),
+            new ZoneDefinition(FacilityZoneId.ManaCoreRoom, "Room_04_ManaCore", "마력핵실")
         };
 
         [MenuItem("Tools/WARD SHIFT/Setup Facility Map")]
@@ -98,7 +93,7 @@ namespace WardShift.Editor
 
                 ZoneIdentity identity = anchor.GetComponent<ZoneIdentity>();
                 if (identity == null) identity = Undo.AddComponent<ZoneIdentity>(anchor.gameObject);
-                identity.Configure(definition.Id, definition.Label, definition.MapPosition);
+                identity.Configure(definition.Id, definition.Label);
                 EditorUtility.SetDirty(identity);
                 PrefabUtility.RecordPrefabInstancePropertyModifications(identity);
                 zonesByAnchor[definition.AnchorName] = identity;
@@ -160,6 +155,8 @@ namespace WardShift.Editor
             if (koreanFont == null)
                 Debug.LogWarning($"WARD SHIFT facility map: 지정 한글 폰트를 못 찾아 TMP 기본 폰트를 사용합니다: {KoreanFontAssetPath}");
             mapHud.Configure(dayFlow, tracker, zones.ToArray(), koreanFont);
+            mapHud.ConfigureMapCoordinates(mapRoot,
+                zonesByAnchor["Room_01_ControlHall"].transform);
             EditorUtility.SetDirty(mapHud);
 
             AnomalyScreenPingHUD pingHud = dayFlow.GetComponent<AnomalyScreenPingHUD>();
