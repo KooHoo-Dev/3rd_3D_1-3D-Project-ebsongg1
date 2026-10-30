@@ -219,8 +219,8 @@ namespace WardShift
             string growthMessage = NextGrowthNotice(
                 (!Learned(Projectile) && projectileWarning)
                 || (!Learned(Radial) && radialWarning) || sealChainUrgent);
-            if (!Learned(Projectile) && projectileWarning) message = tutorialCopy.projectile;
-            else if (!Learned(Radial) && radialWarning) message = tutorialCopy.radial;
+            bool deviceAttackWarning = radialWarning || projectileWarning;
+            if (deviceAttackWarning) message = null; // 상단의 즉시 회피 경고가 장치 공격 안내를 맡습니다.
             else if (sealChainUrgent) message = tutorialCopy.secondSeal;
             else if (growthMessage != null) message = growthMessage;
             else if (Time.unscaledTime < completionUntil) message = tutorialCopy.sealComplete;
@@ -280,8 +280,9 @@ namespace WardShift
             foreach (AnomalyBehaviour anomaly in anomalies)
             {
                 if (anomaly == null || !anomaly.IsHazardActive) continue;
-                if (anomaly.DangerStage >= 2) QueueGrowthNotice(FirstStageTwo);
-                if (anomaly.DangerStage >= 3) QueueGrowthNotice(FirstStageThree);
+                // 단계 변화는 상단 경고 HUD가 보여 주므로 튜토리얼 배너에서는 중복 안내하지 않습니다.
+                if (anomaly.DangerStage >= 2) Learn(FirstStageTwo);
+                if (anomaly.DangerStage >= 3) Learn(FirstStageThree);
                 if (!Learned(FirstRupture) && !watchedGrowthAnomalies.Contains(anomaly))
                 {
                     anomaly.Ended += OnGrowthAnomalyEnded;
@@ -294,8 +295,6 @@ namespace WardShift
         {
             if (reason == AnomalyEndReason.Ruptured && !Learned(FirstRupture))
             {
-                if (anomaly != null && anomaly.DangerStage >= 2) QueueGrowthNotice(FirstStageTwo);
-                if (anomaly != null && anomaly.DangerStage >= 3) QueueGrowthNotice(FirstStageThree);
                 showRuptureOnFailure = true;
                 QueueGrowthNotice(FirstRupture);
             }

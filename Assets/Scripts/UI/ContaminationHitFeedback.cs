@@ -19,6 +19,7 @@ namespace WardShift
         private float lastExposureAt;
         private const float FlashSeconds = 0.25f;
         private const float ExposureFeedbackInterval = 0.75f;
+        public bool IsFlashActive => Time.unscaledTime < flashUntil;
 
         public void Configure(WardShiftHUDLayout layout, AudioClip clip)
         {

@@ -23,7 +23,8 @@ namespace WardShift.Editor
                 for (int i = layout.transform.childCount - 1; i >= 0; i--)
                 {
                     Transform child = layout.transform.GetChild(i);
-                    if (child != legacy && child != layout.HUDRoot) child.SetParent(legacy, false);
+                    if (child != legacy && child != layout.HUDRoot
+                        && child.name != "ThreatWarningOverlay") child.SetParent(legacy, false);
                 }
             }
             EditorUtility.SetDirty(layout);

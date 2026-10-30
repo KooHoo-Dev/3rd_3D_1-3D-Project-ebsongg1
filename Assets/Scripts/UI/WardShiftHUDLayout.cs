@@ -21,6 +21,44 @@ namespace WardShift
         [Header("오염도 증가 피드백")]
         [Tooltip("장치 공격처럼 실제 직접 피격으로 오염도가 증가했을 때만 재생합니다. 지속 노출에는 재생하지 않습니다.")]
         [FormerlySerializedAs("deviceHitSfx"), SerializeField] private AudioClip contaminationIncreaseSfx;
+        [Header("이상현상·장치 위험 경고")]
+        [Tooltip("상단 중앙 경고 배너의 기준 해상도 크기입니다.")]
+        [SerializeField, InspectorName("경고 배너 크기")] private Vector2 threatBannerSize = new Vector2(920f, 132f);
+        [Tooltip("상단 가장자리에서 경고 배너까지의 간격입니다. 음수 Y 값은 화면 아래쪽으로 이동합니다.")]
+        [SerializeField, InspectorName("경고 배너 위치")]
+        private Vector2 threatBannerTopOffset = new Vector2(0f, -252f);
+        [SerializeField, Min(8f), InspectorName("경고 제목 글자 크기")] private float threatKickerFontSize = 16f;
+        [SerializeField, Min(8f), InspectorName("경고 핵심 문구 글자 크기")] private float threatHeadlineFontSize = 28f;
+        [SerializeField, Min(8f), InspectorName("경고 설명 글자 크기")] private float threatDetailFontSize = 19f;
+        [Tooltip("2·3단계 상승 안내가 표시되는 시간입니다. 장치 공격 경고 중에는 대기합니다.")]
+        [SerializeField, Min(0.1f), InspectorName("단계 경고 표시 시간")]
+        private float stageWarningDuration = 3.5f;
+        [SerializeField, InspectorName("2단계 경고 색")] private Color stageTwoWarningColor = new Color(1f, 0.62f, 0.25f, 1f);
+        [SerializeField, InspectorName("3단계 경고 색")] private Color stageThreeWarningColor = new Color(1f, 0.24f, 0.2f, 1f);
+        [SerializeField, InspectorName("원형 방출 경고 색")] private Color radialBurstWarningColor = new Color(1f, 0.34f, 0.16f, 1f);
+        [SerializeField, InspectorName("추적탄 경고 색")] private Color trackingBoltWarningColor = new Color(0.88f, 0.32f, 1f, 1f);
+        [Tooltip("0이면 기존 장치 예고와 같은 시점에 표시합니다. 값을 늘리면 화면 경고만 더 일찍 나타나며 공격 타이밍은 바뀌지 않습니다.")]
+        [SerializeField, Min(0f), InspectorName("원형 방출 UI 추가 예고 시간")]
+        private float radialAttackAlertExtraLeadSeconds;
+        [SerializeField, Min(0f), InspectorName("추적탄 UI 추가 예고 시간")]
+        private float trackingAttackAlertExtraLeadSeconds;
+        [Tooltip("단계 상승 때 화면 모서리에 나타나는 효과의 최대 지속 시간입니다.")]
+        [SerializeField, Min(0f), InspectorName("단계 테두리 효과 시간")]
+        private float stageEdgeFlashDuration = 1.1f;
+        [SerializeField, Min(1f), InspectorName("테두리 두께")] private float threatEdgeThickness = 12f;
+        [SerializeField, Min(20f), InspectorName("테두리 길이")] private float threatEdgeLength = 250f;
+        [SerializeField, Range(0f, 1f), InspectorName("2단계 테두리 강도")]
+        private float stageTwoEdgeIntensity = 0.24f;
+        [SerializeField, Range(0f, 1f), InspectorName("3단계 테두리 강도")]
+        private float stageThreeEdgeIntensity = 0.36f;
+        [SerializeField, Range(0f, 1f), InspectorName("장치 공격 테두리 강도")]
+        private float deviceAttackEdgeIntensity = 0.62f;
+        [SerializeField, Min(0f), InspectorName("테두리 점멸 속도")] private float threatEdgePulseSpeed = 7f;
+        [Tooltip("비워 두면 소리 없이 표시합니다. 각 경고에 맞는 짧은 경고음을 선택적으로 연결하세요.")]
+        [SerializeField, InspectorName("2단계 경고음")] private AudioClip stageTwoWarningSfx;
+        [SerializeField, InspectorName("3단계 경고음")] private AudioClip stageThreeWarningSfx;
+        [SerializeField, InspectorName("원형 방출 경고음")] private AudioClip radialBurstWarningSfx;
+        [SerializeField, InspectorName("추적탄 경고음")] private AudioClip trackingBoltWarningSfx;
         [SerializeField] private RectTransform hudRoot;
         [SerializeField] private TMP_Text dayStatusText;
         [SerializeField] private TMP_Text floodText;
@@ -34,6 +72,30 @@ namespace WardShift
         public TMP_Text DayStatusText => dayStatusText;
         public TMP_Text PickupText => pickupText;
         public RectTransform HUDRoot => hudRoot;
+        internal TMP_FontAsset KoreanFont => koreanFont;
+        internal Vector2 ThreatBannerSize => threatBannerSize;
+        internal Vector2 ThreatBannerTopOffset => threatBannerTopOffset;
+        internal float ThreatKickerFontSize => Mathf.Max(8f, threatKickerFontSize);
+        internal float ThreatHeadlineFontSize => Mathf.Max(8f, threatHeadlineFontSize);
+        internal float ThreatDetailFontSize => Mathf.Max(8f, threatDetailFontSize);
+        internal float StageWarningDuration => Mathf.Max(0.1f, stageWarningDuration);
+        internal Color StageTwoWarningColor => stageTwoWarningColor;
+        internal Color StageThreeWarningColor => stageThreeWarningColor;
+        internal Color RadialBurstWarningColor => radialBurstWarningColor;
+        internal Color TrackingBoltWarningColor => trackingBoltWarningColor;
+        internal float RadialAttackAlertExtraLeadSeconds => Mathf.Max(0f, radialAttackAlertExtraLeadSeconds);
+        internal float TrackingAttackAlertExtraLeadSeconds => Mathf.Max(0f, trackingAttackAlertExtraLeadSeconds);
+        internal float StageEdgeFlashDuration => Mathf.Max(0f, stageEdgeFlashDuration);
+        internal float ThreatEdgeThickness => Mathf.Max(1f, threatEdgeThickness);
+        internal float ThreatEdgeLength => Mathf.Max(20f, threatEdgeLength);
+        internal float StageTwoEdgeIntensity => Mathf.Clamp01(stageTwoEdgeIntensity);
+        internal float StageThreeEdgeIntensity => Mathf.Clamp01(stageThreeEdgeIntensity);
+        internal float DeviceAttackEdgeIntensity => Mathf.Clamp01(deviceAttackEdgeIntensity);
+        internal float ThreatEdgePulseSpeed => Mathf.Max(0f, threatEdgePulseSpeed);
+        internal AudioClip StageTwoWarningSfx => stageTwoWarningSfx;
+        internal AudioClip StageThreeWarningSfx => stageThreeWarningSfx;
+        internal AudioClip RadialBurstWarningSfx => radialBurstWarningSfx;
+        internal AudioClip TrackingBoltWarningSfx => trackingBoltWarningSfx;
         public static readonly Color PanelColor = new Color(0.025f, 0.035f, 0.052f, 0.91f);
         public static readonly Color Muted = new Color(0.72f, 0.77f, 0.82f);
         public static readonly Color Gold = new Color(0.91f, 0.76f, 0.43f);
@@ -69,6 +131,7 @@ namespace WardShift
             {
                 ConfigureCrosshair();
                 ConfigureHitFeedback();
+                ConfigureThreatWarnings();
                 foreach (Image image in hudRoot.GetComponentsInChildren<Image>(true))
                     if (image.type == Image.Type.Filled && image.sprite == null) image.sprite = gaugeSprite;
                 ApplyReadableMetrics();
@@ -115,6 +178,7 @@ namespace WardShift
                 new Vector2(0, 208), new Vector2(600, 42));
             ApplyReadableMetrics();
             ConfigureHitFeedback();
+            ConfigureThreatWarnings();
         }
 
         private void ConfigureHitFeedback()
@@ -122,6 +186,13 @@ namespace WardShift
             ContaminationHitFeedback feedback = GetComponent<ContaminationHitFeedback>();
             if (feedback == null) feedback = gameObject.AddComponent<ContaminationHitFeedback>();
             feedback.Configure(this, contaminationIncreaseSfx);
+        }
+
+        private void ConfigureThreatWarnings()
+        {
+            ThreatWarningHUD warnings = GetComponent<ThreatWarningHUD>();
+            if (warnings == null) warnings = gameObject.AddComponent<ThreatWarningHUD>();
+            warnings.Configure(this, dayFlow);
         }
 
         private void ConfigureCrosshair()

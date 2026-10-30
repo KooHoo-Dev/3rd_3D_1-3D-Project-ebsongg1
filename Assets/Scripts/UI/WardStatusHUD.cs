@@ -107,8 +107,6 @@ namespace WardShift
             if (!gameplayActive) directHitUntil = 0f;
             priorities.Clear();
             seenAnomalies.Clear();
-            int burstWarnings = 0;
-            int projectileWarnings = 0;
             IReadOnlyList<AnomalyBehaviour> activeAnomalies = AnomalyBehaviour.ActiveAnomalies;
             for (int i = 0; i < activeAnomalies.Count; i++)
             {
@@ -121,12 +119,6 @@ namespace WardShift
                 if (!gameplayActive || !anomaly.IsHazardActive) continue;
 
                 priorities.Add(anomaly);
-                if (anomaly is ManaDeviceAnomaly device && device.IsBurstWarningActive)
-                {
-                    if (device.NextAttack == ManaDeviceAnomaly.AttackKind.TrackingBolt)
-                        projectileWarnings++;
-                    else burstWarnings++;
-                }
             }
 
             staleAnomalyIds.Clear();
@@ -175,14 +167,9 @@ namespace WardShift
                 string globalWarning = player.Value >= 80f && status.Stability <= 20f ? "오염도 / 시설 안정도 모두 위험"
                     : player.Value >= 80f ? "오염도 위험 · 안전 구역으로 이동"
                     : status.Stability <= 20f ? "시설 안정도 위험 · 긴급 대응 필요"
-                    : status.HighestStage >= 3 ? "3단계 이상현상: 파열 임박!"
-                    : player.ExposurePerSecond > 0f ? "위험 영역 근처: 오염도 증가 중"
-                    : status.HighestStage == 2 ? "이상현상이 2단계로 성장했습니다." : "";
-                warningText.text = status.HasFailed ? "근무 실패"
-                    : projectileWarnings > 0 ? string.Format("마력탄 발사 예고 {0}곳 · 옆으로 회피", projectileWarnings)
-                    : burstWarnings > 0 ? string.Format("장치 방출 예고 {0}곳 · 범위 밖 회피", burstWarnings)
-                        + (string.IsNullOrEmpty(globalWarning) ? "" : "\n" + globalWarning)
-                    : globalWarning;
+                    : player.ExposurePerSecond > 0f ? "위험 영역 근처: 오염도 증가 중" : "";
+                // 단계 상승과 장치 공격은 별도의 상단 경고 배너가 우선 관리합니다.
+                warningText.text = status.HasFailed ? "근무 실패" : globalWarning;
             }
 
             FitAlertPanel(gameplayActive);
