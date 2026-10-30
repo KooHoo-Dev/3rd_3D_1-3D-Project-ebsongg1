@@ -20,7 +20,7 @@ namespace WardShift
         private sealed class TutorialCopy
         {
             [TextArea(2, 3)] public string introduction = "당신은 제17 마력 제어소의 현장 조율사입니다. 앞으로 7일 동안 발생하는 이상현상을 진압하세요.";
-            [TextArea(2, 3)] public string controls = "WASD로 이동하고 마우스로 시점을 돌리세요. Shift로 달릴 수 있으며, 시설 안정도 0 또는 오염도 100이면 근무에 실패합니다.";
+            [TextArea(2, 3)] public string controls = "WASD로 이동하고 마우스로 시점을 돌리세요. 1/2/3 또는 마우스 휠로 마법을 선택하세요. 시설 안정도 0 또는 오염도 100이면 근무에 실패합니다.";
             [InspectorName("시설 안정도 안내"), TextArea(4, 6)] public string stabilityOverview =
                 "시설 안정도\n이상현상이 2단계 이상으로 성장하면 시설 안정도가 지속적으로 감소합니다. 현상이 파열되면 큰 피해를 입습니다.\n\n시설 안정도가 0이 되면 임무 실패! 수리 키트로 회복할 수 있습니다.";
             [InspectorName("마력 오염도 안내"), TextArea(4, 6)] public string contaminationOverview =
@@ -385,7 +385,7 @@ namespace WardShift
         private void RefreshControlsReference()
         {
             if (controlsReference == null) return;
-            controlsReference.text = "WASD 이동 · 마우스 시점\nShift 달리기"
+            controlsReference.text = "WASD 이동 · 마우스 시점\n마법 선택: 1/2/3 · 휠"
                 + (Learned(Seal) ? "\nQ 감응" : "")
                 + (Learned(Map) || Learned(Inventory) ? "\nM 지도 · B 인벤토리" : "");
         }

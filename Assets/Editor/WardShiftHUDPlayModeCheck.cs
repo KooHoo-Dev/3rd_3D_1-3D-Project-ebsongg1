@@ -599,9 +599,10 @@ namespace WardShift.Editor
                 Assert(!text.isTextTruncated, "HUD text fits: " + text.name);
             }
             TMP_Text controls = layout.HUDRoot.Find("Controls/Keys").GetComponent<TMP_Text>();
-            Assert(controls.text.Contains("Shift") && controls.text.Contains("달리기")
+            Assert(controls.text.Contains("1/2/3") && controls.text.Contains("휠")
+                && !controls.text.Contains("Shift")
                 && controls.rectTransform.rect.height >= 176f,
-                "Controls include the actual Shift sprint hint with room for five lines");
+                "Controls include spell selection hints and omit the removed Shift sprint hint");
         }
 
         private static void CheckClearOverlayLayout(int width, int height)

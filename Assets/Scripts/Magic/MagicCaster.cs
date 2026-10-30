@@ -18,6 +18,8 @@ namespace WardShift
         [SerializeField] private InputAction sealAction = new InputAction("SelectSeal", InputActionType.Button, "<Keyboard>/1");
         [SerializeField] private InputAction purifyAction = new InputAction("SelectPurify", InputActionType.Button, "<Keyboard>/2");
         [SerializeField] private InputAction stabilizeAction = new InputAction("SelectStabilize", InputActionType.Button, "<Keyboard>/3");
+        private readonly InputAction scrollMagicAction = new InputAction(
+            "ScrollMagic", InputActionType.PassThrough, "<Mouse>/scroll/y");
         [Tooltip("메뉴를 열 때 SetInputBlocked(true), 닫을 때 false를 전달.")]
         [SerializeField] private bool inputBlocked;
         [Header("실행 상태 확인")]
@@ -97,6 +99,7 @@ namespace WardShift
             sealAction.Enable();
             purifyAction.Enable();
             stabilizeAction.Enable();
+            scrollMagicAction.Enable();
             waitingForRelease = true;
         }
 
@@ -168,9 +171,22 @@ namespace WardShift
                 waitingForRelease = true;
                 return;
             }
+            bool numberSelected = sealAction.WasPressedThisFrame()
+                || purifyAction.WasPressedThisFrame() || stabilizeAction.WasPressedThisFrame();
             if (sealAction.WasPressedThisFrame()) SelectMagic(MagicType.Seal);
             if (purifyAction.WasPressedThisFrame()) SelectMagic(MagicType.Purify);
             if (stabilizeAction.WasPressedThisFrame()) SelectMagic(MagicType.Stabilize);
+            if (!numberSelected && scrollMagicAction.WasPerformedThisFrame())
+            {
+                float scroll = scrollMagicAction.ReadValue<float>();
+                if (Mathf.Abs(scroll) > 0.01f)
+                {
+                    int direction = scroll > 0f ? 1 : -1;
+                    int nextMagic = ((int)selectedMagic + direction + 3) % 3;
+                    SelectMagic((MagicType)nextMagic);
+                    return;
+                }
+            }
 
             if (selectedMagic == MagicType.Seal)
             {
@@ -442,11 +458,13 @@ namespace WardShift
             if (interactor != null) interactor.SetSealReady(false);
             // canceled 콜백으로 판정하지 않으므로 액션 비활성화가 성공을 발생시키지 않음.
             castAction.Disable(); sealAction.Disable(); purifyAction.Disable(); stabilizeAction.Disable();
+            scrollMagicAction.Disable();
         }
 
         private void OnDestroy()
         {
             castAction.Dispose(); sealAction.Dispose(); purifyAction.Dispose(); stabilizeAction.Dispose();
+            scrollMagicAction.Dispose();
         }
     }
 }

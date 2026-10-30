@@ -109,7 +109,7 @@ namespace WardShift
             RectTransform controls = Panel("Controls", hudRoot, new Vector2(1, 0), new Vector2(1, 0),
                 new Vector2(-32, 32), new Vector2(262, 200));
             Text("Keys", controls, new Vector2(16, -12), new Vector2(230, 176), 21,
-                "WASD 이동 · 마우스 시점\nShift 달리기", Muted);
+                "WASD 이동 · 마우스 시점\n마법 선택: 1/2/3 · 휠", Muted);
             pickupText = Text("PickupPrompt", hudRoot, Vector2.zero, new Vector2(600, 42), 25, "", Color.white);
             Place(pickupText.rectTransform, new Vector2(0.5f, 0), new Vector2(0.5f, 0),
                 new Vector2(0, 208), new Vector2(600, 42));
@@ -161,7 +161,7 @@ namespace WardShift
             if (controlsText != null)
             {
                 controlsText.fontSize = 21;
-                controlsText.text = "WASD 이동 · 마우스 시점\nShift 달리기";
+                controlsText.text = "WASD 이동 · 마우스 시점\n마법 선택: 1/2/3 · 휠";
             }
             ((RectTransform)hudRoot.Find("CoreStatus/LocationAndExposure")).anchoredPosition = new Vector2(22, -84);
         }
