@@ -39,6 +39,7 @@ namespace WardShift
         private TMP_Text failedSummaryText;
         private TMP_Text endingSummaryText;
         private TMP_Text upgradeResultText;
+        private TMP_Text anomalyResolutionFeedbackText;
         private TMP_Text supplyMessageText;
         private TMP_Text supplyConditionHeadingText;
         private TMP_Text supplyConditionNameText;
@@ -51,6 +52,7 @@ namespace WardShift
         private Color repairKitColor = new Color(0.15f, 0.72f, 0.58f, 1f);
         private string upgradeResult = string.Empty;
         private int lastDisplayedClearDay;
+        private float anomalyResolutionFeedbackUntil;
         public bool HasKoreanFont => koreanFont != null;
 
         private void Awake()
@@ -65,9 +67,39 @@ namespace WardShift
         /// <summary>셋업 메뉴에서 진행 관리자와 인벤토리를 연결.</summary>
         public void Configure(DayFlowManager manager, PlayerInventory playerInventory, TMP_FontAsset uiFont = null)
         {
+            if (dayFlow != null) dayFlow.AnomalyResolutionRewarded -= OnAnomalyResolutionRewarded;
             dayFlow = manager;
             inventory = playerInventory;
             if (uiFont != null) koreanFont = uiFont;
+            SubscribeResolutionFeedback();
+        }
+
+        private void OnEnable()
+        {
+            SubscribeResolutionFeedback();
+        }
+
+        private void OnDisable()
+        {
+            if (dayFlow != null) dayFlow.AnomalyResolutionRewarded -= OnAnomalyResolutionRewarded;
+            if (anomalyResolutionFeedbackText != null)
+                anomalyResolutionFeedbackText.gameObject.SetActive(false);
+        }
+
+        private void SubscribeResolutionFeedback()
+        {
+            if (!isActiveAndEnabled || dayFlow == null) return;
+            dayFlow.AnomalyResolutionRewarded -= OnAnomalyResolutionRewarded;
+            dayFlow.AnomalyResolutionRewarded += OnAnomalyResolutionRewarded;
+        }
+
+        private void OnAnomalyResolutionRewarded(AnomalyBehaviour anomaly, int reward)
+        {
+            if (anomaly == null || reward <= 0 || anomalyResolutionFeedbackText == null) return;
+            anomalyResolutionFeedbackText.text = $"<b>{anomaly.DisplayName}</b> 진압 완료  ·  "
+                + $"<color=#E8C26E>마력 결정 +{reward}</color>";
+            anomalyResolutionFeedbackUntil = Time.unscaledTime + 2.5f;
+            anomalyResolutionFeedbackText.gameObject.SetActive(true);
         }
 
         private void Update()
@@ -86,6 +118,9 @@ namespace WardShift
                 && !dayFlow.IsMapOpen && dayFlow.State == DayState.Playing
                 ? $"[E] {GetItemName(pickup.Item)} 획득" : "";
             inventoryPanel.SetActive(dayFlow.State == DayState.Playing && dayFlow.InventoryOpen);
+            if (anomalyResolutionFeedbackText != null)
+                anomalyResolutionFeedbackText.gameObject.SetActive(dayFlow.State == DayState.Playing
+                    && Time.unscaledTime < anomalyResolutionFeedbackUntil);
             clearPanel.SetActive(dayFlow.State == DayState.DayClear);
             failedPanel.SetActive(dayFlow.State == DayState.DayFailed);
             if (endingPanel != null) endingPanel.SetActive(dayFlow.State == DayState.Ending);
@@ -146,6 +181,11 @@ namespace WardShift
             pickupPromptText = layout.PickupText;
             GameObject canvasObject = CreateRectTransformObject("DayOverlays", layout.transform);
             overlayRoot = canvasObject.GetComponent<RectTransform>();
+            anomalyResolutionFeedbackText = CreateText("AnomalyResolutionFeedback", canvasObject.transform,
+                new Vector2(0.5f, 0.72f), new Vector2(0.5f, 0.72f), new Vector2(0.5f, 0.5f),
+                Vector2.zero, new Vector2(980f, 62f), 29f, TextAlignmentOptions.Center,
+                new Color(0.68f, 1f, 0.91f, 1f));
+            anomalyResolutionFeedbackText.gameObject.SetActive(false);
 
             BuildInventory(canvasObject.transform);
             BuildClearPanel(canvasObject.transform);

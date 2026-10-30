@@ -123,6 +123,11 @@ namespace WardShift
             if (dayInput != null) dayInput.enabled = true;
             if (wardStatus != null) wardStatus.Failed += OnDayFailed;
             if (anomalySpawner != null) anomalySpawner.AnomalySpawned += OnAnomalySpawned;
+            if (anomalyRewards != null)
+            {
+                anomalyRewards.ResolutionRewarded -= OnResolutionRewarded;
+                anomalyRewards.ResolutionRewarded += OnResolutionRewarded;
+            }
         }
 
         private void Start()
@@ -316,6 +321,11 @@ namespace WardShift
             if (anomalyRewards != null) anomalyRewards.RewardResolution(anomaly);
         }
 
+        private void OnResolutionRewarded(AnomalyBehaviour anomaly, int reward)
+        {
+            RaiseAnomalyResolutionRewarded(anomaly, reward);
+        }
+
         private bool HasSurvivedDay()
         {
             return wardStatus != null && !wardStatus.HasFailed && wardStatus.Stability > 0f
@@ -410,6 +420,7 @@ namespace WardShift
             if (dayInput != null) dayInput.enabled = false;
             if (wardStatus != null) wardStatus.Failed -= OnDayFailed;
             if (anomalySpawner != null) anomalySpawner.AnomalySpawned -= OnAnomalySpawned;
+            if (anomalyRewards != null) anomalyRewards.ResolutionRewarded -= OnResolutionRewarded;
             if (anomalyRewards != null) anomalyRewards.UnsubscribeAll();
         }
     }

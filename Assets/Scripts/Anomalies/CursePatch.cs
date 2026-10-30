@@ -24,11 +24,26 @@ namespace WardShift
         [SerializeField] private GameObject idleVfxPrefab;
         [Tooltip("이 패치의 정화가 진행되는 동안 반복 재생할 효과입니다.")]
         [SerializeField] private GameObject purifyingVfxPrefab;
+        [Tooltip("정화 중 작은 입자를 표시할 프리팹. 비워 두면 청록색 입자를 간단히 생성합니다.")]
+        [SerializeField] private GameObject purifyingMotesVfxPrefab;
+        [SerializeField] private Color purifyingMoteColor = new Color(0.25f, 0.95f, 0.88f, 0.9f);
+        [SerializeField, Min(0f)] private float purifyingMoteRate = 12f;
+        [SerializeField, Min(0.005f)] private float purifyingMoteSize = 0.035f;
+        [SerializeField, Min(0.01f)] private float purifyingMoteRadius = 0.2f;
         [Tooltip("이 패치가 정화 완료되는 순간 월드에 남길 효과입니다.")]
         [SerializeField] private GameObject purifiedVfxPrefab;
         [Tooltip("비워 두면 패치 루트 위치를 사용합니다. 지정하면 세 효과의 위치 기준으로 사용합니다.")]
         [SerializeField] private Transform vfxAnchor;
-        [SerializeField, Min(0.1f)] private float purifiedVfxLifetime = 2f;
+        [SerializeField, Min(0.1f)] private float purifiedVfxLifetime = 1.25f;
+        [SerializeField, Min(0.1f)] private float purifiedVfxSizeMultiplier = 1f;
+        [Tooltip("완료 프리팹이 비어 있을 때 사용할 작은 입자 파동의 크기와 지속 시간입니다.")]
+        [SerializeField, Min(1)] private int purifiedFallbackParticleCount = 10;
+        [SerializeField, Min(0.005f)] private float purifiedFallbackParticleSize = 0.035f;
+        [SerializeField, Min(0.1f)] private float purifiedFallbackParticleLifetime = 0.65f;
+        [SerializeField, Min(0f)] private float purifiedFallbackParticleSpeed = 0.7f;
+        [Tooltip("패치가 제거될 때 한 번 재생합니다. 비워 두어도 정화는 정상 처리됩니다.")]
+        [SerializeField] private AudioClip purifiedSfxClip;
+        [SerializeField, Range(0f, 1f)] private float purifiedSfxVolume = 0.3f;
         [SerializeField, Min(0.1f)] private float dangerRadius = 0.65f;
         [SerializeField, Min(0f)] private float surfaceOffset = 0.02f;
         [SerializeField] private Color stageOneColor = new Color(0.055f, 0.018f, 0.09f, 0.72f);
@@ -45,6 +60,7 @@ namespace WardShift
         private MaterialPropertyBlock propertyBlock;
         private GameObject idleVfxInstance;
         private GameObject purifyingVfxInstance;
+        private GameObject purifyingMotesInstance;
         private GameObject patchAppearanceInstance;
         private Vector3 initialPatchAppearanceScale;
 
@@ -178,13 +194,31 @@ namespace WardShift
         {
             if (target != purificationTarget || purified) return;
             purified = true;
+            Transform completionAnchor = VfxAnchor;
+            Vector3 completionPosition = completionAnchor.position;
+            Quaternion completionRotation = completionAnchor.rotation;
             if (moteParticles != null)
                 moteParticles.Stop(false, ParticleSystemStopBehavior.StopEmittingAndClear);
             StopPurifyingVfx();
             StopIdleVfx();
             StopPatchAppearance();
-            MagicVfxUtility.SpawnDetached(purifiedVfxPrefab, VfxAnchor.position,
-                VfxAnchor.rotation, purifiedVfxLifetime);
+            if (purifiedVfxPrefab != null)
+            {
+                GameObject effect = MagicVfxUtility.SpawnDetached(purifiedVfxPrefab,
+                    completionPosition, completionRotation, purifiedVfxLifetime, true);
+                if (effect != null)
+                {
+                    effect.transform.localScale *= Mathf.Max(0.1f, purifiedVfxSizeMultiplier);
+                    MagicVfxUtility.UseUnscaledParticleTime(effect);
+                }
+            }
+            else
+            {
+                MagicVfxUtility.SpawnParticleBurst(completionPosition, completionRotation,
+                    purifyingMoteColor, purifiedFallbackParticleCount, purifiedFallbackParticleSize,
+                    purifiedFallbackParticleLifetime, purifiedFallbackParticleSpeed, 0.035f);
+            }
+            MagicVfxUtility.PlayDetachedSound(purifiedSfxClip, completionPosition, purifiedSfxVolume);
             Purified?.Invoke(this);
         }
 
@@ -244,15 +278,24 @@ namespace WardShift
 
         private void StartPurifyingVfx()
         {
-            if (!isActiveAndEnabled || purificationTarget == null || !purificationTarget.IsCasting
-                || purifyingVfxInstance != null || purifyingVfxPrefab == null) return;
-            purifyingVfxInstance = MagicVfxUtility.SpawnAttached(purifyingVfxPrefab, VfxAnchor);
+            if (!isActiveAndEnabled || purificationTarget == null || !purificationTarget.IsCasting) return;
+            if (purifyingVfxInstance == null && purifyingVfxPrefab != null)
+                purifyingVfxInstance = MagicVfxUtility.SpawnAttached(purifyingVfxPrefab, VfxAnchor);
+            if (purifyingMotesInstance == null)
+            {
+                purifyingMotesInstance = purifyingMotesVfxPrefab != null
+                    ? MagicVfxUtility.SpawnAttached(purifyingMotesVfxPrefab, VfxAnchor)
+                    : MagicVfxUtility.SpawnPurificationMotesAttached(VfxAnchor, purifyingMoteColor,
+                        purifyingMoteRate, purifyingMoteSize, purifyingMoteRadius);
+            }
         }
 
         private void StopPurifyingVfx()
         {
             MagicVfxUtility.StopAndDestroy(purifyingVfxInstance);
             purifyingVfxInstance = null;
+            MagicVfxUtility.StopAndDestroy(purifyingMotesInstance);
+            purifyingMotesInstance = null;
         }
 
         private Transform VfxAnchor => vfxAnchor != null ? vfxAnchor : transform;

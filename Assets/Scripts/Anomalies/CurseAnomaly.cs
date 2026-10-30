@@ -23,6 +23,17 @@ namespace WardShift
         [Tooltip("저주 오염이 최종 단계에서 파열될 때 한 번 재생합니다.")]
         [SerializeField] private GameObject ruptureVfxPrefab;
         [SerializeField, Min(0.1f)] private float anomalyVfxLifetime = 2f;
+        [Header("전체 정화 완료 효과")]
+        [SerializeField, Min(0.1f)] private float resolvedVfxLifetime = 1.5f;
+        [SerializeField, Min(0.1f)] private float resolvedVfxSizeMultiplier = 1.2f;
+        [Tooltip("완료 프리팹이 비어 있을 때 사용할 청록색 정화 파동 크기입니다.")]
+        [SerializeField, Min(1)] private int resolvedFallbackParticleCount = 28;
+        [SerializeField, Min(0.005f)] private float resolvedFallbackParticleSize = 0.055f;
+        [SerializeField, Min(0.1f)] private float resolvedFallbackParticleLifetime = 0.95f;
+        [SerializeField, Min(0f)] private float resolvedFallbackParticleSpeed = 1.8f;
+        [Tooltip("마지막 패치까지 모두 정화되어 진압에 성공했을 때 한 번 재생합니다.")]
+        [SerializeField] private AudioClip resolvedSfxClip;
+        [SerializeField, Range(0f, 1f)] private float resolvedSfxVolume = 0.55f;
         [Header("바닥 위치 자동 맞춤")]
         [SerializeField, Min(0.1f)] private float floorSnapProbeHeight = 2f;
         [SerializeField, Min(0.1f)] private float floorSnapProbeDistance = 4f;
@@ -353,7 +364,7 @@ namespace WardShift
             if (!AllSpawnedPatchesPurified()) return;
             isResolved = true;
             Debug.Log($"저주 오염 진압 완료 ({spawnedPatchCount}개 패치)", this);
-            SpawnAnomalyVfx(resolvedVfxPrefab);
+            SpawnResolvedEffect();
             try
             {
                 onResolved.Invoke();
@@ -402,6 +413,29 @@ namespace WardShift
         {
             if (prefab == null) return;
             MagicVfxUtility.SpawnDetached(prefab, transform.position, transform.rotation, anomalyVfxLifetime);
+        }
+
+        private void SpawnResolvedEffect()
+        {
+            if (resolvedVfxPrefab != null)
+            {
+                GameObject effect = MagicVfxUtility.SpawnDetached(resolvedVfxPrefab,
+                    transform.position, transform.rotation, resolvedVfxLifetime, true);
+                if (effect != null)
+                {
+                    effect.transform.localScale *= Mathf.Max(0.1f, resolvedVfxSizeMultiplier);
+                    MagicVfxUtility.UseUnscaledParticleTime(effect);
+                }
+            }
+            else
+            {
+                MagicVfxUtility.SpawnParticleBurst(transform.position, transform.rotation,
+                    new Color(0.25f, 0.95f, 0.88f, 1f), resolvedFallbackParticleCount,
+                    resolvedFallbackParticleSize, resolvedFallbackParticleLifetime,
+                    resolvedFallbackParticleSpeed, 0.08f);
+            }
+
+            MagicVfxUtility.PlayDetachedSound(resolvedSfxClip, transform.position, resolvedSfxVolume);
         }
 
         private void OnDrawGizmosSelected()

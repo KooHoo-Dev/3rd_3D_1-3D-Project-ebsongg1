@@ -64,6 +64,12 @@ namespace WardShift
         [Tooltip("균열 프리팹 내부의 생성 위치 Transform입니다. 비워 두면 균열 루트를 사용합니다.")]
         [SerializeField] private Transform ruptureAnchor;
 
+        [Header("진압 완료 수축")]
+        [Tooltip("완료 판정 뒤 중심 구체와 지속 균열 효과가 중심으로 수축하는 시간입니다.")]
+        [SerializeField, Min(0.01f)] private float completionCollapseDuration = 0.28f;
+        [Tooltip("수축 종료 시 구체와 지속 효과가 남길 크기 비율입니다.")]
+        [SerializeField, Range(0f, 0.5f)] private float completionCollapseScale = 0.035f;
+
         [SerializeField, Min(0.1f)] private float transientLifetime = 2.5f;
 
         private static readonly int BaseColor = Shader.PropertyToID("_BaseColor");
@@ -78,6 +84,7 @@ namespace WardShift
         private Vector3 coreBaseScale = Vector3.one;
         private Light[] lights = Array.Empty<Light>();
         private float[] lightBaseIntensities = Array.Empty<float>();
+        private bool completionVisualDetached;
 
         private sealed class RendererVisualState
         {
@@ -110,6 +117,7 @@ namespace WardShift
                 rift.DangerStageChanged += OnDangerStageChanged;
                 rift.SealChainFailed += OnSealChainFailed;
                 rift.Ruptured += OnRuptured;
+                rift.Resolved += OnResolved;
                 ApplyDangerStage(rift.DangerStage, false);
             }
         }
@@ -121,7 +129,9 @@ namespace WardShift
                 rift.DangerStageChanged -= OnDangerStageChanged;
                 rift.SealChainFailed -= OnSealChainFailed;
                 rift.Ruptured -= OnRuptured;
+                rift.Resolved -= OnResolved;
             }
+            if (completionVisualDetached) return;
             if (coreRiftVisual != null) coreRiftVisual.localScale = coreBaseScale;
             ResetRendererStates(coreRendererStates);
             DestroyPersistentEffect();
@@ -318,6 +328,39 @@ namespace WardShift
         private void OnRuptured(ManaRift source)
         {
             PlayTransient(rupturePrefab, ruptureAnchor);
+        }
+
+        private void OnResolved(ManaRift source)
+        {
+            if (source != rift || completionVisualDetached) return;
+
+            var detachedVisuals = new System.Collections.Generic.List<Transform>(2);
+            if (coreRiftVisual != null) detachedVisuals.Add(coreRiftVisual);
+            if (persistentInstance != null
+                && (coreRiftVisual == null || !persistentInstance.transform.IsChildOf(coreRiftVisual)))
+                detachedVisuals.Add(persistentInstance.transform);
+            if (detachedVisuals.Count == 0) return;
+
+            Vector3 center = coreRiftVisual != null ? coreRiftVisual.position : detachedVisuals[0].position;
+            GameObject collapseRoot = new GameObject("ManaRiftCompletionCollapse");
+            collapseRoot.transform.position = center;
+            foreach (Transform visual in detachedVisuals)
+                if (visual != null) visual.SetParent(collapseRoot.transform, true);
+
+            if (persistentInstance != null)
+                foreach (ParticleSystem particles in persistentInstance.GetComponentsInChildren<ParticleSystem>(true))
+                    particles.Stop(false, ParticleSystemStopBehavior.StopEmitting);
+
+            MagicVfxUtility.Prepare(collapseRoot);
+            RiftCollapseMotion motion = collapseRoot.AddComponent<RiftCollapseMotion>();
+            motion.Begin(detachedVisuals.ToArray(), completionCollapseDuration, completionCollapseScale);
+
+            // The original anomaly is destroyed immediately after this event. These visuals now own
+            // their short collapse independently and must not be reset by this component's OnDisable.
+            completionVisualDetached = true;
+            coreRiftVisual = null;
+            persistentInstance = null;
+            activePersistentPrefab = null;
         }
 
         private void PlayTransient(GameObject prefab, Transform configuredAnchor)

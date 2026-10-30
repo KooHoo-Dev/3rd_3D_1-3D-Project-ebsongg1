@@ -38,10 +38,16 @@ namespace WardShift
         public PlayerContamination Player => wardStatus != null ? wardStatus.Player : null;
         public PlayerPickupInteractor PickupInteractor => pickupInteractor;
         public event Action<bool> MapVisibilityChanged;
+        public event Action<AnomalyBehaviour, int> AnomalyResolutionRewarded;
         public bool IsConfigured => wardStatus != null && anomalySpawner != null && inventory != null
             && magicCaster != null && playerRoot != null && startPoint != null && pickupInteractor != null;
         internal int MinimumAnomalyReward => minimumAnomalyReward;
         internal int MaximumAnomalyReward => maximumAnomalyReward;
+
+        internal void RaiseAnomalyResolutionRewarded(AnomalyBehaviour anomaly, int reward)
+        {
+            AnomalyResolutionRewarded?.Invoke(anomaly, reward);
+        }
 
         /// <summary>인벤토리 창을 열거나 닫음.</summary>
         public void ToggleInventory()

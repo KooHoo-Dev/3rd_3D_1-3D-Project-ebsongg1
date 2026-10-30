@@ -55,6 +55,11 @@ namespace WardShift
         [SerializeField, Min(0f)] private float stageThreeStabilityLossPerSecond = 1f;
         [SerializeField, Min(0f)] private float ruptureStabilityDamage = 20f;
 
+        [Header("안정화 완료 사운드")]
+        [Tooltip("게이지가 100%에 도달해 진압 판정이 확정될 때 재생합니다. 비워 두어도 진압은 정상 처리됩니다.")]
+        [SerializeField] private AudioClip stabilizationCompleteSfx;
+        [SerializeField, Range(0f, 1f)] private float stabilizationCompleteSfxVolume = 0.65f;
+
         [Header("실행 상태 (읽기 전용)")]
         [SerializeField] private float age;
         [SerializeField] private int dangerStage = 1;
@@ -69,6 +74,7 @@ namespace WardShift
         private bool workedThisBurstCycle;
         private float recoveryRemaining;
         private bool alternateAttacks;
+        private bool resolutionSfxPlayed;
         private AttackKind nextAttack = AttackKind.RadialBurst;
 
         public override string DisplayName => string.IsNullOrWhiteSpace(displayName)
@@ -144,6 +150,7 @@ namespace WardShift
             dangerStage = 1;
             hasRuptured = false;
             isResolved = false;
+            resolutionSfxPlayed = false;
             isBurstWarningActive = false;
             nextAttack = AttackKind.RadialBurst;
             workedThisBurstCycle = false;
@@ -311,6 +318,13 @@ namespace WardShift
             workedThisBurstCycle = false;
             if (deviceVisuals != null) deviceVisuals.MarkResolved();
             Debug.Log("장치형 마력 폭주 진압 완료", this);
+            if (!resolutionSfxPlayed)
+            {
+                resolutionSfxPlayed = true;
+                MagicVfxUtility.PlayDetachedSound(stabilizationCompleteSfx,
+                    deviceVisuals != null ? deviceVisuals.transform.position : transform.position,
+                    stabilizationCompleteSfxVolume);
+            }
             try { NotifyResolved(); }
             finally { if (this != null) Destroy(gameObject); }
         }

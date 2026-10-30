@@ -29,6 +29,13 @@ namespace WardShift
         [Tooltip("프리팹 내부의 생성 위치 Transform입니다. 비워 두면 균열 루트를 사용합니다.")]
         [SerializeField] private Transform completeVFXAnchor;
         [SerializeField, Min(0.1f)] private float completeVFXLifetime = 1.5f;
+        [Tooltip("완료 효과의 기본 크기입니다. 위험 단계별 증가분이 추가됩니다.")]
+        [SerializeField, Min(0.1f)] private float completeVFXSizeMultiplier = 1f;
+        [Tooltip("2·3단계에서 완료 효과에 단계마다 더할 크기 비율입니다.")]
+        [SerializeField, Min(0f)] private float completeVFXStageSizeBonus = 0.15f;
+        [Tooltip("선택형 완료 SFX입니다. 현재 봉인점 완료 VFX에 이미 소리가 있으므로 중복을 피하려면 비워 둡니다.")]
+        [SerializeField] private AudioClip completeSfxClip;
+        [SerializeField, Range(0f, 1f)] private float completeSfxVolume = 0.65f;
 
         [Header("진압 완료")]
         [SerializeField] private UnityEvent onResolved = new UnityEvent();
@@ -453,15 +460,33 @@ namespace WardShift
 
         private void PlayCompleteEffect()
         {
-            if (completeVFXPrefab == null) return;
             Transform anchor = completeVFXAnchor != null ? completeVFXAnchor : transform;
-            // 루트 제거 후에도 효과가 끝까지 재생되도록 부모 없이 생성.
-            GameObject effect = Instantiate(completeVFXPrefab, anchor.position, anchor.rotation);
-            foreach (Collider effectCollider in effect.GetComponentsInChildren<Collider>(true))
-                effectCollider.enabled = false;
-            foreach (ParticleSystem particles in effect.GetComponentsInChildren<ParticleSystem>(true))
-                particles.Play(false);
-            Destroy(effect, Mathf.Max(0.1f, completeVFXLifetime));
+            float stageScale = 1f + Mathf.Max(0, dangerStage - 1)
+                * Mathf.Max(0f, completeVFXStageSizeBonus);
+            float size = Mathf.Max(0.1f, completeVFXSizeMultiplier) * stageScale;
+
+            if (completeVFXPrefab != null)
+            {
+                // 루트 제거 후에도 독립 재생되며, 콜라이더와 마법 조준 Raycast에서 제외합니다.
+                GameObject effect = MagicVfxUtility.SpawnDetached(completeVFXPrefab,
+                    anchor.position, anchor.rotation, completeVFXLifetime, true);
+                if (effect != null)
+                {
+                    effect.transform.localScale *= size;
+                    MagicVfxUtility.UseUnscaledParticleTime(effect);
+                }
+            }
+            else
+            {
+                Color color = dangerStage >= 3 ? new Color(1f, 0.34f, 0.28f, 1f)
+                    : dangerStage == 2 ? new Color(0.8f, 0.55f, 1f, 1f)
+                    : new Color(0.58f, 0.75f, 1f, 1f);
+                MagicVfxUtility.SpawnParticleBurst(anchor.position, anchor.rotation, color,
+                    Mathf.RoundToInt(18f * size), 0.055f * size, completeVFXLifetime,
+                    1.25f * size, 0.07f * size);
+            }
+
+            MagicVfxUtility.PlayDetachedSound(completeSfxClip, anchor.position, completeSfxVolume);
         }
 
         protected override void OnDisable()

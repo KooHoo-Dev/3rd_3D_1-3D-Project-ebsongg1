@@ -152,6 +152,10 @@ MonoBehaviour:
   completeVFXPrefab: {fileID: 176482, guid: 1cead947942da8646811dd74faaf5448, type: 3}
   completeVFXAnchor: {fileID: 8827359575551701073}
   completeVFXLifetime: 1.5
+  completeVFXSizeMultiplier: 1
+  completeVFXStageSizeBonus: 0.15
+  completeSfxClip: {fileID: 0}
+  completeSfxVolume: 0.65
   onResolved:
     m_PersistentCalls:
       m_Calls: []
@@ -206,6 +210,8 @@ MonoBehaviour:
   rupturePrefab: {fileID: 190198, guid: 5511542e98d45d24baa0d5d49bd2f989, type: 3}
   ruptureAnchor: {fileID: 0}
   transientLifetime: 2.5
+  completionCollapseDuration: 0.28
+  completionCollapseScale: 0.035
 --- !u!1 &5323635872421856178
 GameObject:
   m_ObjectHideFlags: 0

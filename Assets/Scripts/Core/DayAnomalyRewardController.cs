@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -12,6 +13,9 @@ namespace WardShift
         private readonly List<AnomalyBehaviour> subscribedAnomalies = new List<AnomalyBehaviour>();
         private DayFlowManager manager;
         private PlayerInventory inventory;
+
+        /// <summary>결정 보상을 실제 지급한 뒤 한 번 발생합니다.</summary>
+        public event Action<AnomalyBehaviour, int> ResolutionRewarded;
 
         public void Configure(DayFlowManager dayFlow, PlayerInventory playerInventory)
         {
@@ -58,8 +62,10 @@ namespace WardShift
                 reward = UnityEngine.Random.Range(min, max + 1);
             }
             else reward = FloodConditionRules.ResolutionReward(reward, manager.ActiveFloodCondition);
-            inventory.AddManaCrystals(Mathf.Max(0, reward));
+            int awarded = Mathf.Max(0, reward);
+            inventory.AddManaCrystals(awarded);
             anomaly.ResolutionCompleted -= RewardResolution;
+            ResolutionRewarded?.Invoke(anomaly, awarded);
         }
 
         public void UnsubscribeAll()
