@@ -46,12 +46,16 @@ namespace WardShift
         private DaySession session;
         private DayRetryCheckpoint checkpoint;
         private DayInputController dayInput;
+        private DayBriefingController dayBriefing;
         private DayPlayerUpgradeEffects playerUpgradeEffects;
         private DayUpgradeController upgrades;
         private DaySupplyController supply;
         private DayUiController dayUi;
         private DaySceneController dayScene;
         private DayAnomalyRewardController anomalyRewards;
+        private bool preparedDayReady;
+        private bool briefingPending;
+        public bool HasStartedDayBriefingThisRun { get; private set; }
         private DaySession Session => session ?? (session = new DaySession(startingDay));
         private int currentDay => Session.CurrentDay;
         private DayState state => Session.State;
@@ -110,6 +114,9 @@ namespace WardShift
             dayInput = GetComponent<DayInputController>();
             if (dayInput == null) dayInput = gameObject.AddComponent<DayInputController>();
             dayInput.Configure(this, CanUseDaySkip, daySkipCheatKey);
+            dayBriefing = GetComponent<DayBriefingController>();
+            if (dayBriefing == null) dayBriefing = gameObject.AddComponent<DayBriefingController>();
+            dayBriefing.Configure(this);
             if (anomalySpawner != null) anomalySpawner.SetSpawningEnabled(false);
         }
 
@@ -134,7 +141,7 @@ namespace WardShift
                 return;
             }
             if (wardStatus.HasFailed) OnDayFailed(wardStatus.FailureReason);
-            else BeginDay();
+            else PrepareDayAndShowBriefing();
         }
 
         private void LateUpdate()
@@ -194,7 +201,7 @@ namespace WardShift
         {
             if (state != DayState.DayClear || supply != null && supply.Pending) return;
             session.MoveToNextDay(FinalDay, CreateDaySeed);
-            BeginDay();
+            PrepareDayAndShowBriefing();
         }
 
         /// <summary>디버그용 DAY 스킵. 진행 중 현상은 보상 없이 정리하고 다음 DAY를 시작합니다.</summary>
@@ -250,8 +257,11 @@ namespace WardShift
         /// <summary>기존 UI/호출부 호환용 이름. 동작은 현재 DAY 재도전입니다.</summary>
         public void RestartFromDayOne() => RetryCurrentDay();
 
-        private void BeginDay(bool isRetry = false)
+        private void PrepareDayAndShowBriefing(bool isRetry = false)
         {
+            if (state != DayState.Preparing) return;
+            preparedDayReady = false;
+            briefingPending = false;
             dayUi.CloseInventory();
             dayUi.SetMapOpen(false, false);
             anomalyRewards.ResetForDay();
@@ -269,23 +279,50 @@ namespace WardShift
             if (!isRetry) upgrades.ResetPurchaseForNewPhase();
             supply.BeginDay(currentDay, isRetry);
             ApplyUpgradeEffects();
-            session.BeginDay(dayDurationSeconds);
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
-            if (wardStatus != null) wardStatus.ResumeGameFromUI();
             if (magicCaster != null)
             {
                 magicCaster.ResetForNewDay();
-                magicCaster.SetInputBlocked(false);
+                magicCaster.SetInputBlocked(true);
             }
             if (anomalySpawner != null)
             {
                 anomalySpawner.ConfigureForDay(currentDay, dayRandomSeed);
+            }
+            checkpoint.Capture(inventory);
+            if (wardStatus != null) wardStatus.PauseGameForUI();
+
+            preparedDayReady = true;
+            if (!isRetry && dayBriefing != null && dayBriefing.Show(currentDay))
+            {
+                briefingPending = true;
+                return;
+            }
+            BeginPreparedDay();
+        }
+
+        /// <summary>운영 기록의 시작 버튼에서만 준비된 DAY를 실제 근무 상태로 전환합니다.</summary>
+        internal void StartPreparedDayFromBriefing()
+        {
+            if (!briefingPending || !preparedDayReady || state != DayState.Preparing) return;
+            briefingPending = false;
+            HasStartedDayBriefingThisRun = true;
+            BeginPreparedDay();
+        }
+
+        private void BeginPreparedDay()
+        {
+            if (!preparedDayReady || state != DayState.Preparing) return;
+            preparedDayReady = false;
+            session.BeginDay(dayDurationSeconds);
+            if (wardStatus != null) wardStatus.ResumeGameFromUI();
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+            if (magicCaster != null) magicCaster.SetInputBlocked(false);
+            if (anomalySpawner != null)
+            {
                 anomalySpawner.SetSpawnWindowOpen(remainingSeconds > Mathf.Max(0f, spawnStopBeforeEndSeconds));
-                checkpoint.Capture(inventory);
                 anomalySpawner.SetSpawningEnabled(true);
             }
-            else checkpoint.Capture(inventory);
 
         }
 
@@ -402,7 +439,7 @@ namespace WardShift
         private IEnumerator BeginDayNextFrame()
         {
             yield return null;
-            BeginDay(true);
+            PrepareDayAndShowBriefing(true);
         }
 
         private void OnDisable()

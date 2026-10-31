@@ -150,7 +150,9 @@ namespace WardShift
         {
             ApplyCombatHintPosition();
             if (tutorialResetPending || tutorialPanel == null || dayFlow == null) return;
+            // DAY 1 목표와 조작은 새 브리핑에서 안내하므로 기존 인트로 모달이 다시 일시정지하지 않게 합니다.
             if (dayFlow.State == DayState.Playing && dayFlow.CurrentDay == 1
+                && !dayFlow.HasStartedDayBriefingThisRun
                 && !Learned(Intro) && introPage < 0 && AnomalyBehaviour.ActiveAnomalies.Count == 0
                 && !dayFlow.SupplyPanelOpen && !dayFlow.InventoryOpen && !dayFlow.IsMapOpen)
                 BeginIntroduction();

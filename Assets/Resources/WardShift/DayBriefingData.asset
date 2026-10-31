@@ -1,0 +1,59 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9ef66da4a1de4d3d9bcd257b78996d33, type: 3}
+  m_Name: DayBriefingData
+  m_EditorClassIdentifier:
+  koreanFont: {fileID: 11400000, guid: 659ceb8947c683b4a9e1216df0a67515, type: 2}
+  englishFont: {fileID: 11400000, guid: fee3f3492d46e774183c7900adf60948, type: 2}
+  records:
+  - day: 1
+    recordType: 비상 기록
+    title: 비상 근무 개시
+    body: "범람기 시작 직후 제17 제어소에서 예상치를 초과하는 마력 반응이 감지되었습니다.\n\n시설은 비상 격리 상태로 전환되었으며, 외부 교대 인력의 진입이 제한됩니다.\n\n현재 시설 내부의 안정화 업무는 현장 관리자에게 이관되었습니다.\n\n예상 범람 지속 기간은 7일입니다."
+    caution: 
+    sidePanelText: "· 이상현상을 진압합니다.\n· 시설 안정도를 0보다 높게 유지합니다.\n· 마력 오염도 100 도달을 막습니다.\n\nQ 감응 · Tab 지도\nWASD 이동 · 1/2/3 마법 · B 인벤토리"
+  - day: 2
+    recordType: 운영 기록
+    title: 비정상적인 증가
+    body: "제17 제어소의 이상현상 발생량이 예측치를 초과했습니다.\n\n관리 시스템은 범람기에 따른 일시적인 변동으로 판단하고 있으나, 이전 근무 기록과 차이가 확인되었습니다.\n\n시설 안정화 업무를 지속하십시오."
+    caution: 
+    sidePanelText: 
+  - day: 3
+    recordType: 비교 기록
+    title: 제어소 비교 기록
+    body: "다른 제어소의 마력 수치는 대부분 정상 범위에 머물러 있습니다.\n\n반면 제17 제어소에서는 외부 마력 유입량이 지속적으로 증가하고 있습니다.\n\n현재 유입 경로를 분석 중입니다."
+    caution: 
+    sidePanelText: 
+  - day: 4
+    recordType: 분석 기록
+    title: 확인되지 않은 유입 경로
+    body: "시설 기록에서 비상 안정화망의 외부 연결 이력이 확인되었습니다.\n\n일부 마력 유입 경로가 일반 운영 기록에 표시되지 않고 있습니다.\n\n정확한 유입 원인은 아직 확인되지 않았습니다."
+    caution: 
+    sidePanelText: 
+  - day: 5
+    recordType: 망 연결 기록
+    title: 비상 안정화망
+    body: "외부 마력 유입 경로 분석이 완료되었습니다.\n\n제17 제어소가 인접 제어소의 초과 마력을 수용 중인 것으로 확인되었습니다.\n\n현재 수용량은 예상치를 초과했으며, 고위험 마력 반응이 감지되고 있습니다."
+    caution: "근무 시작 75초 경과 후 2단계 특별 마력 균열 출현 일정입니다. 빈 이상현상 슬롯과 생성 지점이 확보될 때 출현합니다."
+    sidePanelText: 
+  - day: 6
+    recordType: 운영 판단
+    title: 연결 유지
+    body: "비상 안정화망의 강제 해제는 인접 제어소의 과부하를 유발할 가능성이 있습니다.\n\n범람 종료 예상 시각까지 시설을 유지하는 것이 현재 가장 안전한 대응으로 판단됩니다.\n\n남은 근무 기간은 하루입니다."
+    caution: "근무 시작 90초 경과 후 2단계 특별 마력 균열 출현 일정입니다. 빈 이상현상 슬롯과 생성 지점이 확보될 때 출현합니다."
+    sidePanelText: 
+  - day: 7
+    recordType: 최종 근무 기록
+    title: 최종 근무
+    body: "마력 범람이 최고 수준에 도달했습니다.\n\n제17 제어소의 안정화 부담이 증가하고 있으나, 범람 종료 예상 시각도 가까워지고 있습니다.\n\n마지막까지 시설 안정도를 유지하십시오."
+    caution: "근무 시작 100초 경과 후 3단계 특별 마력 균열 출현 일정입니다. 빈 이상현상 슬롯과 생성 지점이 확보될 때 출현합니다."
+    sidePanelText: 
