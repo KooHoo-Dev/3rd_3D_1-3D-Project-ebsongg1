@@ -11,12 +11,10 @@ namespace WardShift
         [SerializeField, Min(0f)] private float recoveryPerSecond = 10f;
         [SerializeField, Range(0f, 100f)] private float contamination;
         private float contaminationGainMultiplier = 1f;
-        private float safeZoneRecoveryMultiplier = 1f;
         public float Value => contamination;
         public bool InSafeZone { get; private set; }
         public float ExposurePerSecond { get; private set; }
-        public float SafeZoneRecoveryPerSecond => Mathf.Max(0f, recoveryPerSecond)
-            * safeZoneRecoveryMultiplier;
+        public float SafeZoneRecoveryPerSecond => Mathf.Max(0f, recoveryPerSecond);
         /// <summary>실제로 증가한 직접 피격 오염량. UI/SFX는 이 이벤트만 구독합니다.</summary>
         public event Action<float> DirectDamageApplied;
         /// <summary>위험 영역에 머무르는 동안 실제로 증가한 오염량.</summary>
@@ -26,12 +24,6 @@ namespace WardShift
         public void SetContaminationGainMultiplier(float multiplier)
         {
             contaminationGainMultiplier = Mathf.Clamp01(multiplier);
-        }
-
-        /// <summary>오늘의 범람 조건 배수를 절대값으로 설정해 호출 중복으로 누적되지 않게 합니다.</summary>
-        public void SetSafeZoneRecoveryMultiplier(float multiplier)
-        {
-            safeZoneRecoveryMultiplier = Mathf.Max(0f, multiplier);
         }
 
         /// <summary>회복 아이템 사용에 성공하면 오염도를 0 아래로 내리지 않고 줄임.</summary>
@@ -58,7 +50,6 @@ namespace WardShift
         {
             contamination = 0f;
             contaminationGainMultiplier = 1f;
-            safeZoneRecoveryMultiplier = 1f;
             InSafeZone = false;
             ExposurePerSecond = 0f;
         }
@@ -80,12 +71,24 @@ namespace WardShift
                 if (zone != null && zone.Contains(transform.position)) { InSafeZone = true; break; }
             ExposurePerSecond = 0f;
             if (!InSafeZone)
+            {
+                float overlappingCurseRate = 0f;
                 foreach (AnomalyBehaviour anomaly in anomalies)
-                    if (anomaly != null) ExposurePerSecond += anomaly.ContaminationRateAt(transform.position);
+                {
+                    if (anomaly == null) continue;
+                    float anomalyRate = anomaly.ContaminationRateAt(this);
+                    if (anomaly is CurseAnomaly)
+                        overlappingCurseRate = Mathf.Max(overlappingCurseRate, anomalyRate);
+                    else
+                        ExposurePerSecond += anomalyRate;
+                }
+                // 겹친 저주 오염 패치는 가장 높은 접촉 피해율 하나만 적용합니다.
+                ExposurePerSecond += overlappingCurseRate;
+            }
             if (!InSafeZone) ExposurePerSecond *= contaminationGainMultiplier;
-            float rate = InSafeZone ? -SafeZoneRecoveryPerSecond : ExposurePerSecond;
+            float contaminationDeltaPerSecond = InSafeZone ? -SafeZoneRecoveryPerSecond : ExposurePerSecond;
             float previous = contamination;
-            contamination = Mathf.Clamp(contamination + rate * Mathf.Max(0f, deltaTime), 0f, 100f);
+            contamination = Mathf.Clamp(contamination + contaminationDeltaPerSecond * Mathf.Max(0f, deltaTime), 0f, 100f);
             float applied = contamination - previous;
             if (applied > 0f) ExposureContaminationApplied?.Invoke(applied);
         }

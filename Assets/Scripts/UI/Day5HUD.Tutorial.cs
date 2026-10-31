@@ -36,7 +36,7 @@ namespace WardShift
             [TextArea(2, 3)] public string deviceCast = "장치를 조준해 좌클릭을 유지하세요. 중간에 멈춰도 안정화 진행도는 유지됩니다.";
             [TextArea(2, 3)] public string radial = "원형 방출 경고가 나타났습니다. 방출 전에 표시된 반경 밖으로 피하세요.";
             [TextArea(2, 3)] public string projectile = "마력탄 발사 경고입니다. 먼저 거리를 벌리고, 발사 뒤에는 방향을 바꿔 피하세요.";
-            [TextArea(2, 3)] public string supply = "정화약은 오염도, 수리 키트는 시설 안정도를 회복합니다. 오늘 필요한 자원을 고르세요.";
+            [TextArea(2, 3)] public string supply = "DAY 클리어 뒤 마력 조각으로 필요한 정화 물약이나 시설 수리 키트를 구매하세요. 보급품은 하루 최대 2개까지 구매할 수 있습니다.";
             [TextArea(2, 3)] public string firstClear = "진압으로 얻은 마력 결정으로 강화를 구매하세요. 강화는 하루에 한 번만 구매할 수 있습니다.";
             [TextArea(2, 3)] public string inventory = "B로 인벤토리를 열고 필요한 아이템을 클릭해 사용하세요.";
             [TextArea(2, 3)] public string map = "M으로 시설 지도를 열어 이상현상 위치를 확인하세요. 지도는 간이도이며 이동 경로의 축척과 다릅니다.";
@@ -384,9 +384,23 @@ namespace WardShift
         private void RefreshControlsReference()
         {
             if (controlsReference == null) return;
-            controlsReference.text = "WASD 이동 · 마우스 시점\n마법 선택: 1/2/3 · 휠"
-                + (Learned(Seal) ? "\nQ 감지" : "")
-                + (Learned(Map) || Learned(Inventory) ? "\nTAB 지도 · B 인벤토리" : "");
+            controlsReference.text = "WASD : 이동\n마법 선택 : 1/2/3 · 마우스 휠"
+                + (Learned(Seal) ? "\nQ : 감지" : "")
+                + (Learned(Map) || Learned(Inventory) ? "\nTAB : 지도\nB : 인벤토리" : "");
+            FitControlsReference();
+        }
+
+        private void FitControlsReference()
+        {
+            RectTransform textRect = controlsReference.rectTransform;
+            if (!(textRect.parent is RectTransform panelRect)) return;
+
+            float preferredHeight = controlsReference.GetPreferredValues(
+                controlsReference.text, Mathf.Max(1f, textRect.rect.width), 0f).y;
+            float textHeight = Mathf.Ceil(preferredHeight + 8f);
+            textRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, textHeight);
+            panelRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, textHeight + 24f);
+            controlsReference.overflowMode = TextOverflowModes.Overflow;
         }
 
         private void FitOverlaysToScreen()

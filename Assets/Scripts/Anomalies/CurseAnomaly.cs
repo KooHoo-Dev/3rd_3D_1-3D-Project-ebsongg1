@@ -65,6 +65,13 @@ namespace WardShift
         [SerializeField, Min(0f)] private float stageOneContamination = 1f;
         [SerializeField, Min(0f)] private float stageTwoContamination = 3f;
         [SerializeField, Min(0f)] private float stageThreeContamination = 6f;
+        [Header("오염 피해량 배율 및 발 접촉 판정")]
+        [SerializeField, Min(0f), InspectorName("저주 오염 피해량 배율"),
+         Tooltip("기존 성장 단계별 오염 피해량에 곱합니다. 2는 3-C 조정 전 수치의 최종 2배입니다.")]
+        private float contaminationDamageMultiplier = 2f;
+        [SerializeField, Min(0f), InspectorName("발 접촉 판정 여유 거리"),
+         Tooltip("CharacterController 발 투영 면적이 오염 원형 범위와 겹칠 때 추가할 판정 여유 거리(m)입니다.")]
+        private float playerFootContactMargin = 0.08f;
         [Header("진압 완료")]
         [SerializeField] private UnityEvent onResolved = new UnityEvent();
         [Header("위험 상태 (실행 중 확인용)")]
@@ -338,9 +345,33 @@ namespace WardShift
             foreach (CursePatch patch in patches)
                 if (patch != null && patch.ContainsDangerPosition(position)) { insidePatch = true; break; }
             if (!insidePatch) return 0f;
-            return dangerStage >= 3 ? Mathf.Max(0f, stageThreeContamination)
-                : dangerStage == 2 ? Mathf.Max(0f, stageTwoContamination)
-                : Mathf.Max(0f, stageOneContamination);
+            return CurrentStageContaminationRate();
+        }
+
+        /// <summary>플레이어 발의 실제 점유 범위가 패치 위험 원과 닿았을 때 한 번만 피해율을 반환합니다.</summary>
+        public override float ContaminationRateAt(PlayerContamination player)
+        {
+            if (!IsHazardActive || player == null || patches == null) return 0f;
+            CharacterController controller = player.GetComponent<CharacterController>();
+            if (controller == null) controller = player.GetComponentInParent<CharacterController>();
+            if (controller == null) controller = player.GetComponentInChildren<CharacterController>();
+
+            foreach (CursePatch patch in patches)
+            {
+                if (patch == null) continue;
+                bool touching = controller != null
+                    ? patch.ContainsDangerFootprint(controller, playerFootContactMargin)
+                    : patch.ContainsDangerPosition(player.transform.position);
+                if (touching) return CurrentStageContaminationRate();
+            }
+            return 0f;
+        }
+
+        private float CurrentStageContaminationRate()
+        {
+            float baseRate = dangerStage >= 3 ? stageThreeContamination
+                : dangerStage == 2 ? stageTwoContamination : stageOneContamination;
+            return Mathf.Max(0f, baseRate) * Mathf.Max(0f, contaminationDamageMultiplier);
         }
 
         /// <summary>한 번 정화된 패치가 성장 단계 갱신 후에도 돌아오지 않는지 확인합니다.</summary>

@@ -288,8 +288,7 @@ namespace WardShift.Editor
                 case 61:
                     // ManaRift completes the two clicked seals in LateUpdate.
                     if (secondRift != null) return;
-                    int expectedCleanupReward = FloodConditionRules.ResolutionReward(
-                        cleanupRewardCap, day.ActiveFloodCondition);
+                    int expectedCleanupReward = cleanupRewardCap;
                     if (day.Inventory.ManaCrystals != crystalsBeforeCleanupResolution + expectedCleanupReward)
                     {
                         Finish(false, "post-deadline growth increased the resolution reward: expected "

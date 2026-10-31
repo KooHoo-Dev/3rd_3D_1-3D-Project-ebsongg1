@@ -20,16 +20,20 @@ namespace WardShift
         public bool IsMapOpen => dayUi != null && dayUi.IsMapOpen;
         public bool DaySupplyPending => supply != null && supply.Pending;
         public bool SupplyPanelOpen => supply != null && supply.PanelOpen;
-        public ItemType SupplyItemAwaitingExchange => supply != null ? supply.AwaitingExchange : ItemType.None;
+        public int SupplyPurchasesThisShop => supply != null ? supply.PurchasesThisShop : 0;
+        public int MaximumSupplyPurchases => supply != null
+            ? supply.MaximumPurchasesPerShop : DaySupplyController.DefaultMaximumPurchasesPerShop;
+        public int RemainingSupplyPurchases => supply != null ? supply.RemainingPurchases : 0;
+        public int PurificationPotionPrice => supply != null
+            ? supply.PotionPrice : DaySupplyController.DefaultPotionPrice;
+        public int EmergencyRepairKitPrice => supply != null
+            ? supply.RepairKitPrice : DaySupplyController.DefaultRepairKitPrice;
         public bool UpgradePurchasedThisClear => upgrades != null && upgrades.PurchasedThisClear;
         public int MobilityUpgradeLevel => upgrades != null ? upgrades.MobilityLevel : startingMobilityLevel;
         public int ContaminationResistanceLevel => upgrades != null ? upgrades.ResistanceLevel : startingResistanceLevel;
         public int FacilityDefenseLevel => upgrades != null ? upgrades.FacilityDefenseLevel : startingFacilityDefenseLevel;
-        public FloodCondition ActiveFloodCondition => activeFloodCondition;
-        public FloodCondition NextDayFloodCondition => nextDayFloodCondition;
-        public float SafeZoneRecoveryMultiplier => FloodConditionRules.SafeZoneRecoveryMultiplier(activeFloodCondition);
-        public float PotionRecoveryAmount =>
-            FloodConditionRules.PotionRecoveryAmount(PlayerInventory.PotionRecovery, activeFloodCondition);
+        public float PotionRecoveryAmount => PlayerInventory.PotionRecovery;
+        public float NextDayPotionRecoveryAmount => PlayerInventory.PotionRecovery;
         public FacilityZoneTracker ZoneTracker => zoneTracker;
         public PlayerInventory Inventory => inventory;
         public WardStatus Status => wardStatus;
@@ -85,8 +89,6 @@ namespace WardShift
         public void SetRemainingSecondsForTest(float seconds) =>
             session.SetRemainingSecondsForTest(seconds);
 
-        public void SetActiveFloodConditionForTest(FloodCondition condition) =>
-            session.SetActiveFloodConditionForTest(condition);
 #endif
 
         public int GetUpgradeLevel(DayUpgradeType type)
@@ -117,43 +119,55 @@ namespace WardShift
         public bool CanPurchaseUpgrade(DayUpgradeType type)
         {
             EnsureUpgradePrices();
-            return upgrades != null && upgrades.CanPurchase(type, state, upgradeStagePrices);
+            return (supply == null || !supply.PanelOpen)
+                && upgrades != null && upgrades.CanPurchase(type, state, upgradeStagePrices);
         }
 
         public bool TryPurchaseUpgrade(DayUpgradeType type)
         {
             EnsureUpgradePrices();
+            if (supply != null && supply.PanelOpen) return false;
             if (upgrades == null || !upgrades.TryPurchase(type, state, upgradeStagePrices)) return false;
+            if (currentDay < FinalDay && supply != null) supply.Open(false, false);
             return true;
         }
 
-        public void OpenDaySupplyChoice()
+        public bool CanPurchaseSupply(ItemType item)
+        {
+            return supply != null && supply.CanPurchase(item);
+        }
+
+        public SupplyPurchaseBlockReason GetSupplyPurchaseBlockReason(ItemType item)
+        {
+            return supply != null ? supply.GetPurchaseBlockReason(item)
+                : SupplyPurchaseBlockReason.NotAvailable;
+        }
+
+        public bool TryPurchaseDaySupply(ItemType item, out SupplyPurchaseBlockReason failure)
+        {
+            failure = SupplyPurchaseBlockReason.NotAvailable;
+            return supply != null && supply.TryPurchase(item, out failure);
+        }
+
+        /// <summary>강화를 건너뛰고 상점으로 이동합니다.</summary>
+        public void OpenDaySupplyShop()
         {
             if (supply != null) supply.Open(InventoryOpen, IsMapOpen);
         }
 
-        /// <summary>보급 선택을 미루고 진행합니다. DAY 동안 T 키로 다시 열 수 있습니다.</summary>
+        public bool CompleteSupplyShopAndBeginNextDay()
+        {
+            if (state != DayState.DayClear || supply == null || !supply.CompleteShop()) return false;
+            AdvanceToNextDay();
+            return true;
+        }
+
+        /// <summary>이전 호출부 호환용 건너뛰기 동작. 진행 중 DAY에는 작동하지 않습니다.</summary>
         public void DeferDaySupplyChoice()
         {
-            if (supply != null) supply.Defer();
-        }
-
-        /// <summary>보급을 인벤토리와 DAY 시작 재도전 스냅샷에 함께 지급합니다.</summary>
-        public bool TryChooseDaySupply(ItemType item, out bool needsExchange)
-        {
-            needsExchange = false;
-            return supply != null && supply.TryChoose(item, out needsExchange);
-        }
-
-        /// <summary>가득 찬 인벤토리에서 고른 슬롯을 보급품으로 교환합니다.</summary>
-        public bool TryExchangeDaySupply(int slotIndex)
-        {
-            return supply != null && supply.TryExchange(slotIndex);
-        }
-
-        public string GetSupplySnapshotSlotLabel(int slotIndex)
-        {
-            return checkpoint != null ? checkpoint.GetSupplySnapshotSlotLabel(inventory, slotIndex) : "빈 슬롯";
+            if (supply != null && state == DayState.DayClear && supply.Pending && !supply.PanelOpen)
+                supply.Open(false, false);
+            CompleteSupplyShopAndBeginNextDay();
         }
 
         /// <summary>테스트 씬에서 근무 시간과 결정 보상 범위를 지정.</summary>
@@ -163,16 +177,6 @@ namespace WardShift
             minimumAnomalyReward = Mathf.Max(0, minReward);
             maximumAnomalyReward = Mathf.Max(minimumAnomalyReward, maxReward);
         }
-
-#if UNITY_EDITOR
-        /// <summary>에디터 전용 검사에서 이후 DAY 조건을 고정합니다. 일반 플레이 경로에는 저장되지 않습니다.</summary>
-        public void ConfigureFloodConditionTestOverride(bool enabled, FloodCondition condition)
-        {
-            useFloodConditionTestOverride = enabled;
-            floodConditionTestOverride = condition;
-            if (state == DayState.DayClear) PrepareNextDayCondition();
-        }
-#endif
 
     }
 }

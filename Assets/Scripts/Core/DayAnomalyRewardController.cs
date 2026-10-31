@@ -61,7 +61,6 @@ namespace WardShift
                 int max = Mathf.Max(min, manager.MaximumAnomalyReward);
                 reward = UnityEngine.Random.Range(min, max + 1);
             }
-            else reward = FloodConditionRules.ResolutionReward(reward, manager.ActiveFloodCondition);
             int awarded = Mathf.Max(0, reward);
             inventory.AddManaCrystals(awarded);
             anomaly.ResolutionCompleted -= RewardResolution;

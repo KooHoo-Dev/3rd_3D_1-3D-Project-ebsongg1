@@ -306,6 +306,8 @@ MonoBehaviour:
   stageOneContamination: 1
   stageTwoContamination: 3
   stageThreeContamination: 6
+  contaminationDamageMultiplier: 2
+  playerFootContactMargin: 0.08
   onResolved:
     m_PersistentCalls:
       m_Calls: []

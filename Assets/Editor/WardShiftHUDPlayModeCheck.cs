@@ -31,7 +31,6 @@ namespace WardShift.Editor
         private static Day5HUD dayHUD;
         private static AnomalySpawner spawner;
         private static int assertions;
-        private static FloodCondition retryCondition;
         private static EditorWindow gameView;
         private static int originalSize;
         private static object sizeGroup;
@@ -113,14 +112,12 @@ namespace WardShift.Editor
                         break;
                     case 4:
                         day.ToggleMap();
-                        day.ConfigureFloodConditionTestOverride(true, FloodCondition.EarlySealBonus);
                         day.CheatAdvanceDay();
-                        day.DeferDaySupplyChoice();
                         Refresh();
-                        Assert(Get<TMP_Text>(layout, "floodText").text.Contains(FloodConditionRules.GetName(day.ActiveFloodCondition)),
-                            "DAY transition refreshes actual condition");
+                        Assert(day.CurrentDay == 2 && day.State == DayState.Playing,
+                            "DAY transition completes without a flood condition step");
+                        AssertNoFloodConditionUI();
                         Assert(VisibleAnomalyCardNames().Length == 0, "Day transition clears anomaly alert cards");
-                        retryCondition = day.ActiveFloodCondition;
                         Invoke(day.Status, "Fail", "HUD test failure");
                         Refresh();
                         Assert(!layout.HUDRoot.gameObject.activeSelf && Get<GameObject>(dayHUD, "failedPanel").activeSelf,
@@ -131,20 +128,17 @@ namespace WardShift.Editor
                         day.RetryCurrentDay();
                         break;
                     case 6:
-                        day.DeferDaySupplyChoice();
                         spawner.SetSpawningEnabled(false);
                         Refresh();
-                        Assert(day.State == DayState.Playing && day.ActiveFloodCondition == retryCondition,
-                            "Retry restores active condition");
-                        Assert(Get<TMP_Text>(layout, "floodText").text.Contains(FloodConditionRules.GetName(retryCondition))
-                            && !Get<GameObject>(magic, "castPanel").activeSelf, "Retry has current condition and no stale cast");
+                        Assert(day.State == DayState.Playing,
+                            "Retry returns directly to the current DAY without a condition step");
+                        AssertNoFloodConditionUI();
+                        Assert(!Get<GameObject>(magic, "castPanel").activeSelf, "Retry has no stale cast");
                         for (int i = day.CurrentDay; i < day.FinalDay; i++)
                         {
                             day.CheatAdvanceDay();
-                            day.DeferDaySupplyChoice();
                             Refresh();
-                            Assert(Get<TMP_Text>(layout, "floodText").text.Contains(FloodConditionRules.GetName(day.ActiveFloodCondition)),
-                                "Late DAY condition refresh " + day.CurrentDay);
+                            AssertNoFloodConditionUI();
                         }
                         Invoke(day, "CompleteDay");
                         Refresh();
@@ -194,7 +188,7 @@ namespace WardShift.Editor
                                 .GetComponent<Button>().interactable,
                             "One-purchase-per-clear limit remains active");
                         int clearDay = day.CurrentDay;
-                        Get<GameObject>(dayHUD, "clearPanel").transform.Find("NextDay").GetComponent<Button>().onClick.Invoke();
+                        Get<GameObject>(dayHUD, "clearPanel").transform.Find("OpenSupplyShop").GetComponent<Button>().onClick.Invoke();
                         day.DeferDaySupplyChoice();
                         Refresh();
                         Assert(day.State == DayState.Playing && day.CurrentDay == clearDay + 1,
@@ -211,7 +205,7 @@ namespace WardShift.Editor
                     case 11:
                         int secondClearDay = day.CurrentDay;
                         Button nextDayAt720p = Get<GameObject>(dayHUD, "clearPanel").transform
-                            .Find("NextDay").GetComponent<Button>();
+                            .Find("OpenSupplyShop").GetComponent<Button>();
                         Assert(nextDayAt720p.interactable, "Next-day button is enabled at 720p");
                         nextDayAt720p.onClick.Invoke();
                         day.DeferDaySupplyChoice();
@@ -307,13 +301,15 @@ namespace WardShift.Editor
         private static void CheckDataAndModals()
         {
             SetGameSize(1920, 1080);
+            Invoke(day, "CompleteDay");
+            day.OpenDaySupplyShop();
             Refresh();
-            CheckSupplyPanelLayout(false, 1920, 1080);
-            Capture("day-supply-day1-1920x1080.png");
+            CheckSupplyPanelLayout(1920, 1080);
+            Capture("day-supply-shop-day1-1920x1080.png");
             SetGameSize(1280, 720);
             Refresh();
-            CheckSupplyPanelLayout(false, 1280, 720);
-            Capture("day-supply-day1-1280x720.png");
+            CheckSupplyPanelLayout(1280, 720);
+            Capture("day-supply-shop-day1-1280x720.png");
             SetGameSize(1920, 1080);
             day.DeferDaySupplyChoice();
 
@@ -342,87 +338,77 @@ namespace WardShift.Editor
             Refresh();
             Assert(day.InventoryOpen && Time.timeScale == 0 && caster.InputBlocked, "Inventory keeps input blocking");
             day.ToggleInventory();
-            for (int next = 2; next <= 4; next++)
+            for (int next = day.CurrentDay + 1; next <= 4; next++)
             {
                 Invoke(day, "CompleteDay");
                 Refresh();
                 Assert(day.State == DayState.DayClear && Get<GameObject>(dayHUD, "clearPanel").activeSelf
                     && !layout.HUDRoot.gameObject.activeSelf, "CLEAR has no stale gameplay HUD");
                 day.BeginNextDay();
-                spawner.SetSpawningEnabled(false);
                 Refresh();
-                GameObject conditionPanel = Get<TMP_Text>(layout, "floodText").transform.parent.gameObject;
-                if (next < FloodConditionRules.FirstFloodConditionDay)
-                    Assert(!conditionPanel.activeSelf, "DAY " + next + " hides the entire inactive flood panel");
-                else
+                CheckSupplyPanelLayout(1920, 1080);
+                if (next == 4)
                 {
-                    Assert(conditionPanel.activeSelf
-                        && Get<TMP_Text>(layout, "floodText").text.Contains(FloodConditionRules.GetName(day.ActiveFloodCondition)),
-                        "Actual condition displayed DAY " + next);
-                    string highlightedRule = FloodConditionRules.GetHighlightedRuleDescription(day.ActiveFloodCondition)
-                        .Replace(" · ", "\n");
-                    Assert(Get<TMP_Text>(layout, "floodText").text.Contains(highlightedRule),
-                        "Flood HUD shows the active condition's current rule values with highlights");
-                    CheckSupplyPanelLayout(true, 1920, 1080);
-                    Capture("day-supply-day4-1920x1080.png");
+                    Capture("day-supply-shop-day3-1920x1080.png");
                     SetGameSize(1280, 720);
                     Refresh();
-                    CheckSupplyPanelLayout(true, 1280, 720);
-                    Capture("day-supply-day4-1280x720.png");
+                    CheckSupplyPanelLayout(1280, 720);
+                    Capture("day-supply-shop-day3-1280x720.png");
                     SetGameSize(1920, 1080);
                 }
                 day.DeferDaySupplyChoice();
+                spawner.SetSpawningEnabled(false);
+                Refresh();
+                AssertNoFloodConditionUI();
             }
-
-            FloodCondition actualCondition = day.ActiveFloodCondition;
-            day.SetActiveFloodConditionForTest(FloodCondition.None);
-            Refresh();
-            Assert(!Get<TMP_Text>(layout, "floodText").transform.parent.gameObject.activeSelf,
-                "DAY 4 hides the panel when no condition is active");
-            day.SetActiveFloodConditionForTest(actualCondition);
-            Refresh();
         }
 
-        private static void CheckSupplyPanelLayout(bool expectCondition, int width, int height)
+        private static void AssertNoFloodConditionUI()
+        {
+            Assert(layout.HUDRoot.Find("FloodCondition") == null,
+                "Gameplay HUD has no flood condition panel on DAY " + day.CurrentDay);
+            GameObject clear = Get<GameObject>(dayHUD, "clearPanel");
+            Assert(clear.transform.Find("NextFloodCondition") == null,
+                "DAY clear has no next condition guide on DAY " + day.CurrentDay);
+            BindingFlags conditionApiFlags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+            Assert(typeof(DayFlowManager).GetProperty("ActiveFloodCondition", conditionApiFlags) == null
+                && typeof(DayFlowManager).GetProperty("NextDayFloodCondition", conditionApiFlags) == null,
+                "Story DAY flow exposes no active or preview condition");
+        }
+
+        private static void CheckSupplyPanelLayout(int width, int height)
         {
             Assert(Screen.width == width && Screen.height == height,
                 "Supply panel rendered at " + width + "x" + height);
             GameObject panelObject = Get<GameObject>(dayHUD, "supplyPanel");
-            Assert(panelObject.activeSelf, "DAY supply panel is open");
+            Assert(panelObject.activeSelf, "DAY supply shop is open");
             RectTransform panel = panelObject.GetComponent<RectTransform>();
             TMP_Text title = panel.Find("Title").GetComponent<TMP_Text>();
-            TMP_Text heading = panel.Find("ConditionHeading").GetComponent<TMP_Text>();
-            TMP_Text name = panel.Find("ConditionName").GetComponent<TMP_Text>();
-            TMP_Text effect = panel.Find("ConditionEffect").GetComponent<TMP_Text>();
-            TMP_Text hint = panel.Find("ConditionHint").GetComponent<TMP_Text>();
-            TMP_Text guide = panel.Find("SupplyGuide").GetComponent<TMP_Text>();
-            Assert(heading.gameObject.activeSelf == expectCondition
-                && name.gameObject.activeSelf == expectCondition
-                && effect.gameObject.activeSelf == expectCondition
-                && hint.gameObject.activeSelf == expectCondition,
-                "Supply condition fields are hidden when absent and shown when active");
-            if (expectCondition)
-            {
-                AssertNoOverlap(title.rectTransform, heading.rectTransform, "Supply title and flood heading");
-                AssertNoOverlap(heading.rectTransform, name.rectTransform, "Supply condition heading and name");
-                AssertNoOverlap(name.rectTransform, effect.rectTransform, "Supply condition name and effect");
-                AssertNoOverlap(effect.rectTransform, hint.rectTransform, "Supply effect and response hint");
-                AssertNoOverlap(hint.rectTransform, guide.rectTransform, "Supply response hint and item guidance");
-            }
-            else AssertNoOverlap(title.rectTransform, guide.rectTransform, "Supply title and item guidance");
+            TMP_Text balance = panel.Find("ManaCrystalBalance").GetComponent<TMP_Text>();
+            TMP_Text purchaseCount = panel.Find("PurchaseCount").GetComponent<TMP_Text>();
+            TMP_Text guide = panel.Find("ShopMessage").GetComponent<TMP_Text>();
+            Assert(title.text.Contains("보급 상점")
+                && balance.text.Contains(day.Inventory.ManaCrystals + "개"),
+                "Supply shop shows its title and actual mana crystal balance");
+            Assert(purchaseCount.text.Contains(day.SupplyPurchasesThisShop + " / " + day.MaximumSupplyPurchases),
+                "Supply shop shows actual purchase count and limit");
+            AssertNoOverlap(title.rectTransform, balance.rectTransform, "Supply title and balance");
+            AssertNoOverlap(balance.rectTransform, purchaseCount.rectTransform, "Supply balance and count");
+            AssertNoOverlap(purchaseCount.rectTransform, guide.rectTransform, "Purchase count and shop message");
 
-            Button potion = panel.Find("SupplyOptions/ChoosePotion").GetComponent<Button>();
-            Button repair = panel.Find("SupplyOptions/ChooseRepairKit").GetComponent<Button>();
-            Button defer = panel.Find("DeferSupply").GetComponent<Button>();
-            Assert(!potion.transform.parent.gameObject.activeSelf || potion.gameObject.activeSelf,
-                "Potion choice remains available in choice mode");
-            if (potion.transform.parent.gameObject.activeSelf)
-            {
-                AssertNoOverlap(guide.rectTransform, potion.GetComponent<RectTransform>(), "Guidance and potion button");
-                AssertNoOverlap(guide.rectTransform, repair.GetComponent<RectTransform>(), "Guidance and repair button");
-            }
-            Assert(RectContains(ScreenRect(panel), ScreenRect(defer.GetComponent<RectTransform>())),
-                "Defer button remains inside the supply panel");
+            Button potion = panel.Find("SupplyOptions/BuyPurificationPotion").GetComponent<Button>();
+            Button repair = panel.Find("SupplyOptions/BuyEmergencyRepairKit").GetComponent<Button>();
+            Button nextDay = panel.Find("ContinueToNextDay").GetComponent<Button>();
+            TMP_Text potionLabel = potion.GetComponentInChildren<TMP_Text>();
+            TMP_Text repairLabel = repair.GetComponentInChildren<TMP_Text>();
+            Assert(potionLabel.text.Contains("정화 물약") && potionLabel.text.Contains("가격: ")
+                && potionLabel.text.Contains("보유 수량:"), "Potion button shows name, price, and owned count");
+            Assert(repairLabel.text.Contains("시설 수리 키트") && repairLabel.text.Contains("가격: ")
+                && repairLabel.text.Contains("보유 수량:"), "Repair button shows name, price, and owned count");
+            AssertNoOverlap(guide.rectTransform, potion.GetComponent<RectTransform>(), "Shop message and potion button");
+            AssertNoOverlap(guide.rectTransform, repair.GetComponent<RectTransform>(), "Shop message and repair button");
+            Assert(RectContains(ScreenRect(panel), ScreenRect(nextDay.GetComponent<RectTransform>())),
+                "Continue button remains inside the supply panel");
 
             foreach (TMP_Text text in panelObject.GetComponentsInChildren<TMP_Text>(true))
             {
@@ -573,7 +559,7 @@ namespace WardShift.Editor
             Canvas.ForceUpdateCanvases();
             RectTransform root = layout.HUDRoot;
             Vector3[] corners = new Vector3[4];
-            foreach (string name in new[] { "AnomalyAlerts", "CoreStatus", "DayResources", "FloodCondition", "MagicAndInventory", "Controls" })
+            foreach (string name in new[] { "AnomalyAlerts", "CoreStatus", "DayResources", "MagicAndInventory", "Controls" })
             {
                 var rect = (RectTransform)root.Find(name);
                 rect.GetWorldCorners(corners);
@@ -615,18 +601,17 @@ namespace WardShift.Editor
             Transform panel = clearPanel.transform;
             RectTransform title = panel.Find("Title").GetComponent<RectTransform>();
             RectTransform summary = panel.Find("Summary").GetComponent<RectTransform>();
-            RectTransform nextCondition = panel.Find("NextFloodCondition").GetComponent<RectTransform>();
             RectTransform mobility = panel.Find("Upgrade_Mobility").GetComponent<RectTransform>();
             RectTransform contamination = panel.Find("Upgrade_ContaminationResistance").GetComponent<RectTransform>();
             RectTransform facilityDefense = panel.Find("Upgrade_FacilityDefense").GetComponent<RectTransform>();
-            RectTransform nextDay = panel.Find("NextDay").GetComponent<RectTransform>();
+            RectTransform nextDay = panel.Find("OpenSupplyShop").GetComponent<RectTransform>();
             RectTransform result = panel.Find("UpgradeResult").GetComponent<RectTransform>();
 
             AssertNoOverlap(title, summary, "Title and reward summary");
-            AssertNoOverlap(summary, nextCondition, "Reward summary and next-condition note");
-            AssertNoOverlap(nextCondition, mobility, "Condition note and first card");
-            AssertNoOverlap(nextCondition, facilityDefense, "Condition note and second card");
-            AssertNoOverlap(nextCondition, contamination, "Condition note and third card");
+            Assert(panel.Find("NextFloodCondition") == null, "DAY clear has no flood condition guide");
+            AssertNoOverlap(summary, mobility, "Reward summary and first card");
+            AssertNoOverlap(summary, facilityDefense, "Reward summary and second card");
+            AssertNoOverlap(summary, contamination, "Reward summary and third card");
             AssertNoOverlap(mobility, facilityDefense, "First and second upgrade cards");
             AssertNoOverlap(facilityDefense, contamination, "Second and third upgrade cards");
             AssertNoOverlap(mobility, nextDay, "First card and next-day button");

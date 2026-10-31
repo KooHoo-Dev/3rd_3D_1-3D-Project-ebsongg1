@@ -10,9 +10,6 @@ namespace WardShift
         public float RemainingSeconds { get; private set; }
         public bool IsCleaningUp { get; private set; }
         public int DayRandomSeed { get; private set; }
-        public FloodCondition ActiveFloodCondition { get; private set; }
-        public FloodCondition NextDayFloodCondition { get; private set; }
-        public FloodCondition PreviousDayFloodCondition { get; private set; }
 
         private int plannedNextDayNumber;
         private int plannedNextDayRandomSeed;
@@ -25,11 +22,6 @@ namespace WardShift
         public void EnsureDaySeed(int seed)
         {
             if (DayRandomSeed == 0) DayRandomSeed = seed;
-        }
-
-        public void SelectConditionForDay(bool isRetry, FloodCondition selectedCondition)
-        {
-            if (!isRetry) ActiveFloodCondition = selectedCondition;
         }
 
         public void BeginDay(float durationSeconds)
@@ -55,8 +47,6 @@ namespace WardShift
         {
             State = CurrentDay >= finalDay ? DayState.Ending : DayState.DayClear;
             IsCleaningUp = false;
-            PreviousDayFloodCondition = ActiveFloodCondition;
-            ActiveFloodCondition = FloodCondition.None;
             RemainingSeconds = 0f;
         }
 
@@ -72,18 +62,16 @@ namespace WardShift
             IsCleaningUp = false;
         }
 
-        public void PlanNextDay(int nextDay, int seed, FloodCondition condition)
+        public void PlanNextDay(int nextDay, int seed)
         {
             plannedNextDayNumber = nextDay;
             plannedNextDayRandomSeed = seed;
-            NextDayFloodCondition = condition;
         }
 
         public void ClearNextDayPlan()
         {
             plannedNextDayNumber = 0;
             plannedNextDayRandomSeed = 0;
-            NextDayFloodCondition = FloodCondition.None;
         }
 
         public void MoveToNextDay(int finalDay, Func<int> createFallbackSeed)
@@ -95,12 +83,6 @@ namespace WardShift
             State = DayState.Preparing;
         }
 
-        public void RestoreConditions(FloodCondition active, FloodCondition previous)
-        {
-            ActiveFloodCondition = active;
-            PreviousDayFloodCondition = previous;
-        }
-
 #if UNITY_EDITOR
         public void SetDayAndStateForTest(int day, DayState state)
         {
@@ -109,7 +91,6 @@ namespace WardShift
         }
 
         public void SetRemainingSecondsForTest(float seconds) => RemainingSeconds = seconds;
-        public void SetActiveFloodConditionForTest(FloodCondition condition) => ActiveFloodCondition = condition;
 #endif
     }
 }

@@ -10,6 +10,9 @@ namespace WardShift
         [Header("UI 표시")]
         [InspectorName("이상현상 UI 이름")]
         [SerializeField] private string displayName = "마력 장치 폭주";
+        [SerializeField, Min(0f), InspectorName("장치 경고 UI 표시 거리"),
+         Tooltip("플레이어가 이 거리 안에 있을 때만 장치 단계·공격 경고 UI를 표시합니다. 공격 동작에는 영향을 주지 않습니다.")]
+        private float warningUiDisplayDistance = 8f;
         [Header("방출과 회피")]
         [Tooltip("장치 생성 후 첫 원형 방출 경고가 시작될 때까지의 대기 시간입니다. 실제 첫 공격은 이 값에 방출 예고 시간을 더한 뒤 발생합니다.")]
         [SerializeField, Min(0.1f)] private float firstBurstDelaySeconds = 4.5f;
@@ -17,9 +20,9 @@ namespace WardShift
         [Tooltip("공격부터 다음 공격까지의 주기. 각 공격의 경고 시간은 별도로 설정합니다.")]
         [SerializeField, Min(0.2f)] private float burstPeriodSeconds = 9.5f;
         [SerializeField, Min(0.1f)] private float burstRadius = 4.25f;
-        [SerializeField, Min(0f)] private float stageOneBurstContamination = 10f;
-        [SerializeField, Min(0f)] private float stageTwoBurstContamination = 15f;
-        [SerializeField, Min(0f)] private float stageThreeBurstContamination = 20f;
+        [SerializeField, Min(0f)] private float stageOneBurstContamination = 12f;
+        [SerializeField, Min(0f)] private float stageTwoBurstContamination = 18f;
+        [SerializeField, Min(0f)] private float stageThreeBurstContamination = 24f;
 
         [Header("추적 마력탄")]
         [Tooltip("외형 프리팹. 비우면 기본 발광 구체를 생성합니다. 충돌 판정은 별도 컴포넌트가 관리합니다.")]
@@ -30,7 +33,7 @@ namespace WardShift
         [SerializeField, Min(0.05f)] private float projectileCollisionRadius = 0.3f;
         [SerializeField, Min(0.1f)] private float projectileLifetime = 5f;
         [SerializeField, Min(0f)] private float projectileSpawnHeight = 1.5f;
-        [SerializeField, Min(0f)] private float projectileContamination = 12f;
+        [SerializeField, Min(0f)] private float projectileContamination = 15f;
         [SerializeField] private LayerMask projectileCollisionLayers = ~0;
 
         [Header("실제 피격 연출")]
@@ -79,6 +82,7 @@ namespace WardShift
 
         public override string DisplayName => string.IsNullOrWhiteSpace(displayName)
             ? "마력 장치 폭주" : displayName.Trim();
+        public float WarningUiDisplayDistance => Mathf.Max(0f, warningUiDisplayDistance);
         public override int DangerStage => dangerStage;
         public override float SecondsUntilRupture
         {
@@ -313,7 +317,7 @@ namespace WardShift
                 reaction.Play(impactOrigin ?? transform.position, hitKnockbackDistance,
                     hitKnockbackDuration, hitShakeIntensity, hitShakeDuration);
             }
-            Debug.Log($"장치 공격 피격: 오염도 +{applied:F0}", player);
+            Debug.Log($"장치 공격 피격: 오염도 +{applied:0.##}", player);
         }
 
         private void OnStabilizationCompleted(MagicTarget target)

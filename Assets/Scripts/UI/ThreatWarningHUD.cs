@@ -14,6 +14,8 @@ namespace WardShift
         private readonly Dictionary<int, int> pendingStageNotices = new Dictionary<int, int>();
         private readonly HashSet<int> activeStageNoticeIds = new HashSet<int>();
         private readonly HashSet<int> seenAnomalyIds = new HashSet<int>();
+        private readonly HashSet<int> nearbyDeviceIds = new HashSet<int>();
+        private readonly HashSet<int> seenDeviceIds = new HashSet<int>();
         private readonly Dictionary<int, ManaDeviceAnomaly.AttackKind> currentDeviceWarnings =
             new Dictionary<int, ManaDeviceAnomaly.AttackKind>();
         private readonly Dictionary<int, ManaDeviceAnomaly.AttackKind> previousDeviceWarnings =
@@ -45,7 +47,9 @@ namespace WardShift
         private bool hasAttackWarning;
         private int activeRadialWarnings;
         private int activeProjectileWarnings;
+        private float nearestDeviceAttackSeconds;
         private Color activeColor = Color.white;
+        private const float DeviceWarningDistanceHysteresis = 0.5f;
 
         public void Configure(WardShiftHUDLayout hudLayout, DayFlowManager manager)
         {
@@ -81,11 +85,15 @@ namespace WardShift
             bool uiVisible = gameplayActive && (dayFlow == null
                 || (!dayFlow.IsMapOpen && !dayFlow.InventoryOpen && !dayFlow.SupplyPanelOpen));
             seenAnomalyIds.Clear();
+            seenDeviceIds.Clear();
             currentDeviceWarnings.Clear();
             activeRadialWarnings = 0;
             activeProjectileWarnings = 0;
+            nearestDeviceAttackSeconds = float.PositiveInfinity;
             bool newRadialWarning = false;
             bool newProjectileWarning = false;
+            PlayerContamination player = dayFlow != null ? dayFlow.Player : null;
+            if (player == null) player = FindFirstObjectByType<PlayerContamination>();
 
             IReadOnlyList<AnomalyBehaviour> anomalies = AnomalyBehaviour.ActiveAnomalies;
             for (int i = 0; i < anomalies.Count; i++)
@@ -93,24 +101,35 @@ namespace WardShift
                 AnomalyBehaviour anomaly = anomalies[i];
                 if (anomaly == null) continue;
                 int instanceId = anomaly.GetInstanceID();
+                ManaDeviceAnomaly device = anomaly as ManaDeviceAnomaly;
                 if (!gameplayActive || !anomaly.IsHazardActive)
                 {
                     RemoveStageNotice(instanceId);
                     observedStages.Remove(instanceId);
+                    nearbyDeviceIds.Remove(instanceId);
                     continue;
                 }
 
                 seenAnomalyIds.Add(instanceId);
+                bool deviceInRange = false;
+                if (device != null)
+                {
+                    seenDeviceIds.Add(instanceId);
+                    deviceInRange = UpdateDeviceProximity(device, instanceId, player);
+                    if (!deviceInRange) RemoveStageNotice(instanceId);
+                }
+
                 int stage = Mathf.Clamp(anomaly.DangerStage, 1, 3);
                 if (observedStages.TryGetValue(instanceId, out int previousStage))
                 {
-                    if (stage > previousStage && stage >= 2)
+                    if (stage > previousStage && stage >= 2
+                        && (device == null || deviceInRange))
                         QueueStageNotice(instanceId, stage);
                     observedStages[instanceId] = stage;
                 }
                 else observedStages.Add(instanceId, stage);
 
-                if (!(anomaly is ManaDeviceAnomaly device)) continue;
+                if (device == null) continue;
                 ManaDeviceAnomaly.AttackKind attack = device.NextAttack;
                 float extraLead = attack == ManaDeviceAnomaly.AttackKind.TrackingBolt
                     ? layout.TrackingAttackAlertExtraLeadSeconds
@@ -118,9 +137,14 @@ namespace WardShift
                 if (!device.IsBurstWarningActive
                     && (extraLead <= 0f || device.SecondsUntilNextAttack > extraLead)) continue;
                 currentDeviceWarnings[instanceId] = attack;
-                if (attack == ManaDeviceAnomaly.AttackKind.TrackingBolt)
-                    activeProjectileWarnings++;
-                else activeRadialWarnings++;
+                if (deviceInRange)
+                {
+                    nearestDeviceAttackSeconds = Mathf.Min(nearestDeviceAttackSeconds,
+                        device.SecondsUntilNextAttack);
+                    if (attack == ManaDeviceAnomaly.AttackKind.TrackingBolt)
+                        activeProjectileWarnings++;
+                    else activeRadialWarnings++;
+                }
 
                 if (!previousDeviceWarnings.TryGetValue(instanceId, out ManaDeviceAnomaly.AttackKind oldAttack)
                     || oldAttack != attack)
@@ -130,6 +154,7 @@ namespace WardShift
                 }
             }
 
+            PruneNearbyDevices();
             PruneStaleNotices();
             UpdateAttackWarningHistory();
             hasAttackWarning = gameplayActive
@@ -426,8 +451,9 @@ namespace WardShift
         private void RemoveStageNotice(int instanceId)
         {
             pendingStageNotices.Remove(instanceId);
-            activeStageNoticeIds.Remove(instanceId);
+            bool removedActiveNotice = activeStageNoticeIds.Remove(instanceId);
             if (activeStageNoticeIds.Count == 0) ClearActiveStageNotice();
+            else if (removedActiveNotice) RefreshStageCopy();
         }
 
         private void PruneStaleNotices()
@@ -457,6 +483,33 @@ namespace WardShift
             for (int i = 0; i < staleIds.Count; i++) previousDeviceWarnings.Remove(staleIds[i]);
             foreach (KeyValuePair<int, ManaDeviceAnomaly.AttackKind> entry in currentDeviceWarnings)
                 previousDeviceWarnings[entry.Key] = entry.Value;
+        }
+
+        private bool UpdateDeviceProximity(ManaDeviceAnomaly device, int instanceId,
+            PlayerContamination player)
+        {
+            if (device == null || player == null)
+            {
+                nearbyDeviceIds.Remove(instanceId);
+                return false;
+            }
+
+            bool wasNearby = nearbyDeviceIds.Contains(instanceId);
+            float displayDistance = device.WarningUiDisplayDistance
+                + (wasNearby ? DeviceWarningDistanceHysteresis : 0f);
+            bool nearby = (device.transform.position - player.transform.position).sqrMagnitude
+                <= displayDistance * displayDistance;
+            if (nearby) nearbyDeviceIds.Add(instanceId);
+            else nearbyDeviceIds.Remove(instanceId);
+            return nearby;
+        }
+
+        private void PruneNearbyDevices()
+        {
+            staleIds.Clear();
+            foreach (int instanceId in nearbyDeviceIds)
+                if (!seenDeviceIds.Contains(instanceId)) staleIds.Add(instanceId);
+            for (int i = 0; i < staleIds.Count; i++) nearbyDeviceIds.Remove(staleIds[i]);
         }
 
         private bool HasPendingStage(int stage)
@@ -529,14 +582,16 @@ namespace WardShift
             {
                 activeColor = layout.TrackingBoltWarningColor;
                 bannerKicker.text = "장치 공격 · 즉시 회피";
-                bannerHeadline.text = "추적 마력탄과 원형 방출 경고";
+                bannerHeadline.text = string.Format("다음 장치 공격까지 {0:0.0}초",
+                    Mathf.Max(0f, nearestDeviceAttackSeconds));
                 bannerDetail.text = $"추적 마력탄 {projectile}곳 · 원형 방출 {radial}곳 — 방향과 위험 범위를 확인하세요.";
             }
             else if (projectile > 0)
             {
                 activeColor = layout.TrackingBoltWarningColor;
                 bannerKicker.text = "장치 공격 · 즉시 회피";
-                bannerHeadline.text = "추적 마력탄 발사 임박";
+                bannerHeadline.text = string.Format("추적 마력탄 {0:0.0}초 후 발사",
+                    Mathf.Max(0f, nearestDeviceAttackSeconds));
                 bannerDetail.text = projectile > 1
                     ? $"{projectile}곳에서 조준 중 · 발사체의 진행 방향에서 벗어나세요."
                     : "발사체의 조준 방향에서 벗어나세요.";
@@ -545,7 +600,8 @@ namespace WardShift
             {
                 activeColor = layout.RadialBurstWarningColor;
                 bannerKicker.text = "장치 공격 · 즉시 회피";
-                bannerHeadline.text = "원형 방출 공격 임박";
+                bannerHeadline.text = string.Format("원형 방출 {0:0.0}초 후",
+                    Mathf.Max(0f, nearestDeviceAttackSeconds));
                 bannerDetail.text = radial > 1
                     ? $"{radial}곳에서 방출 준비 중 · 모든 위험 범위 밖으로 이동하세요."
                     : "장치 주위 위험 범위 밖으로 즉시 이동하세요.";

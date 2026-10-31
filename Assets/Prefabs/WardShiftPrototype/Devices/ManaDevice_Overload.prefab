@@ -45,13 +45,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WardShift.ManaDeviceAnomaly
   displayName: "\uB9C8\uB825 \uC7A5\uCE58 \uD3ED\uC8FC"
+  warningUiDisplayDistance: 10
   firstBurstDelaySeconds: 4.5
   burstWarningSeconds: 1.5
   burstPeriodSeconds: 9.5
   burstRadius: 4.25
-  stageOneBurstContamination: 10
-  stageTwoBurstContamination: 15
-  stageThreeBurstContamination: 20
+  stageOneBurstContamination: 12
+  stageTwoBurstContamination: 18
+  stageThreeBurstContamination: 24
   projectileVisualPrefab: {fileID: 100008, guid: 7f36e4b612dfce845a0aad05b6fe7d8d, type: 3}
   projectileWarningSeconds: 3
   projectileSpeed: 4.5
@@ -59,7 +60,7 @@ MonoBehaviour:
   projectileCollisionRadius: 0.3
   projectileLifetime: 5
   projectileSpawnHeight: 1.5
-  projectileContamination: 12
+  projectileContamination: 15
   projectileCollisionLayers:
     serializedVersion: 2
     m_Bits: 4294967295

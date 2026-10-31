@@ -52,18 +52,11 @@ namespace WardShift
         private DayUiController dayUi;
         private DaySceneController dayScene;
         private DayAnomalyRewardController anomalyRewards;
-#if UNITY_EDITOR
-        private bool useFloodConditionTestOverride;
-        private FloodCondition floodConditionTestOverride;
-#endif
         private DaySession Session => session ?? (session = new DaySession(startingDay));
         private int currentDay => Session.CurrentDay;
         private DayState state => Session.State;
         private float remainingSeconds => Session.RemainingSeconds;
         private int dayRandomSeed => Session.DayRandomSeed;
-        private FloodCondition activeFloodCondition => Session.ActiveFloodCondition;
-        private FloodCondition nextDayFloodCondition => Session.NextDayFloodCondition;
-        private FloodCondition previousDayFloodCondition => Session.PreviousDayFloodCondition;
 
         private bool CanUseDaySkip
         {
@@ -96,7 +89,7 @@ namespace WardShift
             if (checkpoint == null) checkpoint = gameObject.AddComponent<DayRetryCheckpoint>();
             supply = GetComponent<DaySupplyController>();
             if (supply == null) supply = gameObject.AddComponent<DaySupplyController>();
-            supply.Configure(this, wardStatus, inventory, checkpoint);
+            supply.Configure(this, inventory);
             dayUi = GetComponent<DayUiController>();
             if (dayUi == null) dayUi = gameObject.AddComponent<DayUiController>();
             dayUi.Configure(this, wardStatus, open => MapVisibilityChanged?.Invoke(open));
@@ -184,10 +177,22 @@ namespace WardShift
             }
         }
 
-        /// <summary>DAY CLEAR 화면의 다음 날 버튼이 호출. 중복 클릭은 상태 검사로 무시.</summary>
+        /// <summary>DAY CLEAR에서 다음 진행을 요청. 상점이 남아 있으면 상점을 먼저 엽니다.</summary>
         public void BeginNextDay()
         {
             if (state != DayState.DayClear) return;
+            // 기존 다음 날 진입 API도 상점 단계로 먼저 연결한다.
+            if (supply != null && supply.Pending)
+            {
+                supply.Open(InventoryOpen, IsMapOpen);
+                return;
+            }
+            AdvanceToNextDay();
+        }
+
+        private void AdvanceToNextDay()
+        {
+            if (state != DayState.DayClear || supply != null && supply.Pending) return;
             session.MoveToNextDay(FinalDay, CreateDaySeed);
             BeginDay();
         }
@@ -213,7 +218,15 @@ namespace WardShift
                 CompleteDay();
             }
 
-            if (state == DayState.DayClear) BeginNextDay();
+            if (state == DayState.DayClear)
+            {
+                if (supply != null && supply.Pending)
+                {
+                    if (!supply.PanelOpen) supply.Open(false, false);
+                    CompleteSupplyShopAndBeginNextDay();
+                }
+                else BeginNextDay();
+            }
         }
 
         /// <summary>FAILED 화면에서 현재 DAY 시작 체크포인트로 재도전.</summary>
@@ -240,7 +253,6 @@ namespace WardShift
         private void BeginDay(bool isRetry = false)
         {
             dayUi.CloseInventory();
-            supply.ClosePanel();
             dayUi.SetMapOpen(false, false);
             anomalyRewards.ResetForDay();
             if (anomalySpawner != null)
@@ -252,9 +264,6 @@ namespace WardShift
             dayScene.ResetManaDevices();
             dayScene.TeleportPlayerToStart();
             if (dayRandomSeed == 0) session.EnsureDaySeed(CreateDaySeed());
-            FloodCondition selectedCondition = isRetry ? activeFloodCondition
-                : SelectFloodCondition(currentDay, dayRandomSeed, previousDayFloodCondition);
-            session.SelectConditionForDay(isRetry, selectedCondition);
             inventory.BeginDay();
             if (wardStatus != null) wardStatus.ResetForNewDay();
             if (!isRetry) upgrades.ResetPurchaseForNewPhase();
@@ -278,7 +287,6 @@ namespace WardShift
             }
             else checkpoint.Capture(inventory);
 
-            if (supply.Pending) OpenDaySupplyChoice();
         }
 
         private void CompleteDay()
@@ -286,9 +294,9 @@ namespace WardShift
             if (state != DayState.Playing) return;
             session.CompleteDay(FinalDay);
             ApplyUpgradeEffects();
-            PrepareNextDayCondition();
+            PrepareNextDaySeed();
             upgrades.ResetPurchaseForNewPhase();
-            supply.ClearAfterDay();
+            supply.PrepareForDayClear(currentDay < FinalDay);
             dayUi.SetMapOpen(false, false);
             dayUi.CloseInventory();
             if (anomalySpawner != null)
@@ -336,43 +344,28 @@ namespace WardShift
 
         public object CaptureDayRetryState()
         {
-            return new DayRetryState(upgrades.CaptureState(), activeFloodCondition,
-                previousDayFloodCondition, supply.Pending, supply.Claimed);
+            return new DayRetryState(upgrades.CaptureState(), supply.Pending, supply.PurchasesThisShop);
         }
 
         public void RestoreDayRetryState(object stateSnapshot)
         {
             if (!(stateSnapshot is DayRetryState snapshot)) return;
             upgrades.RestoreState(snapshot.Upgrade);
-            session.RestoreConditions(snapshot.ActiveFloodCondition, snapshot.PreviousDayFloodCondition);
-            supply.RestoreState(snapshot.DaySupplyPending, snapshot.DaySupplyClaimed);
+            supply.RestoreState(snapshot.DaySupplyPending, snapshot.SupplyPurchases);
             ApplyUpgradeEffects();
         }
 
         private void ApplyUpgradeEffects()
         {
-            if (upgrades != null) upgrades.ApplyEffects(SafeZoneRecoveryMultiplier, Player, wardStatus);
+            if (upgrades != null) upgrades.ApplyEffects(Player, wardStatus);
         }
 
-        private FloodCondition SelectFloodCondition(int day, int seed, FloodCondition previousCondition)
-        {
-#if UNITY_EDITOR
-            return FloodConditionRules.SelectForDay(day, seed, previousCondition,
-                useFloodConditionTestOverride, floodConditionTestOverride);
-#else
-            return FloodConditionRules.SelectForDay(day, seed, previousCondition);
-#endif
-        }
-
-        private void PrepareNextDayCondition()
+        private void PrepareNextDaySeed()
         {
             session.ClearNextDayPlan();
             if (currentDay >= FinalDay) return;
 
-            int nextDay = currentDay + 1;
-            int seed = CreateDaySeed();
-            session.PlanNextDay(nextDay, seed,
-                SelectFloodCondition(nextDay, seed, previousDayFloodCondition));
+            session.PlanNextDay(currentDay + 1, CreateDaySeed());
         }
 
         private void EnsureUpgradePrices()
@@ -394,20 +387,15 @@ namespace WardShift
         private sealed class DayRetryState
         {
             public readonly DayUpgradeController.UpgradeSnapshot Upgrade;
-            public readonly FloodCondition ActiveFloodCondition;
-            public readonly FloodCondition PreviousDayFloodCondition;
             public readonly bool DaySupplyPending;
-            public readonly bool DaySupplyClaimed;
+            public readonly int SupplyPurchases;
 
             public DayRetryState(DayUpgradeController.UpgradeSnapshot upgrade,
-                FloodCondition activeFloodCondition, FloodCondition previousDayFloodCondition,
-                bool daySupplyPending, bool daySupplyClaimed)
+                bool daySupplyPending, int supplyPurchases)
             {
                 Upgrade = upgrade;
-                ActiveFloodCondition = activeFloodCondition;
-                PreviousDayFloodCondition = previousDayFloodCondition;
                 DaySupplyPending = daySupplyPending;
-                DaySupplyClaimed = daySupplyClaimed;
+                SupplyPurchases = supplyPurchases;
             }
         }
 

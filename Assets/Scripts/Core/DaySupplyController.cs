@@ -2,111 +2,165 @@ using UnityEngine;
 
 namespace WardShift
 {
-    /// <summary>DAY 보급 선택과 재도전 스냅샷 지급을 함께 관리한다.</summary>
+    /// <summary>DAY CLEAR 이후 보급 상점의 구매와 단계 상태를 관리한다.</summary>
     [DisallowMultipleComponent]
     public sealed class DaySupplyController : MonoBehaviour
     {
+        public const int DefaultPotionPrice = 3;
+        public const int DefaultRepairKitPrice = 5;
+        public const int DefaultMaximumPurchasesPerShop = 2;
+
+        [Header("보급 상점 가격")]
+        [SerializeField, Min(0), InspectorName("정화 물약 가격")]
+        private int potionPrice = DefaultPotionPrice;
+        [SerializeField, Min(0), InspectorName("시설 수리 키트 가격")]
+        private int repairKitPrice = DefaultRepairKitPrice;
+        [Header("구매 제한")]
+        [SerializeField, Min(0), InspectorName("상점별 최대 구매 개수")]
+        private int maximumPurchasesPerShop = DefaultMaximumPurchasesPerShop;
+
         private DayFlowManager manager;
-        private WardStatus wardStatus;
         private PlayerInventory inventory;
-        private DayRetryCheckpoint checkpoint;
         private bool pending;
-        private bool claimed;
         private bool panelOpen;
-        private ItemType awaitingExchange;
+        private bool purchaseInProgress;
+        private int purchasesThisShop;
+        private int lastPurchaseFrame = -1;
 
         public bool Pending => pending;
-        public bool Claimed => claimed;
         public bool PanelOpen => panelOpen;
-        public ItemType AwaitingExchange => awaitingExchange;
+        public int PurchasesThisShop => purchasesThisShop;
+        public int MaximumPurchasesPerShop => Mathf.Max(0, maximumPurchasesPerShop);
+        public int RemainingPurchases => Mathf.Max(0, MaximumPurchasesPerShop - purchasesThisShop);
+        public int PotionPrice => Mathf.Max(0, potionPrice);
+        public int RepairKitPrice => Mathf.Max(0, repairKitPrice);
 
-        public void Configure(DayFlowManager dayFlow, WardStatus status,
-            PlayerInventory playerInventory, DayRetryCheckpoint retryCheckpoint)
+        public void Configure(DayFlowManager dayFlow, PlayerInventory playerInventory)
         {
             manager = dayFlow;
-            wardStatus = status;
             inventory = playerInventory;
-            checkpoint = retryCheckpoint;
         }
 
+        /// <summary>새 DAY 시작에서는 보급 상점을 열지 않는다. DAY 1의 시작 정화약은 기존 규칙으로 유지한다.</summary>
         public void BeginDay(int day, bool isRetry)
         {
             panelOpen = false;
-            awaitingExchange = ItemType.None;
             if (isRetry) return;
-            claimed = false;
-            pending = day > 1;
-            if (day != 1) return;
-            claimed = inventory.TryAddItem(ItemType.PurificationPotion);
-            pending = !claimed;
-        }
 
-        public void ClearAfterDay()
-        {
             pending = false;
-            ClosePanel();
+            purchasesThisShop = 0;
+            lastPurchaseFrame = -1;
+            if (day == 1 && inventory != null)
+                inventory.TryAddItem(ItemType.PurificationPotion);
         }
 
-        public void ClosePanel()
+        public void PrepareForDayClear(bool hasNextDay)
         {
+            pending = hasNextDay;
             panelOpen = false;
-            awaitingExchange = ItemType.None;
+            purchasesThisShop = 0;
+            purchaseInProgress = false;
+            lastPurchaseFrame = -1;
         }
 
-        public void RestoreState(bool wasPending, bool wasClaimed)
+        public void ClosePanel() => panelOpen = false;
+
+        public bool Open(bool inventoryOpen, bool mapOpen)
+        {
+            if (manager == null || manager.State != DayState.DayClear || !pending
+                || inventoryOpen || mapOpen || purchaseInProgress) return false;
+            panelOpen = true;
+            return true;
+        }
+
+        public bool CanPurchase(ItemType item) => GetPurchaseBlockReason(item) == SupplyPurchaseBlockReason.None;
+
+        public SupplyPurchaseBlockReason GetPurchaseBlockReason(ItemType item)
+        {
+            if (item != ItemType.PurificationPotion && item != ItemType.EmergencyRepairKit)
+                return SupplyPurchaseBlockReason.InvalidItem;
+            if (manager == null || manager.State != DayState.DayClear || !pending || !panelOpen
+                || purchaseInProgress || inventory == null)
+                return SupplyPurchaseBlockReason.NotAvailable;
+            if (RemainingPurchases <= 0) return SupplyPurchaseBlockReason.PurchaseLimitReached;
+            if (lastPurchaseFrame == Time.frameCount) return SupplyPurchaseBlockReason.DuplicateInput;
+            if (inventory.ManaCrystals < GetPrice(item))
+                return SupplyPurchaseBlockReason.InsufficientManaCrystals;
+            if (!inventory.CanAddItem(item)) return SupplyPurchaseBlockReason.InventoryFull;
+            return SupplyPurchaseBlockReason.None;
+        }
+
+        public bool TryPurchase(ItemType item, out SupplyPurchaseBlockReason failure)
+        {
+            failure = GetPurchaseBlockReason(item);
+            if (failure != SupplyPurchaseBlockReason.None) return false;
+
+            lastPurchaseFrame = Time.frameCount;
+            purchaseInProgress = true;
+            try
+            {
+                // 인벤토리에서 재화 차감과 지급을 한 트랜잭션으로 처리한다.
+                if (!inventory.TryPurchaseItem(item, GetPrice(item)))
+                {
+                    failure = inventory.ManaCrystals < GetPrice(item)
+                        ? SupplyPurchaseBlockReason.InsufficientManaCrystals
+                        : SupplyPurchaseBlockReason.InventoryFull;
+                    return false;
+                }
+
+                purchasesThisShop++;
+                return true;
+            }
+            finally
+            {
+                purchaseInProgress = false;
+            }
+        }
+
+        public bool CompleteShop()
+        {
+            if (manager == null || manager.State != DayState.DayClear || !pending || !panelOpen)
+                return false;
+            pending = false;
+            panelOpen = false;
+            return true;
+        }
+
+        public void RestoreState(bool wasPending, int previousPurchases)
         {
             pending = wasPending;
-            claimed = wasClaimed;
-            ClosePanel();
+            purchasesThisShop = Mathf.Clamp(previousPurchases, 0, MaximumPurchasesPerShop);
+            panelOpen = false;
+            purchaseInProgress = false;
+            lastPurchaseFrame = -1;
         }
 
-        public void Open(bool inventoryOpen, bool mapOpen)
+        private int GetPrice(ItemType item)
         {
-            if (manager.State != DayState.Playing || !pending || inventoryOpen || mapOpen) return;
-            panelOpen = true;
-            if (wardStatus != null) wardStatus.PauseGameForUI();
-        }
-
-        public void Defer()
-        {
-            if (!panelOpen) return;
-            ClosePanel();
-            if (wardStatus != null) wardStatus.ResumeGameFromUI();
-        }
-
-        public bool TryChoose(ItemType item, out bool needsExchange)
-        {
-            needsExchange = false;
-            if (manager.State != DayState.Playing || !panelOpen || !pending
-                || (item != ItemType.PurificationPotion && item != ItemType.EmergencyRepairKit)
-                || inventory == null || checkpoint == null) return false;
-
-            if (!checkpoint.TryAddSupply(inventory, item, out needsExchange))
+            switch (item)
             {
-                if (needsExchange) awaitingExchange = item;
-                return false;
+                case ItemType.PurificationPotion: return PotionPrice;
+                case ItemType.EmergencyRepairKit: return RepairKitPrice;
+                default: return 0;
             }
-            CompleteClaim();
-            return true;
         }
 
-        public bool TryExchange(int slotIndex)
+        private void OnValidate()
         {
-            if (manager.State != DayState.Playing || !panelOpen || !pending
-                || awaitingExchange == ItemType.None || inventory == null || checkpoint == null)
-                return false;
-            if (!checkpoint.TryExchangeSupply(inventory, slotIndex, awaitingExchange)) return false;
-            CompleteClaim();
-            return true;
+            potionPrice = Mathf.Max(0, potionPrice);
+            repairKitPrice = Mathf.Max(0, repairKitPrice);
+            maximumPurchasesPerShop = Mathf.Max(0, maximumPurchasesPerShop);
         }
+    }
 
-        private void CompleteClaim()
-        {
-            pending = false;
-            claimed = true;
-            ClosePanel();
-            checkpoint.RefreshParticipantState(manager);
-            if (wardStatus != null) wardStatus.ResumeGameFromUI();
-        }
+    public enum SupplyPurchaseBlockReason
+    {
+        None,
+        NotAvailable,
+        InvalidItem,
+        DuplicateInput,
+        PurchaseLimitReached,
+        InsufficientManaCrystals,
+        InventoryFull
     }
 }

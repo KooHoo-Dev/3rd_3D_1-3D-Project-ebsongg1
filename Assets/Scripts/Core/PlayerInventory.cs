@@ -56,6 +56,26 @@ namespace WardShift
             EnsureSlots();
             if (!CanAddItem(item, quantity)) return false;
 
+            AddItemsUnchecked(item, quantity);
+            Changed?.Invoke();
+            return true;
+        }
+
+        /// <summary>재화 차감과 아이템 지급을 하나의 원자적 구매로 처리합니다.</summary>
+        public bool TryPurchaseItem(ItemType item, int price)
+        {
+            EnsureSlots();
+            if (price < 0 || manaCrystals < price || !CanAddItem(item)) return false;
+
+            AddItemsUnchecked(item, 1);
+            manaCrystals -= price;
+            Changed?.Invoke();
+            return true;
+        }
+
+        private void AddItemsUnchecked(ItemType item, int quantity)
+        {
+
             int remaining = quantity;
             int stackLimit = Mathf.Max(1, maximumStack);
             for (int i = 0; i < slots.Length && remaining > 0; i++)
@@ -75,9 +95,6 @@ namespace WardShift
                 slot.Quantity = added;
                 remaining -= added;
             }
-
-            Changed?.Invoke();
-            return true;
         }
 
         public bool CanAddItem(ItemType item, int quantity = 1)
@@ -192,52 +209,6 @@ namespace WardShift
             Changed?.Invoke();
         }
 
-        /// <summary>현재 DAY 시작 스냅샷에 보급품을 반영한 복사본을 만듭니다.</summary>
-        public bool TryAddItemToDayState(DayStateSnapshot snapshot, ItemType item, int quantity,
-            out DayStateSnapshot updated)
-        {
-            updated = null;
-            if (snapshot == null || item == ItemType.None || quantity <= 0
-                || snapshot.Items == null || snapshot.Quantities == null) return false;
-
-            ItemType[] items = (ItemType[])snapshot.Items.Clone();
-            int[] quantities = (int[])snapshot.Quantities.Clone();
-            if (!TryAddToArrays(items, quantities, item, quantity, Mathf.Max(1, maximumStack))) return false;
-            updated = new DayStateSnapshot(items, quantities, snapshot.ManaCrystals,
-                snapshot.CrystalsEarnedToday);
-            return true;
-        }
-
-        /// <summary>선택한 스냅샷 슬롯을 보급품으로 교환한 복사본을 만듭니다.</summary>
-        public bool TryReplaceItemInDayState(DayStateSnapshot snapshot, int slotIndex, ItemType item,
-            out DayStateSnapshot updated)
-        {
-            updated = null;
-            if (snapshot == null || item == ItemType.None || snapshot.Items == null
-                || snapshot.Quantities == null || slotIndex < 0 || slotIndex >= snapshot.Items.Length
-                || slotIndex >= snapshot.Quantities.Length) return false;
-
-            ItemType[] items = (ItemType[])snapshot.Items.Clone();
-            int[] quantities = (int[])snapshot.Quantities.Clone();
-            items[slotIndex] = item;
-            quantities[slotIndex] = 1;
-            updated = new DayStateSnapshot(items, quantities, snapshot.ManaCrystals,
-                snapshot.CrystalsEarnedToday);
-            return true;
-        }
-
-        public ItemType GetDayStateItem(DayStateSnapshot snapshot, int slotIndex)
-        {
-            return snapshot != null && snapshot.Items != null && slotIndex >= 0
-                && slotIndex < snapshot.Items.Length ? snapshot.Items[slotIndex] : ItemType.None;
-        }
-
-        public int GetDayStateQuantity(DayStateSnapshot snapshot, int slotIndex)
-        {
-            return snapshot != null && snapshot.Quantities != null && slotIndex >= 0
-                && slotIndex < snapshot.Quantities.Length ? snapshot.Quantities[slotIndex] : 0;
-        }
-
         /// <summary>새 실행을 시작할 때 아이템과 재화를 모두 초기화.</summary>
         public void ResetForNewRun()
         {
@@ -266,6 +237,16 @@ namespace WardShift
             return slotIndex >= 0 && slotIndex < slots.Length ? slots[slotIndex].Quantity : 0;
         }
 
+        public int GetItemCount(ItemType item)
+        {
+            if (item == ItemType.None) return 0;
+            EnsureSlots();
+            int count = 0;
+            foreach (InventorySlot slot in slots)
+                if (slot.Item == item) count += slot.Quantity;
+            return count;
+        }
+
         private void EnsureSlots()
         {
             if (slots == null || slots.Length != SlotCount)
@@ -279,33 +260,6 @@ namespace WardShift
                 if (slots[i] == null) slots[i] = new InventorySlot();
         }
 
-        private static bool TryAddToArrays(ItemType[] items, int[] quantities, ItemType item,
-            int quantity, int stackLimit)
-        {
-            int capacity = 0;
-            for (int i = 0; i < items.Length && i < quantities.Length; i++)
-                capacity += items[i] == item ? Mathf.Max(0, stackLimit - quantities[i])
-                    : items[i] == ItemType.None && quantities[i] == 0 ? stackLimit : 0;
-            if (capacity < quantity) return false;
-
-            int remaining = quantity;
-            for (int i = 0; i < items.Length && i < quantities.Length && remaining > 0; i++)
-            {
-                if (items[i] != item || quantities[i] >= stackLimit) continue;
-                int added = Mathf.Min(remaining, stackLimit - quantities[i]);
-                quantities[i] += added;
-                remaining -= added;
-            }
-            for (int i = 0; i < items.Length && i < quantities.Length && remaining > 0; i++)
-            {
-                if (items[i] != ItemType.None || quantities[i] != 0) continue;
-                int added = Mathf.Min(remaining, stackLimit);
-                items[i] = item;
-                quantities[i] = added;
-                remaining -= added;
-            }
-            return remaining == 0;
-        }
     }
 
     /// <summary>소비 아이템 종류.</summary>

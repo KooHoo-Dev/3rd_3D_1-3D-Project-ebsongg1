@@ -17,8 +17,10 @@ namespace WardShift
         private float pendingExposureAmount;
         private float nextExposureFeedbackAt;
         private float lastExposureAt;
+        private bool hasExposureFeedbackSchedule;
         private const float FlashSeconds = 0.25f;
         private const float ExposureFeedbackInterval = 0.75f;
+        private const float ExposureStopDebounceSeconds = 0.12f;
         public bool IsFlashActive => Time.unscaledTime < flashUntil;
 
         public void Configure(WardShiftHUDLayout layout, AudioClip clip)
@@ -89,17 +91,14 @@ namespace WardShift
         private void OnExposure(float amount)
         {
             float now = Time.unscaledTime;
-            if (now - lastExposureAt > 0.3f)
+            if (!hasExposureFeedbackSchedule || now - lastExposureAt > 0.3f)
             {
                 pendingExposureAmount = 0f;
-                nextExposureFeedbackAt = now;
+                nextExposureFeedbackAt = now + ExposureStopDebounceSeconds;
+                hasExposureFeedbackSchedule = true;
             }
             lastExposureAt = now;
             pendingExposureAmount += amount;
-            if (now < nextExposureFeedbackAt) return;
-            nextExposureFeedbackAt = now + ExposureFeedbackInterval;
-            PlayFeedback(pendingExposureAmount, false);
-            pendingExposureAmount = 0f;
         }
 
         private void PlayFeedback(float amount, bool playSound)
@@ -112,8 +111,23 @@ namespace WardShift
 
         private void LateUpdate()
         {
+            float now = Time.unscaledTime;
+            if (pendingExposureAmount > 0f
+                && (now >= nextExposureFeedbackAt
+                    || now - lastExposureAt >= ExposureStopDebounceSeconds))
+            {
+                PlayFeedback(pendingExposureAmount, false);
+                pendingExposureAmount = 0f;
+                nextExposureFeedbackAt = now + ExposureFeedbackInterval;
+            }
+            else if (pendingExposureAmount <= 0f && now - lastExposureAt > ExposureFeedbackInterval)
+            {
+                nextExposureFeedbackAt = 0f;
+                hasExposureFeedbackSchedule = false;
+            }
+
             if (edges[0] == null) return;
-            float alpha = Mathf.Clamp01((flashUntil - Time.unscaledTime) / FlashSeconds);
+            float alpha = Mathf.Clamp01((flashUntil - now) / FlashSeconds);
             Color color = flashColor;
             color.a *= alpha;
             foreach (Image edge in edges)
@@ -129,6 +143,9 @@ namespace WardShift
             }
             player = null;
             pendingExposureAmount = 0f;
+            nextExposureFeedbackAt = 0f;
+            lastExposureAt = 0f;
+            hasExposureFeedbackSchedule = false;
         }
     }
 }

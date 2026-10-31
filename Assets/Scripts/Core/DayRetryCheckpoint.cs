@@ -64,69 +64,11 @@ namespace WardShift
                     snapshot.Participant.RestoreDayRetryState(snapshot.State);
         }
 
-        public bool TryAddSupply(PlayerInventory inventory, ItemType item, out bool needsExchange)
-        {
-            needsExchange = false;
-            if (inventory == null || inventorySnapshot == null) return false;
-            if (!inventory.TryAddItemToDayState(inventorySnapshot, item, 1,
-                    out PlayerInventory.DayStateSnapshot updatedSnapshot)
-                || !inventory.CanAddItem(item))
-            {
-                needsExchange = true;
-                return false;
-            }
-            if (!inventory.TryAddItem(item))
-            {
-                needsExchange = true;
-                return false;
-            }
-            inventorySnapshot = updatedSnapshot;
-            return true;
-        }
-
-        public bool TryExchangeSupply(PlayerInventory inventory, int slotIndex, ItemType item)
-        {
-            if (inventory == null || inventorySnapshot == null) return false;
-            if (!inventory.TryReplaceItemInDayState(inventorySnapshot, slotIndex, item,
-                    out PlayerInventory.DayStateSnapshot updatedSnapshot)
-                || !inventory.TryReplaceItem(slotIndex, item)) return false;
-            inventorySnapshot = updatedSnapshot;
-            return true;
-        }
-
-        public string GetSupplySnapshotSlotLabel(PlayerInventory inventory, int slotIndex)
-        {
-            ItemType item = inventory != null ? inventory.GetDayStateItem(inventorySnapshot, slotIndex)
-                : ItemType.None;
-            int quantity = inventory != null ? inventory.GetDayStateQuantity(inventorySnapshot, slotIndex) : 0;
-            return item == ItemType.None ? "빈 슬롯" : $"{GetItemDisplayName(item)} x{quantity}";
-        }
-
-        public void RefreshParticipantState(IDayRetryCheckpointParticipant participant)
-        {
-            for (int i = 0; i < participants.Count; i++)
-            {
-                if (!ReferenceEquals(participants[i].Participant, participant)) continue;
-                participants[i].State = participant.CaptureDayRetryState();
-                return;
-            }
-        }
-
         private PickupSnapshot FindPickup(ItemPickup pickup)
         {
             foreach (PickupSnapshot snapshot in pickups)
                 if (snapshot.Pickup == pickup) return snapshot;
             return null;
-        }
-
-        private static string GetItemDisplayName(ItemType item)
-        {
-            switch (item)
-            {
-                case ItemType.PurificationPotion: return "정화약";
-                case ItemType.EmergencyRepairKit: return "비상 수리 키트";
-                default: return "빈 슬롯";
-            }
         }
 
         private sealed class PickupSnapshot

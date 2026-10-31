@@ -29,7 +29,7 @@ namespace WardShift
         }
 
         public void Apply(float movementMultiplier, float contaminationGainMultiplier,
-            float safeZoneRecoveryMultiplier, PlayerContamination contamination)
+            PlayerContamination contamination)
         {
             CaptureBaseSpeeds();
             if (firstPersonController != null && firstPersonSpeedCaptured)
@@ -38,7 +38,6 @@ namespace WardShift
                 thirdPersonController.MoveSpeed = thirdPersonBaseMoveSpeed * Mathf.Max(0f, movementMultiplier);
             if (contamination == null) return;
             contamination.SetContaminationGainMultiplier(contaminationGainMultiplier);
-            contamination.SetSafeZoneRecoveryMultiplier(safeZoneRecoveryMultiplier);
         }
 
         public void CaptureBaseSpeeds()

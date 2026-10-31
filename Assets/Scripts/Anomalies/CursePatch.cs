@@ -233,6 +233,25 @@ namespace WardShift
             return offset.sqrMagnitude <= radius * radius;
         }
 
+        /// <summary>CharacterController 캡슐의 바닥 투영 면적이 패치 원형 범위와 겹치는지 확인합니다.</summary>
+        public bool ContainsDangerFootprint(CharacterController controller, float contactMargin)
+        {
+            if (!IsHazardActive || controller == null || !controller.enabled || !controller.isGrounded) return false;
+
+            Bounds footprint = controller.bounds;
+            Vector3 offset = footprint.center - transform.position;
+            offset.y = 0f;
+            float footprintRadius = Mathf.Max(footprint.extents.x, footprint.extents.z);
+            float margin = Mathf.Max(0f, contactMargin);
+            float combinedRadius = DangerRadius + footprintRadius + margin;
+            if (offset.sqrMagnitude > combinedRadius * combinedRadius) return false;
+
+            // 패치 높이와 발바닥 높이를 비교하여 공중에서 패치 위를 지날 때는 접촉으로 보지 않습니다.
+            float feetToPatchHeight = Mathf.Abs(footprint.min.y - transform.position.y);
+            float verticalTolerance = Mathf.Max(0.05f, controller.skinWidth) + margin;
+            return feetToPatchHeight <= verticalTolerance;
+        }
+
         /// <summary>성장 단계에 맞춰 강조 색과 단계별 파티클 상태를 갱신합니다.</summary>
         public void SetDangerStage(int stage)
         {

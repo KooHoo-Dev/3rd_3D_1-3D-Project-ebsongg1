@@ -59,6 +59,15 @@ namespace WardShift
             directHitUntil = Time.unscaledTime + 0.65f;
         }
 
+        private static string FormatContaminationIncrease(float amount)
+        {
+            if (amount < 0.01f) return string.Format("  +{0:F3}", amount);
+            if (amount < 0.1f) return string.Format("  +{0:F2}", amount);
+            return amount < 1f
+                ? string.Format("  +{0:F1}", amount)
+                : string.Format("  +{0:F0}", amount);
+        }
+
         private void Awake()
         {
             dayFlow = FindFirstObjectByType<DayFlowManager>();
@@ -136,9 +145,7 @@ namespace WardShift
             if (contaminationText != null)
             {
                 contaminationText.text = string.Format("마력 오염도  {0:F0} / 100", player.Value)
-                    + (directHitVisible ? directHitAmount < 1f
-                        ? string.Format("  +{0:F1}", directHitAmount)
-                        : string.Format("  +{0:F0}", directHitAmount) : "");
+                    + (directHitVisible ? FormatContaminationIncrease(directHitAmount) : "");
                 contaminationText.color = directHitVisible || Time.unscaledTime < contaminationEmphasisUntil
                     ? new Color(1f, 0.55f, 0.8f)
                     : Color.white;

@@ -44,6 +44,9 @@ namespace WardShift
             return AdvanceHazard(deltaTime);
         }
         public virtual float ContaminationRateAt(Vector3 position) => 0f;
+        /// <summary>플레이어 발 접촉 등 대상의 점유 영역을 고려할 수 있는 오염 노출 조회.</summary>
+        public virtual float ContaminationRateAt(PlayerContamination player) =>
+            player != null ? ContaminationRateAt(player.transform.position) : 0f;
         public ZoneIdentity Zone { get; private set; }
         public string SpawnLocationLabel { get; private set; }
 

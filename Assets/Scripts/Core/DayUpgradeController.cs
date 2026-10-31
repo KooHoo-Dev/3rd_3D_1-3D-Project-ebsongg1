@@ -102,13 +102,11 @@ namespace WardShift
             return true;
         }
 
-        public void ApplyEffects(float safeZoneRecoveryMultiplier, PlayerContamination player,
-            WardStatus wardStatus)
+        public void ApplyEffects(PlayerContamination player, WardStatus wardStatus)
         {
             if (effects != null)
                 effects.Apply(1f + GetStageEffect(DayUpgradeType.Mobility, mobilityLevel),
-                    1f - GetStageEffect(DayUpgradeType.ContaminationResistance, resistanceLevel),
-                    safeZoneRecoveryMultiplier, player);
+                    1f - GetStageEffect(DayUpgradeType.ContaminationResistance, resistanceLevel), player);
             if (wardStatus != null)
                 wardStatus.SetPersistentStabilityDamageMultiplier(
                     1f - GetStageEffect(DayUpgradeType.FacilityDefense, facilityDefenseLevel));

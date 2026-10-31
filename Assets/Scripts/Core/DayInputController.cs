@@ -12,8 +12,6 @@ namespace WardShift
             "Toggle Inventory", InputActionType.Button, "<Keyboard>/b");
         private readonly InputAction mapAction = new InputAction(
             "Toggle Facility Map", InputActionType.Button, "<Keyboard>/tab");
-        private readonly InputAction supplyAction = new InputAction(
-            "Open Day Supply", InputActionType.Button, "<Keyboard>/t");
         private InputAction daySkipAction;
         private DayFlowManager manager;
         private int suppressedDayTickFrame = -1;
@@ -40,7 +38,6 @@ namespace WardShift
         {
             inventoryAction.Enable();
             mapAction.Enable();
-            supplyAction.Enable();
             if (daySkipAction != null) daySkipAction.Enable();
         }
 
@@ -52,12 +49,6 @@ namespace WardShift
             {
                 suppressedDayTickFrame = Time.frameCount;
                 manager.CheatAdvanceDay();
-                return;
-            }
-            if (supplyAction.WasPressedThisFrame() && manager.DaySupplyPending && !manager.SupplyPanelOpen)
-            {
-                suppressedDayTickFrame = Time.frameCount;
-                manager.OpenDaySupplyChoice();
                 return;
             }
             if (mapAction.WasPressedThisFrame())
@@ -73,7 +64,6 @@ namespace WardShift
         {
             inventoryAction.Disable();
             mapAction.Disable();
-            supplyAction.Disable();
             if (daySkipAction != null) daySkipAction.Disable();
         }
 
@@ -81,7 +71,6 @@ namespace WardShift
         {
             inventoryAction.Dispose();
             mapAction.Dispose();
-            supplyAction.Dispose();
             if (daySkipAction != null) daySkipAction.Dispose();
         }
     }

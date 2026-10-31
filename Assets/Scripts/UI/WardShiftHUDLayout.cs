@@ -69,7 +69,6 @@ namespace WardShift
         [SerializeField, InspectorName("추적탄 경고음")] private AudioClip trackingBoltWarningSfx;
         [SerializeField] private RectTransform hudRoot;
         [SerializeField] private TMP_Text dayStatusText;
-        [SerializeField] private TMP_Text floodText;
         [SerializeField] private TMP_Text pickupText;
         [SerializeField] private Image[] magicCards = new Image[3];
         [SerializeField] private TMP_Text[] magicLabels = new TMP_Text[3];
@@ -181,8 +180,8 @@ namespace WardShift
             BuildDay();
             BuildLoadout();
             RectTransform controls = Panel("Controls", hudRoot, new Vector2(1, 0), new Vector2(1, 0),
-                new Vector2(-32, 32), new Vector2(262, 200));
-            Text("Keys", controls, new Vector2(16, -12), new Vector2(230, 176), 21,
+                new Vector2(-32, 32), new Vector2(320, 200));
+            Text("Keys", controls, new Vector2(16, -12), new Vector2(288, 176), 21,
                 "WASD 이동 · 마우스 시점\n마법 선택: 1/2/3 · 휠", Muted);
             pickupText = Text("PickupPrompt", hudRoot, Vector2.zero, new Vector2(600, 42), 25, "", Color.white);
             Place(pickupText.rectTransform, new Vector2(0.5f, 0), new Vector2(0.5f, 0),
@@ -235,8 +234,8 @@ namespace WardShift
             SetHeight("AnomalyAlerts", 590);
             SetHeight("AnomalyAlerts/PriorityAndSummary", 64);
             SetHeight("AnomalyAlerts/DangerWarning", 70);
-            SetHeight("FloodCondition", 198);
-            SetHeight("FloodCondition/ActiveCondition", 174);
+            SetWidth("Controls", 320);
+            SetWidth("Controls/Keys", 288);
             SetHeight("Controls", 200);
             SetHeight("Controls/Keys", 176);
             TMP_Text controlsText = hudRoot.Find("Controls/Keys")?.GetComponent<TMP_Text>();
@@ -252,6 +251,12 @@ namespace WardShift
         {
             RectTransform rect = (RectTransform)hudRoot.Find(path);
             rect.sizeDelta = new Vector2(rect.sizeDelta.x, height);
+        }
+
+        private void SetWidth(string path, float width)
+        {
+            RectTransform rect = (RectTransform)hudRoot.Find(path);
+            rect.sizeDelta = new Vector2(width, rect.sizeDelta.y);
         }
 
         private void BuildStatus(WardStatusHUD presenter)
@@ -304,10 +309,6 @@ namespace WardShift
             RectTransform day = Panel("DayResources", hudRoot, Vector2.one, Vector2.one,
                 new Vector2(-32, -32), new Vector2(430, 130));
             dayStatusText = Text("DayStatus", day, new Vector2(20, -14), new Vector2(390, 106), 26, "", Color.white);
-            RectTransform condition = Panel("FloodCondition", hudRoot, Vector2.one, Vector2.one,
-                new Vector2(-32, -172), new Vector2(430, 130));
-            floodText = Text("ActiveCondition", condition, new Vector2(18, -12), new Vector2(394, 106),
-                22, "오늘의 범람 조건: 기본 조건", Gold);
         }
 
         private void BuildLoadout()
@@ -342,18 +343,6 @@ namespace WardShift
             bool visible = dayFlow.State == DayState.Playing && !dayFlow.InventoryOpen
                 && !dayFlow.IsMapOpen && !dayFlow.SupplyPanelOpen;
             hudRoot.gameObject.SetActive(visible);
-            FloodCondition condition = dayFlow.ActiveFloodCondition;
-            bool showFloodCondition = dayFlow.State == DayState.Playing
-                && dayFlow.CurrentDay >= FloodConditionRules.FirstFloodConditionDay
-                && FloodConditionRules.IsAvailableCondition(condition);
-            GameObject floodPanel = floodText.transform.parent.gameObject;
-            floodPanel.SetActive(showFloodCondition);
-            floodText.text = showFloodCondition
-                ? "<color=#E8C26E>오늘의 범람 조건</color>\n<size=24><color=#94D8FF>"
-                    + FloodConditionRules.GetName(condition) + "</color></size>\n<size=20><color=#EDF2F7>"
-                    + FloodConditionRules.GetHighlightedRuleDescription(condition).Replace(" · ", "\n")
-                    + "</color></size>"
-                : string.Empty;
             for (int i = 0; i < magicCards.Length; i++)
             {
                 bool selected = caster != null && (int)caster.SelectedMagic == i;
