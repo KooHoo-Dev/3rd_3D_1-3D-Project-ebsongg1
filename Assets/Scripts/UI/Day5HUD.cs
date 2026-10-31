@@ -207,8 +207,12 @@ namespace WardShift
             BuildClearPanel(canvasObject.transform);
             failedPanel = BuildOverlay(canvasObject.transform, "DayFailedPanel", "근무 실패", out failedSummaryText,
                 "같은 날 재도전", () => { if (dayFlow != null) dayFlow.RetryCurrentDay(); }, false);
+            AddOverlaySecondaryButton(failedPanel, "TitleButton", "타이틀로 돌아가기",
+                TitleMenuController.ReturnToTitle);
             endingPanel = BuildOverlay(canvasObject.transform, "DayEndingPanel", "WARD SHIFT 완료", out endingSummaryText,
                 "게임 종료", () => Application.Quit(), false);
+            AddOverlaySecondaryButton(endingPanel, "TitleButton", "타이틀로 돌아가기",
+                TitleMenuController.ReturnToTitle);
             BuildSupplyPanel(canvasObject.transform);
             clearPanel.SetActive(false);
             failedPanel.SetActive(false);
@@ -413,7 +417,7 @@ namespace WardShift
                 new Vector2(-55f, 180f), 29, TextAlignmentOptions.Center, Color.white);
             GameObject buttonObject = CreatePanel("ActionButton", panel.transform,
                 new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-                new Vector2(0f, 55f), new Vector2(290f, 72f), new Color(0.12f, 0.42f, 0.6f, 1f));
+                new Vector2(-145f, 55f), new Vector2(260f, 72f), new Color(0.12f, 0.32f, 0.43f, 1f));
             Button button = buttonObject.AddComponent<Button>();
             button.targetGraphic = buttonObject.GetComponent<Image>();
             button.onClick.AddListener(onClick);
@@ -422,6 +426,20 @@ namespace WardShift
                 TextAlignmentOptions.Center, Color.white).text = buttonLabel;
             panel.SetActive(active);
             return panel;
+        }
+
+        private void AddOverlaySecondaryButton(GameObject panel, string name, string label,
+            UnityEngine.Events.UnityAction onClick)
+        {
+            GameObject buttonObject = CreatePanel(name, panel.transform,
+                new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                new Vector2(145f, 55f), new Vector2(260f, 66f), new Color(0.11f, 0.12f, 0.17f, 1f));
+            Button button = buttonObject.AddComponent<Button>();
+            button.targetGraphic = buttonObject.GetComponent<Image>();
+            button.onClick.AddListener(onClick);
+            CreateText("ButtonLabel", buttonObject.transform, Vector2.zero, Vector2.one,
+                new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero, 22,
+                TextAlignmentOptions.Center, new Color(0.9f, 0.9f, 0.94f, 1f)).text = label;
         }
 
         private void RefreshInventory()
