@@ -7,7 +7,7 @@ using UnityEngine.UI;
 
 namespace WardShift
 {
-    /// <summary>DAY 표시, 인벤토리, DAY CLEAR/FAILED 창을 기본 Unity UI로 만듬.</summary>
+    /// <summary>DAY 표시와 결과·상점 화면을 조정하고 인벤토리·튜토리얼 화면을 연결합니다.</summary>
     [DisallowMultipleComponent]
     [DefaultExecutionOrder(10007)]
     public sealed partial class Day5HUD : MonoBehaviour
@@ -50,11 +50,7 @@ namespace WardShift
 
         private TMP_Text dayStatusText;
         private TMP_Text pickupPromptText;
-        private TMP_Text inventorySummaryText;
-        private TMP_Text[] slotTexts = new TMP_Text[PlayerInventory.SlotCount];
-        private TMP_Text[] slotCounts = new TMP_Text[PlayerInventory.SlotCount];
-        private Image[] slotIcons = new Image[PlayerInventory.SlotCount];
-        private Button[] slotButtons = new Button[PlayerInventory.SlotCount];
+        private InventoryUIController inventoryView;
         private readonly UpgradeCardView[] upgradeCards = new UpgradeCardView[3];
         private GameObject inventoryPanel;
         private RectTransform overlayRoot;
@@ -82,9 +78,6 @@ namespace WardShift
         private TMP_Text supplyPotionLabel;
         private TMP_Text supplyRepairLabel;
         private TMP_Text supplyContinueLabel;
-        private Color emptyColor = new Color(0.2f, 0.23f, 0.28f, 0.94f);
-        private Color potionColor = new Color(0.55f, 0.25f, 0.95f, 1f);
-        private Color repairKitColor = new Color(0.15f, 0.72f, 0.58f, 1f);
         private string upgradeResult = string.Empty;
         private string supplyFeedback = string.Empty;
         private int lastDisplayedClearDay;
@@ -107,6 +100,7 @@ namespace WardShift
             dayFlow = manager;
             inventory = playerInventory;
             if (uiFont != null) koreanFont = uiFont;
+            inventoryView?.Bind(inventory, dayFlow);
             SubscribeResolutionFeedback();
         }
 
@@ -120,6 +114,12 @@ namespace WardShift
             if (dayFlow != null) dayFlow.AnomalyResolutionRewarded -= OnAnomalyResolutionRewarded;
             if (anomalyResolutionFeedbackText != null)
                 anomalyResolutionFeedbackText.gameObject.SetActive(false);
+        }
+
+        private void OnDestroy()
+        {
+            inventoryView?.Dispose();
+            tutorial?.Dispose();
         }
 
         private void SubscribeResolutionFeedback()
@@ -152,7 +152,7 @@ namespace WardShift
             pickupPromptText.text = pickup != null && !dayFlow.InventoryOpen && !dayFlow.SupplyPanelOpen
                 && !dayFlow.IsMapOpen && dayFlow.State == DayState.Playing
                 ? $"[E] {GetItemName(pickup.Item)} 획득" : "";
-            inventoryPanel.SetActive(dayFlow.State == DayState.Playing && dayFlow.InventoryOpen);
+            inventoryView?.SetVisible(dayFlow.State == DayState.Playing && dayFlow.InventoryOpen);
             if (anomalyResolutionFeedbackText != null)
                 anomalyResolutionFeedbackText.gameObject.SetActive(dayFlow.State == DayState.Playing
                     && Time.unscaledTime < anomalyResolutionFeedbackUntil);
@@ -191,7 +191,6 @@ namespace WardShift
                     ? $"{dayFlow.Player.Value:F0}%" : "-";
             if (endingManaValueText != null)
                 endingManaValueText.text = $"{inventory.ManaCrystals}개";
-            RefreshInventory();
             RefreshUpgradeCards();
         }
 
@@ -229,65 +228,12 @@ namespace WardShift
 
         private void BuildInventory(Transform parent)
         {
-            inventoryPanel = CreatePanel("InventoryPanel", parent, new Vector2(0.5f, 0.5f),
-                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero,
-                new Vector2(780f, 570f), new Color(0.055f, 0.075f, 0.12f, 0.97f));
-            CreateText("InventoryTitle", inventoryPanel.transform, new Vector2(0f, 1f),
-                new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -44f),
-                new Vector2(-48f, 75f), 38, TextAlignmentOptions.Center, Color.white).text = "인벤토리  ·  [B] 닫기";
-            inventorySummaryText = CreateText("InventorySummary", inventoryPanel.transform, new Vector2(0f, 1f),
-                new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -102f),
-                new Vector2(-48f, 45f), 24, TextAlignmentOptions.Center, new Color(0.85f, 0.9f, 1f));
-
-            for (int i = 0; i < PlayerInventory.SlotCount; i++)
-            {
-                int slotIndex = i;
-                int column = i % 2;
-                int row = i / 2;
-                Vector2 position = new Vector2(column == 0 ? -180f : 180f, row == 0 ? 70f : -110f);
-                GameObject slot = CreatePanel($"InventorySlot_{i + 1}", inventoryPanel.transform,
-                    new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                    position, new Vector2(330f, 135f), emptyColor);
-                Button button = slot.AddComponent<Button>();
-                button.targetGraphic = slot.GetComponent<Image>();
-                button.onClick.AddListener(() =>
-                {
-                    AudioService.Play2D(WardShiftSoundId.UiButtonClick);
-                    if (inventory != null && dayFlow != null)
-                    {
-                        if (inventory.TryUseItem(slotIndex, dayFlow.Player, dayFlow.Status,
-                            dayFlow.PotionRecoveryAmount))
-                            AudioService.Play2D(WardShiftSoundId.PlayerItemUse);
-                    }
-                });
-                slotButtons[i] = button;
-
-                GameObject iconObject = new GameObject("ItemIcon", typeof(RectTransform), typeof(Image));
-                iconObject.transform.SetParent(slot.transform, false);
-                RectTransform iconRect = iconObject.GetComponent<RectTransform>();
-                iconRect.anchorMin = new Vector2(0f, 0.5f);
-                iconRect.anchorMax = new Vector2(0f, 0.5f);
-                iconRect.pivot = new Vector2(0f, 0.5f);
-                iconRect.anchoredPosition = new Vector2(18f, 0f);
-                iconRect.sizeDelta = new Vector2(62f, 62f);
-                slotIcons[i] = iconObject.GetComponent<Image>();
-
-                slotTexts[i] = CreateText("ItemName", slot.transform, new Vector2(0f, 0f),
-                    new Vector2(1f, 1f), new Vector2(0f, 0.5f), new Vector2(94f, 0f),
-                    new Vector2(-120f, 0f), 25, TextAlignmentOptions.MidlineLeft, Color.white);
-                slotCounts[i] = CreateText("ItemQuantity", slot.transform, new Vector2(1f, 0f),
-                    new Vector2(1f, 1f), new Vector2(1f, 0.5f), new Vector2(-18f, 0f),
-                    new Vector2(75f, 0f), 25, TextAlignmentOptions.MidlineRight, Color.white);
-            }
-            CreateText("InventoryHint", inventoryPanel.transform, new Vector2(0f, 0f),
-                new Vector2(1f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 24f),
-                new Vector2(-40f, 35f), 19, TextAlignmentOptions.Center, new Color(0.75f, 0.8f, 0.9f))
-                .text = "아이템을 클릭하면 사용합니다 · 효과가 적용될 때만 소모됩니다";
+            inventoryView = new InventoryUIController(parent, koreanFont, inventory, dayFlow);
+            inventoryPanel = inventoryView.Panel;
             CreateActionButton("ResetTutorial", inventoryPanel.transform, new Vector2(0f, 67f),
                 new Vector2(300f, 36f), "튜토리얼 초기화", ResetTutorialProgress, true,
                 new Vector2(0.5f, 0f), new Vector2(0.5f, 0f))
-                .GetComponentInChildren<TMP_Text>().fontSize = 17f;
-            inventoryPanel.SetActive(false);
+                .GetComponentInChildren<TMP_Text>(true).fontSize = 17f;
         }
 
         private void BuildClearPanel(Transform parent)
@@ -541,27 +487,6 @@ namespace WardShift
             SceneManager.LoadScene(TitleMenuController.GameplaySceneName, LoadSceneMode.Single);
         }
 
-        private void RefreshInventory()
-        {
-            if (inventory == null || slotTexts == null) return;
-            if (inventorySummaryText != null)
-                inventorySummaryText.text = $"마력 결정  {inventory.ManaCrystals}개";
-            for (int i = 0; i < slotTexts.Length; i++)
-            {
-                ItemType item = inventory.GetItem(i);
-                int quantity = inventory.GetQuantity(i);
-                bool potion = item == ItemType.PurificationPotion && quantity > 0;
-                bool repairKit = item == ItemType.EmergencyRepairKit && quantity > 0;
-                slotTexts[i].text = potion ? $"정화약\n오염도 {dayFlow.PotionRecoveryAmount:F0} 회복"
-                    : repairKit ? "비상 수리 키트\n안정도 20 회복" : "빈 슬롯";
-                slotCounts[i].text = potion || repairKit ? $"x{quantity}" : "";
-                slotIcons[i].color = potion ? potionColor : repairKit ? repairKitColor
-                    : new Color(0.25f, 0.28f, 0.33f, 0.9f);
-                slotButtons[i].interactable = (potion && dayFlow.Player != null && dayFlow.Player.Value > 0f)
-                    || (repairKit && dayFlow.Status != null && dayFlow.Status.Stability < 100f);
-            }
-        }
-
         private void RefreshUpgradeCards()
         {
             if (dayFlow == null || inventory == null || upgradeCards == null) return;
@@ -676,7 +601,6 @@ namespace WardShift
             supplyFeedback = purchased
                 ? $"{(item == ItemType.PurificationPotion ? "정화 물약" : "시설 수리 키트")} 구매 완료."
                 : GetSupplyPurchaseFailureMessage(failure);
-            RefreshInventory();
             RefreshSupplyUI();
         }
 

@@ -232,6 +232,5 @@ namespace WardShift
             else DayTutorialController.ClearSavedProgress();
         }
 
-        private void OnDestroy() => tutorial?.Dispose();
     }
 }
