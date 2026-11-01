@@ -51,7 +51,7 @@ namespace WardShift
         private TMP_Text dayStatusText;
         private TMP_Text pickupPromptText;
         private InventoryUIController inventoryView;
-        private readonly UpgradeCardView[] upgradeCards = new UpgradeCardView[3];
+        private UpgradeUIController upgradeView;
         private GameObject inventoryPanel;
         private RectTransform overlayRoot;
         private GameObject clearPanel;
@@ -66,9 +66,7 @@ namespace WardShift
         private TMP_Text endingStabilityValueText;
         private TMP_Text endingContaminationValueText;
         private TMP_Text endingManaValueText;
-        private TMP_Text upgradeResultText;
         private TMP_Text anomalyResolutionFeedbackText;
-        private string upgradeResult = string.Empty;
         private int lastDisplayedClearDay;
         private float anomalyResolutionFeedbackUntil;
         public bool HasKoreanFont => koreanFont != null;
@@ -91,6 +89,7 @@ namespace WardShift
             if (uiFont != null) koreanFont = uiFont;
             inventoryView?.Bind(inventory, dayFlow);
             supplyView?.Bind(dayFlow, inventory);
+            upgradeView?.Bind(dayFlow, inventory);
             SubscribeResolutionFeedback();
         }
 
@@ -152,7 +151,7 @@ namespace WardShift
             if (dayFlow.State == DayState.DayClear && lastDisplayedClearDay != dayFlow.CurrentDay)
             {
                 lastDisplayedClearDay = dayFlow.CurrentDay;
-                upgradeResult = string.Empty;
+                upgradeView?.ClearFeedback();
                 supplyView?.ClearFeedback();
             }
             RefreshSupplyUI();
@@ -181,7 +180,7 @@ namespace WardShift
                     ? $"{dayFlow.Player.Value:F0}%" : "-";
             if (endingManaValueText != null)
                 endingManaValueText.text = $"{inventory.ManaCrystals}개";
-            RefreshUpgradeCards();
+            upgradeView?.Refresh();
         }
 
         private void BuildUI()
@@ -237,38 +236,23 @@ namespace WardShift
             clearSummaryText = CreateText("Summary", clearPanel.transform, new Vector2(0f, 1f),
                 new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -102f),
                 new Vector2(-60f, 78f), 19, TextAlignmentOptions.Center, Color.white);
-            DayUpgradeType[] types =
-            {
-                DayUpgradeType.Mobility,
-                DayUpgradeType.FacilityDefense,
-                DayUpgradeType.ContaminationResistance
-            };
-            Vector2[] positions = { new Vector2(-365f, -96f), new Vector2(0f, -96f), new Vector2(365f, -96f) };
-            for (int i = 0; i < types.Length; i++)
-            {
-                int cardIndex = i;
-                GameObject card = CreatePanel($"Upgrade_{types[i]}", clearPanel.transform,
-                    new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                    positions[i], new Vector2(330f, 322f), new Color(0.09f, 0.13f, 0.2f, 1f));
-                TMP_Text title = CreateText("Name", card.transform, new Vector2(0f, 1f), new Vector2(1f, 1f),
-                    new Vector2(0.5f, 1f), new Vector2(0f, -16f), new Vector2(-30f, 44f),
-                    27, TextAlignmentOptions.Center, Color.white);
-                title.richText = true;
-                TMP_Text description = CreateText("Effect", card.transform, new Vector2(0f, 1f),
-                    new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -64f),
-                    new Vector2(-34f, 154f), 16.5f, TextAlignmentOptions.Top, new Color(0.82f, 0.89f, 1f));
-                description.richText = true;
-                Button button = CreateActionButton("Purchase", card.transform, new Vector2(0f, -110f),
-                    new Vector2(270f, 58f), "구매", () => OnUpgradeClicked(types[cardIndex]));
-                TMP_Text buttonLabel = button.GetComponentInChildren<TMP_Text>();
-                buttonLabel.fontSize = 17;
-                upgradeCards[i] = new UpgradeCardView(types[i], title, description, button,
-                    buttonLabel, button.GetComponent<Image>());
-            }
-            upgradeResultText = CreateText("UpgradeResult", clearPanel.transform,
-                new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f),
-                new Vector2(0f, 86f), new Vector2(-50f, 26f), 18,
-                TextAlignmentOptions.Center, new Color(0.76f, 0.92f, 1f));
+            upgradeView = new UpgradeUIController(clearPanel.transform, koreanFont, dayFlow, inventory,
+                new UpgradeUIController.Style
+                {
+                    MobilityTitle = mobilityTitleHighlightColor,
+                    FacilityDefenseTitle = facilityDefenseTitleHighlightColor,
+                    ContaminationResistanceTitle = contaminationResistanceTitleHighlightColor,
+                    MobilityEffectWord = mobilityEffectHighlightWord,
+                    MobilityEffect = mobilityEffectHighlightColor,
+                    FacilityDefenseEffectWord = facilityDefenseEffectHighlightWord,
+                    FacilityDefenseEffect = facilityDefenseEffectHighlightColor,
+                    ContaminationResistanceEffectWord = contaminationResistanceEffectHighlightWord,
+                    ContaminationResistanceEffect = contaminationResistanceEffectHighlightColor,
+                    Price = upgradePriceHighlightColor,
+                    Available = upgradeAvailableHighlightColor,
+                    Unavailable = upgradeUnavailableHighlightColor,
+                    Complete = upgradeCompleteHighlightColor
+                });
             CreateActionButton("OpenSupplyShop", clearPanel.transform, new Vector2(0f, -321f),
                 new Vector2(360f, 58f), "강화 건너뛰고 보급 상점",
                 () => { if (dayFlow != null) dayFlow.OpenDaySupplyShop(); });
@@ -441,45 +425,6 @@ namespace WardShift
             SceneManager.LoadScene(TitleMenuController.GameplaySceneName, LoadSceneMode.Single);
         }
 
-        private void RefreshUpgradeCards()
-        {
-            if (dayFlow == null || inventory == null || upgradeCards == null) return;
-            for (int i = 0; i < upgradeCards.Length; i++)
-            {
-                UpgradeCardView card = upgradeCards[i];
-                if (card == null) continue;
-                int level = dayFlow.GetUpgradeLevel(card.Type);
-                int price = dayFlow.GetNextUpgradePrice(card.Type);
-                bool maxLevel = level >= DayUpgradeRules.MaximumLevel;
-                bool canPurchase = dayFlow.CanPurchaseUpgrade(card.Type);
-                bool purchaseComplete = maxLevel || dayFlow.UpgradePurchasedThisClear;
-                string currentEffect = dayFlow.GetUpgradeEffectText(card.Type, level);
-                string nextEffect = maxLevel
-                    ? "최대 강화 완료" : dayFlow.GetUpgradeEffectText(card.Type, level + 1);
-                string purchaseStatus = maxLevel ? "최대 강화 완료"
-                    : dayFlow.UpgradePurchasedThisClear ? "이번 DAY 구매 완료"
-                    : inventory.ManaCrystals < price ? $"불가 (마력 조각 부족 · {price}개 필요)"
-                    : canPurchase ? "구매 가능" : "현재 구매 불가";
-                Color statusColor = purchaseComplete ? upgradeCompleteHighlightColor
-                    : canPurchase ? upgradeAvailableHighlightColor : upgradeUnavailableHighlightColor;
-                card.Title.text = $"{Colorize(GetUpgradeTitleName(card.Type), GetUpgradeTitleColor(card.Type))} 강화 "
-                    + GetUpgradeStageName(Mathf.Min(level + 1, DayUpgradeRules.MaximumLevel));
-                card.Description.text = $"현재 단계: {level} / {DayUpgradeRules.MaximumLevel}\n"
-                    + $"현재 효과: {ColorizeUpgradeEffect(card.Type, currentEffect)}\n"
-                    + $"강화 후: {ColorizeUpgradeEffect(card.Type, nextEffect)}\n"
-                    + $"필요한 마력 조각: {Colorize(maxLevel ? "없음" : price + "개", upgradePriceHighlightColor)}\n"
-                    + $"구매 가능 여부: {Colorize(purchaseStatus, statusColor)}";
-                card.Button.interactable = canPurchase;
-                card.ButtonLabel.text = maxLevel ? "최대 강화 완료"
-                    : dayFlow.UpgradePurchasedThisClear ? "오늘 구매 완료"
-                    : inventory.ManaCrystals < price ? $"마력 조각 부족\n{price}개 필요"
-                    : $"구매 · {price}개";
-                card.ButtonImage.color = canPurchase ? new Color(0.12f, 0.42f, 0.6f, 1f)
-                    : new Color(0.22f, 0.25f, 0.3f, 1f);
-            }
-            if (upgradeResultText != null) upgradeResultText.text = upgradeResult;
-        }
-
         private void RefreshSupplyUI()
         {
             if (dayFlow == null || supplyView == null) return;
@@ -489,15 +434,6 @@ namespace WardShift
                 && !tutorial.Learned(DayTutorialController.Supply) ? tutorialCopy.supply : null;
             supplyView.SetVisible(open, tutorialHint);
             clearPanel.SetActive(dayFlow.State == DayState.DayClear && !open);
-        }
-
-        private void OnUpgradeClicked(DayUpgradeType type)
-        {
-            if (dayFlow == null) return;
-            bool purchased = dayFlow.TryPurchaseUpgrade(type);
-            upgradeResult = purchased ? $"{GetUpgradeName(type)} 강화 구매 완료"
-                : "구매할 수 없습니다. 결정 수량과 오늘 구매 여부를 확인하세요.";
-            RefreshUpgradeCards();
         }
 
         private static GameObject CreatePanel(string name, Transform parent, Vector2 anchorMin,
@@ -544,98 +480,6 @@ namespace WardShift
                 case ItemType.PurificationPotion: return "정화약";
                 case ItemType.EmergencyRepairKit: return "비상 수리 키트";
                 default: return "아이템";
-            }
-        }
-
-        private static string GetUpgradeName(DayUpgradeType type)
-        {
-            return $"{GetUpgradeTitleName(type)} 강화";
-        }
-
-        private static string GetUpgradeTitleName(DayUpgradeType type)
-        {
-            switch (type)
-            {
-                case DayUpgradeType.Mobility: return "이동 속도";
-                case DayUpgradeType.FacilityDefense: return "시설 방호";
-                case DayUpgradeType.ContaminationResistance: return "오염 저항";
-                default: return "강화";
-            }
-        }
-
-        private Color GetUpgradeTitleColor(DayUpgradeType type)
-        {
-            switch (type)
-            {
-                case DayUpgradeType.Mobility: return mobilityTitleHighlightColor;
-                case DayUpgradeType.FacilityDefense: return facilityDefenseTitleHighlightColor;
-                case DayUpgradeType.ContaminationResistance: return contaminationResistanceTitleHighlightColor;
-                default: return Color.white;
-            }
-        }
-
-        private Color GetUpgradeEffectColor(DayUpgradeType type)
-        {
-            switch (type)
-            {
-                case DayUpgradeType.Mobility: return mobilityEffectHighlightColor;
-                case DayUpgradeType.FacilityDefense: return facilityDefenseEffectHighlightColor;
-                case DayUpgradeType.ContaminationResistance: return contaminationResistanceEffectHighlightColor;
-                default: return Color.white;
-            }
-        }
-
-        private string ColorizeUpgradeEffect(DayUpgradeType type, string text)
-        {
-            string word = GetUpgradeEffectHighlightWord(type);
-            if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(word)) return text;
-            return text.Replace(word, Colorize(word, GetUpgradeEffectColor(type)));
-        }
-
-        private string GetUpgradeEffectHighlightWord(DayUpgradeType type)
-        {
-            switch (type)
-            {
-                case DayUpgradeType.Mobility: return mobilityEffectHighlightWord;
-                case DayUpgradeType.FacilityDefense: return facilityDefenseEffectHighlightWord;
-                case DayUpgradeType.ContaminationResistance: return contaminationResistanceEffectHighlightWord;
-                default: return string.Empty;
-            }
-        }
-
-        private static string Colorize(string text, Color color)
-        {
-            return $"<color=#{ColorUtility.ToHtmlStringRGBA(color)}>{text}</color>";
-        }
-
-        private static string GetUpgradeStageName(int level)
-        {
-            switch (level)
-            {
-                case 1: return "I";
-                case 2: return "II";
-                default: return "III";
-            }
-        }
-
-        private sealed class UpgradeCardView
-        {
-            public readonly DayUpgradeType Type;
-            public readonly TMP_Text Title;
-            public readonly TMP_Text Description;
-            public readonly Button Button;
-            public readonly TMP_Text ButtonLabel;
-            public readonly Image ButtonImage;
-
-            public UpgradeCardView(DayUpgradeType type, TMP_Text title, TMP_Text description, Button button,
-                TMP_Text buttonLabel, Image buttonImage)
-            {
-                Type = type;
-                Title = title;
-                Description = description;
-                Button = button;
-                ButtonLabel = buttonLabel;
-                ButtonImage = buttonImage;
             }
         }
 
