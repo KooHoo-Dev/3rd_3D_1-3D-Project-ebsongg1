@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -9,13 +8,6 @@ namespace WardShift
     // DAY UI가 이미 소유한 Canvas와 일시정지 경로를 재사용한다.
     public sealed partial class Day5HUD
     {
-        private const string TutorialSaveKey = "WardShift.Tutorial.Completed.v1";
-        private const int Intro = 1 << 0, Seal = 1 << 1, Clear = 1 << 2,
-            Supply = 1 << 3, Curse = 1 << 4, Inventory = 1 << 5,
-            Map = 1 << 6, Device = 1 << 7, Radial = 1 << 8,
-            Projectile = 1 << 10, FirstStageTwo = 1 << 12, FirstStageThree = 1 << 13,
-            FirstRupture = 1 << 14;
-
         [Serializable]
         private sealed class TutorialCopy
         {
@@ -59,26 +51,9 @@ namespace WardShift
         private TMP_Text introText;
         private TMP_Text introButtonText;
         private TMP_Text controlsReference;
-        private int tutorialFlags;
-        private int introPage = -1;
-        private bool tutorialResetPending;
-        private bool previousSupplyOpen;
-        private bool previousRadialWarning;
-        private bool previousProjectileWarning;
-        private readonly List<ManaRift> watchedRifts = new List<ManaRift>();
-        private readonly List<AnomalyBehaviour> watchedOtherAnomalies = new List<AnomalyBehaviour>();
-        private readonly List<AnomalyBehaviour> watchedGrowthAnomalies = new List<AnomalyBehaviour>();
-        private readonly Queue<int> growthNoticeQueue = new Queue<int>();
-        private int queuedGrowthFlags;
-        private int activeGrowthNotice;
-        private float growthNoticeRemaining;
-        private bool showRuptureOnFailure;
-        private bool wasFailedLastFrame;
+        private DayTutorialController tutorial;
         private MagicCaster tutorialCaster;
         private MagicDetector tutorialDetector;
-        private float completionUntil;
-
-        private bool Learned(int flag) => (tutorialFlags & flag) != 0;
 
         private void OnValidate() => EnsureGrowthTextDefaults();
 
@@ -96,19 +71,11 @@ namespace WardShift
             if (tutorialCopy.rupture == null) tutorialCopy.rupture = defaults.rupture;
         }
 
-        private void Learn(int flag)
-        {
-            if (Learned(flag)) return;
-            tutorialFlags |= flag;
-            PlayerPrefs.SetInt(TutorialSaveKey, tutorialFlags);
-            PlayerPrefs.Save();
-        }
-
         private void BuildTutorialUI()
         {
             if (overlayRoot == null) return;
             EnsureGrowthTextDefaults();
-            tutorialFlags = PlayerPrefs.GetInt(TutorialSaveKey, 0);
+            tutorial = new DayTutorialController();
             tutorialCaster = FindFirstObjectByType<MagicCaster>();
             tutorialDetector = FindFirstObjectByType<MagicDetector>();
             Transform parent = overlayRoot;
@@ -149,203 +116,55 @@ namespace WardShift
         private void UpdateTutorial()
         {
             ApplyCombatHintPosition();
-            if (tutorialResetPending || tutorialPanel == null || dayFlow == null) return;
+            if (tutorial == null || tutorial.ResetPending || tutorialPanel == null || dayFlow == null) return;
             // DAY 1 목표와 조작은 새 브리핑에서 안내하므로 기존 인트로 모달이 다시 일시정지하지 않게 합니다.
-            if (dayFlow.State == DayState.Playing && dayFlow.CurrentDay == 1
-                && !dayFlow.HasStartedDayBriefingThisRun
-                && !Learned(Intro) && introPage < 0 && AnomalyBehaviour.ActiveAnomalies.Count == 0
-                && !dayFlow.SupplyPanelOpen && !dayFlow.InventoryOpen && !dayFlow.IsMapOpen)
-                BeginIntroduction();
+            if (tutorial.ShouldBeginIntroduction(dayFlow)) BeginIntroduction();
 
-            if (dayFlow.CurrentDay > 1) Learn(Clear);
-            if (dayFlow.State == DayState.DayFailed)
-            {
-                if (showRuptureOnFailure) Learn(FirstRupture);
-                wasFailedLastFrame = true;
-            }
-            else if (wasFailedLastFrame)
-            {
-                showRuptureOnFailure = false;
-                wasFailedLastFrame = false;
-            }
-
-            if (dayFlow.InventoryOpen) Learn(Inventory); // 기존 창에서 아이템 클릭 사용을 표시.
-            if (dayFlow.IsMapOpen) Learn(Map); // 기존 지도 제목과 범례를 재사용.
-            if (previousSupplyOpen && !dayFlow.SupplyPanelOpen) Learn(Supply);
-            previousSupplyOpen = dayFlow.SupplyPanelOpen;
-
+            DayTutorialController.Hint hint = tutorial.Tick(dayFlow, tutorialCaster, tutorialDetector);
             RefreshControlsReference();
-            if (introPage >= 0 || dayFlow.State != DayState.Playing || dayFlow.InventoryOpen
-                || dayFlow.IsMapOpen || dayFlow.SupplyPanelOpen || Time.timeScale <= 0f)
-            {
-                tutorialPanel.SetActive(false);
-                return;
-            }
-
-            ManaRift rift = null;
-            CurseAnomaly curse = null;
-            ManaDeviceAnomaly device = null;
-            foreach (AnomalyBehaviour anomaly in AnomalyBehaviour.ActiveAnomalies)
-            {
-                if (rift == null && anomaly is ManaRift activeRift && activeRift.IsHazardActive) rift = activeRift;
-                if (curse == null && anomaly is CurseAnomaly activeCurse && activeCurse.IsHazardActive) curse = activeCurse;
-                if (device == null && anomaly is ManaDeviceAnomaly activeDevice && activeDevice.IsHazardActive) device = activeDevice;
-            }
-            if (!Learned(Seal))
-            {
-                foreach (AnomalyBehaviour anomaly in AnomalyBehaviour.ActiveAnomalies)
-                    if (anomaly is ManaRift activeRift && !watchedRifts.Contains(activeRift))
-                    {
-                        activeRift.Resolved += OnTutorialRiftResolved;
-                        watchedRifts.Add(activeRift);
-                    }
-            }
-            foreach (AnomalyBehaviour anomaly in AnomalyBehaviour.ActiveAnomalies)
-                if (((anomaly is CurseAnomaly && !Learned(Curse))
-                    || (anomaly is ManaDeviceAnomaly && !Learned(Device)))
-                    && !watchedOtherAnomalies.Contains(anomaly))
-                {
-                    anomaly.ResolutionCompleted += OnTutorialAnomalyResolved;
-                    watchedOtherAnomalies.Add(anomaly);
-                }
-            ObserveGrowth();
-
-            MagicCaster caster = tutorialCaster;
-            MagicDetector detector = tutorialDetector;
-            string message = null;
-            bool radialWarning = device != null && device.IsBurstWarningActive
-                && device.NextAttack == ManaDeviceAnomaly.AttackKind.RadialBurst;
-            bool projectileWarning = device != null && device.IsBurstWarningActive
-                && device.NextAttack == ManaDeviceAnomaly.AttackKind.TrackingBolt;
-            bool sealChainUrgent = !Learned(Seal) && rift != null && rift.IsSealChainInProgress;
-            string growthMessage = NextGrowthNotice(
-                (!Learned(Projectile) && projectileWarning)
-                || (!Learned(Radial) && radialWarning) || sealChainUrgent);
-            bool deviceAttackWarning = radialWarning || projectileWarning;
-            if (deviceAttackWarning) message = null; // 상단의 즉시 회피 경고가 장치 공격 안내를 맡습니다.
-            else if (sealChainUrgent) message = tutorialCopy.secondSeal;
-            else if (growthMessage != null) message = growthMessage;
-            else if (Time.unscaledTime < completionUntil) message = tutorialCopy.sealComplete;
-            else if (!Learned(Seal) && rift != null)
-            {
-                if (detector == null || !detector.IsSensing
-                    || rift.FirstSealPoint == null || !rift.FirstSealPoint.IsDetected)
-                    message = tutorialCopy.sense;
-                else if (caster != null && caster.SelectedMagic != MagicType.Seal) message = tutorialCopy.selectSeal;
-                else message = tutorialCopy.firstSeal;
-            }
-            else if (!Learned(Curse) && curse != null)
-            {
-                if (caster != null && caster.SelectedMagic != MagicType.Purify) message = tutorialCopy.curseSelect;
-                else message = tutorialCopy.curseCast;
-            }
-            else if (!Learned(Device) && device != null)
-            {
-                if (caster != null && caster.SelectedMagic != MagicType.Stabilize) message = tutorialCopy.deviceSelect;
-                else message = tutorialCopy.deviceCast;
-            }
-            if (previousRadialWarning && !radialWarning) Learn(Radial);
-            if (previousProjectileWarning && !projectileWarning) Learn(Projectile);
-            previousRadialWarning = radialWarning;
-            previousProjectileWarning = projectileWarning;
-            if (message == null && rift == null && curse == null && device == null)
-            {
-                if (!Learned(Inventory) && dayFlow.CurrentDay >= 2 && !dayFlow.DaySupplyPending)
-                    message = tutorialCopy.inventory;
-                else if (!Learned(Map) && Learned(Intro) && dayFlow.CurrentDay == 1)
-                    message = tutorialCopy.map;
-            }
+            string message = GetTutorialMessage(hint);
             tutorialPanel.SetActive(!string.IsNullOrEmpty(message));
             if (message != null) tutorialText.text = message;
         }
 
-        private void OnTutorialRiftResolved(ManaRift rift)
+        private string GetTutorialMessage(DayTutorialController.Hint hint)
         {
-            Learn(Seal);
-            completionUntil = Time.unscaledTime + 2.2f;
-            foreach (ManaRift watched in watchedRifts)
-                if (watched != null) watched.Resolved -= OnTutorialRiftResolved;
-            watchedRifts.Clear();
-        }
-
-        private void OnTutorialAnomalyResolved(AnomalyBehaviour anomaly)
-        {
-            if (anomaly is CurseAnomaly) Learn(Curse);
-            else if (anomaly is ManaDeviceAnomaly) Learn(Device);
-            if (anomaly != null) anomaly.ResolutionCompleted -= OnTutorialAnomalyResolved;
-            watchedOtherAnomalies.Remove(anomaly);
-        }
-
-        private void ObserveGrowth()
-        {
-            IReadOnlyList<AnomalyBehaviour> anomalies = AnomalyBehaviour.ActiveAnomalies;
-            foreach (AnomalyBehaviour anomaly in anomalies)
+            switch (hint)
             {
-                if (anomaly == null || !anomaly.IsHazardActive) continue;
-                // 단계 변화는 상단 경고 HUD가 보여 주므로 튜토리얼 배너에서는 중복 안내하지 않습니다.
-                if (anomaly.DangerStage >= 2) Learn(FirstStageTwo);
-                if (anomaly.DangerStage >= 3) Learn(FirstStageThree);
-                if (!Learned(FirstRupture) && !watchedGrowthAnomalies.Contains(anomaly))
-                {
-                    anomaly.Ended += OnGrowthAnomalyEnded;
-                    watchedGrowthAnomalies.Add(anomaly);
-                }
+                case DayTutorialController.Hint.SecondSeal: return tutorialCopy.secondSeal;
+                case DayTutorialController.Hint.StageTwo: return tutorialCopy.stageTwo;
+                case DayTutorialController.Hint.StageThree: return tutorialCopy.stageThree;
+                case DayTutorialController.Hint.Rupture: return tutorialCopy.rupture;
+                case DayTutorialController.Hint.SealComplete: return tutorialCopy.sealComplete;
+                case DayTutorialController.Hint.Sense: return tutorialCopy.sense;
+                case DayTutorialController.Hint.SelectSeal: return tutorialCopy.selectSeal;
+                case DayTutorialController.Hint.FirstSeal: return tutorialCopy.firstSeal;
+                case DayTutorialController.Hint.CurseSelect: return tutorialCopy.curseSelect;
+                case DayTutorialController.Hint.CurseCast: return tutorialCopy.curseCast;
+                case DayTutorialController.Hint.DeviceSelect: return tutorialCopy.deviceSelect;
+                case DayTutorialController.Hint.DeviceCast: return tutorialCopy.deviceCast;
+                case DayTutorialController.Hint.Inventory: return tutorialCopy.inventory;
+                case DayTutorialController.Hint.Map: return tutorialCopy.map;
+                default: return null;
             }
-        }
-
-        private void OnGrowthAnomalyEnded(AnomalyBehaviour anomaly, AnomalyEndReason reason)
-        {
-            if (reason == AnomalyEndReason.Ruptured && !Learned(FirstRupture))
-            {
-                showRuptureOnFailure = true;
-                QueueGrowthNotice(FirstRupture);
-            }
-            if (anomaly != null) anomaly.Ended -= OnGrowthAnomalyEnded;
-            watchedGrowthAnomalies.Remove(anomaly);
-        }
-
-        private void QueueGrowthNotice(int flag)
-        {
-            if (Learned(flag) || activeGrowthNotice == flag || (queuedGrowthFlags & flag) != 0) return;
-            growthNoticeQueue.Enqueue(flag);
-            queuedGrowthFlags |= flag;
-        }
-
-        private string NextGrowthNotice(bool urgentHintVisible)
-        {
-            if (urgentHintVisible) return null;
-            while (activeGrowthNotice == 0 && growthNoticeQueue.Count > 0)
-            {
-                int flag = growthNoticeQueue.Dequeue();
-                queuedGrowthFlags &= ~flag;
-                if (Learned(flag)) continue;
-                activeGrowthNotice = flag;
-                growthNoticeRemaining = 3f;
-                Learn(flag);
-                if (flag == FirstRupture) showRuptureOnFailure = false;
-            }
-            if (activeGrowthNotice == 0) return null;
-            string message = activeGrowthNotice == FirstStageTwo ? tutorialCopy.stageTwo
-                : activeGrowthNotice == FirstStageThree ? tutorialCopy.stageThree
-                : tutorialCopy.rupture;
-            growthNoticeRemaining -= Time.unscaledDeltaTime;
-            if (growthNoticeRemaining <= 0f) activeGrowthNotice = 0;
-            return message;
         }
 
         private void BeginIntroduction()
         {
-            SetIntroPage(0, tutorialCopy.introduction, "다음");
+            tutorial.BeginIntroduction();
+            ShowIntroPage(0);
             introPanel.SetActive(true);
             dayFlow.Status.PauseGameForUI();
         }
 
-        private void SetIntroPage(int page, string message, string buttonLabel)
+        private void ShowIntroPage(int page)
         {
-            introPage = page;
             introText.fontSize = page == 2 || page == 3 ? 22f : 27f;
-            introText.text = message;
-            introButtonText.text = buttonLabel;
+            introText.text = page == 0 ? tutorialCopy.introduction
+                : page == 1 ? tutorialCopy.controls
+                : page == 2 ? tutorialCopy.stabilityOverview
+                : page == 3 ? tutorialCopy.contaminationOverview : tutorialCopy.growthOverview;
+            introButtonText.text = page == 4 ? "근무 시작" : "다음";
         }
 
         private void ApplyCombatHintPosition()
@@ -357,29 +176,13 @@ namespace WardShift
 
         private void AdvanceIntroduction()
         {
-            if (introPage == 0)
+            int page = tutorial.AdvanceIntroduction();
+            if (page >= 0)
             {
-                SetIntroPage(1, tutorialCopy.controls, "다음");
+                ShowIntroPage(page);
                 return;
             }
-            if (introPage == 1)
-            {
-                SetIntroPage(2, tutorialCopy.stabilityOverview, "다음");
-                return;
-            }
-            if (introPage == 2)
-            {
-                SetIntroPage(3, tutorialCopy.contaminationOverview, "다음");
-                return;
-            }
-            if (introPage == 3)
-            {
-                SetIntroPage(4, tutorialCopy.growthOverview, "근무 시작");
-                return;
-            }
-            introPage = -2;
             introPanel.SetActive(false);
-            Learn(Intro);
             dayFlow.Status.ResumeGameFromUI();
         }
 
@@ -387,8 +190,9 @@ namespace WardShift
         {
             if (controlsReference == null) return;
             controlsReference.text = "WASD : 이동\n마법 선택 : 1/2/3 · 마우스 휠"
-                + (Learned(Seal) ? "\nQ : 감지" : "")
-                + (Learned(Map) || Learned(Inventory) ? "\nTAB : 지도\nB : 인벤토리" : "");
+                + (tutorial.Learned(DayTutorialController.Seal) ? "\nQ : 감지" : "")
+                + (tutorial.Learned(DayTutorialController.Map) || tutorial.Learned(DayTutorialController.Inventory)
+                    ? "\nTAB : 지도\nB : 인벤토리" : "");
             FitControlsReference();
         }
 
@@ -424,19 +228,10 @@ namespace WardShift
         [ContextMenu("튜토리얼 기록 초기화 (다음 실행에 적용)")]
         private void ClearTutorialSave()
         {
-            PlayerPrefs.DeleteKey(TutorialSaveKey);
-            PlayerPrefs.Save();
-            if (Application.isPlaying) tutorialResetPending = true;
+            if (tutorial != null) tutorial.ResetProgress();
+            else DayTutorialController.ClearSavedProgress();
         }
 
-        private void OnDestroy()
-        {
-            foreach (ManaRift watched in watchedRifts)
-                if (watched != null) watched.Resolved -= OnTutorialRiftResolved;
-            foreach (AnomalyBehaviour watched in watchedOtherAnomalies)
-                if (watched != null) watched.ResolutionCompleted -= OnTutorialAnomalyResolved;
-            foreach (AnomalyBehaviour watched in watchedGrowthAnomalies)
-                if (watched != null) watched.Ended -= OnGrowthAnomalyEnded;
-        }
+        private void OnDestroy() => tutorial?.Dispose();
     }
 }

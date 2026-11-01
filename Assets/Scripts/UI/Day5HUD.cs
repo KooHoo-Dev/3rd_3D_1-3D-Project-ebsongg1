@@ -171,7 +171,8 @@ namespace WardShift
                     + $"이번 근무 획득 결정 +{inventory.CrystalsEarnedToday}개  ·  현재 보유 {inventory.ManaCrystals}개\n"
                     + (dayFlow.UpgradePurchasedThisClear
                         ? "이번 근무 강화 구매 완료 · 추가 구매 불가"
-                        : dayFlow.CurrentDay == 1 && !Learned(Clear)
+                        : dayFlow.CurrentDay == 1 && tutorial != null
+                            && !tutorial.Learned(DayTutorialController.Clear)
                             ? tutorialCopy.firstClear
                             : "강화는 이번 근무에 한 종류만 구매할 수 있습니다.");
             if (failedSummaryText != null)
@@ -179,7 +180,7 @@ namespace WardShift
                     + (dayFlow.Status != null && !string.IsNullOrEmpty(dayFlow.Status.FailureReason)
                         ? dayFlow.Status.FailureReason : "시설 관리 실패")
                     + "\nDAY 시작 시점의 자원과 픽업을 복원해 재도전합니다."
-                    + (showRuptureOnFailure ? "\n" + tutorialCopy.rupture : "");
+                    + (tutorial != null && tutorial.ShowRuptureOnFailure ? "\n" + tutorialCopy.rupture : "");
             if (endingDayValueText != null)
                 endingDayValueText.text = $"{dayFlow.CurrentDay}일";
             if (endingStabilityValueText != null)
@@ -627,7 +628,8 @@ namespace WardShift
                 supplyMessageText.text = supplyFeedback;
             else if (dayFlow.RemainingSupplyPurchases <= 0)
                 supplyMessageText.text = "이번 DAY 구매 한도에 도달했습니다. 다음 DAY로 진행할 수 있습니다.";
-            else if (dayFlow.CurrentDay == 1 && !Learned(Supply))
+            else if (dayFlow.CurrentDay == 1 && tutorial != null
+                && !tutorial.Learned(DayTutorialController.Supply))
                 supplyMessageText.text = tutorialCopy.supply;
             else supplyMessageText.text = "필요한 보급품을 구매하거나, 구매하지 않고 다음 DAY로 진행하세요.";
         }
