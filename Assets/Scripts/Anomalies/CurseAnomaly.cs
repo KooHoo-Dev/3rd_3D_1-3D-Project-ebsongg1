@@ -46,8 +46,6 @@ namespace WardShift
         [SerializeField, Min(0.1f)] private float resolvedFallbackParticleLifetime = 0.95f;
         [SerializeField, Min(0f)] private float resolvedFallbackParticleSpeed = 1.8f;
         [Tooltip("마지막 패치까지 모두 정화되어 진압에 성공했을 때 한 번 재생합니다.")]
-        [SerializeField] private AudioClip resolvedSfxClip;
-        [SerializeField, Range(0f, 1f)] private float resolvedSfxVolume = 0.55f;
         [Header("바닥 위치 자동 맞춤")]
         [SerializeField, Min(0.1f)] private float floorSnapProbeHeight = 2f;
         [SerializeField, Min(0.1f)] private float floorSnapProbeDistance = 4f;
@@ -332,6 +330,7 @@ namespace WardShift
             immediateStabilityDamage = Mathf.Max(0f, ruptureStabilityDamage);
             Debug.Log("저주 오염 파열: 시설 안정도 피해 후 오염 제거", this);
             SpawnAnomalyVfx(ruptureVfxPrefab);
+            PlayRuptureSfx(transform.position);
             NotifyRuptured();
             Destroy(gameObject);
             return stabilityLoss;
@@ -496,7 +495,8 @@ namespace WardShift
                     resolvedFallbackParticleSpeed, 0.08f);
             }
 
-            MagicVfxUtility.PlayDetachedSound(resolvedSfxClip, transform.position, resolvedSfxVolume);
+            AudioService.Play3DAt(WardShiftSoundId.CurseAnomalyResolved,
+                transform.position, GetInstanceID());
         }
 
         private void OnDrawGizmosSelected()

@@ -314,6 +314,8 @@ namespace WardShift
             if (!preparedDayReady || state != DayState.Preparing) return;
             preparedDayReady = false;
             session.BeginDay(dayDurationSeconds);
+            AudioService.PlayLoop(WardShiftSoundId.FacilityAmbient);
+            AudioService.Play2D(WardShiftSoundId.UiDayStart);
             if (wardStatus != null) wardStatus.ResumeGameFromUI();
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
@@ -330,6 +332,14 @@ namespace WardShift
         {
             if (state != DayState.Playing) return;
             session.CompleteDay(FinalDay);
+            if (state != DayState.Ending)
+                AudioService.StopLoop(WardShiftSoundId.FacilityAmbient);
+            if (state == DayState.Ending)
+            {
+                AudioService.Play2D(WardShiftSoundId.UiEndingResult);
+                AudioService.PlayLoop(WardShiftSoundId.EndingMusic);
+            }
+            else AudioService.Play2D(WardShiftSoundId.UiDayClear);
             ApplyUpgradeEffects();
             PrepareNextDaySeed();
             upgrades.ResetPurchaseForNewPhase();
@@ -349,6 +359,8 @@ namespace WardShift
         {
             if (state == DayState.DayClear || state == DayState.DayFailed) return;
             session.FailDay();
+            AudioService.StopLoop(WardShiftSoundId.FacilityAmbient);
+            AudioService.Play2D(WardShiftSoundId.UiGameOver);
             dayUi.SetMapOpen(false, false);
             dayUi.CloseInventory();
             supply.ClosePanel();

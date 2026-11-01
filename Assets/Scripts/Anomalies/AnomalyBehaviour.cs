@@ -68,6 +68,11 @@ namespace WardShift
 
         protected bool HasEnded => hasEnded;
 
+        protected void PlayRuptureSfx(Vector3 position)
+        {
+            AudioService.Play3DAt(WardShiftSoundId.AnomalyRupture, position, GetInstanceID());
+        }
+
         protected virtual void OnEnable()
         {
             if (!hasEnded && !activeAnomalies.Contains(this)) activeAnomalies.Add(this);

@@ -128,6 +128,7 @@ namespace WardShift
             EnsureUpgradePrices();
             if (supply != null && supply.PanelOpen) return false;
             if (upgrades == null || !upgrades.TryPurchase(type, state, upgradeStagePrices)) return false;
+            AudioService.Play2D(WardShiftSoundId.UiUpgradePurchase);
             if (currentDay < FinalDay && supply != null) supply.Open(false, false);
             return true;
         }
@@ -146,7 +147,9 @@ namespace WardShift
         public bool TryPurchaseDaySupply(ItemType item, out SupplyPurchaseBlockReason failure)
         {
             failure = SupplyPurchaseBlockReason.NotAvailable;
-            return supply != null && supply.TryPurchase(item, out failure);
+            if (supply == null || !supply.TryPurchase(item, out failure)) return false;
+            AudioService.Play2D(WardShiftSoundId.UiSupplyPurchase);
+            return true;
         }
 
         /// <summary>강화를 건너뛰고 상점으로 이동합니다.</summary>

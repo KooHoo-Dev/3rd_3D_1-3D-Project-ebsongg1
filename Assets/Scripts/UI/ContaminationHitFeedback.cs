@@ -11,8 +11,6 @@ namespace WardShift
         private readonly Color flashColor = new Color(0.7f, 0.16f, 0.85f, 0.38f);
         private PlayerContamination player;
         private WardStatusHUD statusHUD;
-        private AudioSource audioSource;
-        private AudioClip hitSfx;
         private float flashUntil;
         private float pendingExposureAmount;
         private float nextExposureFeedbackAt;
@@ -23,9 +21,8 @@ namespace WardShift
         private const float ExposureStopDebounceSeconds = 0.12f;
         public bool IsFlashActive => Time.unscaledTime < flashUntil;
 
-        public void Configure(WardShiftHUDLayout layout, AudioClip clip)
+        public void Configure(WardShiftHUDLayout layout)
         {
-            hitSfx = clip;
             if (layout == null || layout.HUDRoot == null) return;
             PlayerContamination next = FindFirstObjectByType<PlayerContamination>();
             if (player != next)
@@ -55,18 +52,12 @@ namespace WardShift
                 edges[3] = MakeEdge(root, "HitFlashRight", new Vector2(1, 0),
                     new Vector2(1, 1), new Vector2(-40, 0), Vector2.zero);
             }
-            if (audioSource == null)
-            {
-                audioSource = GetComponent<AudioSource>();
-                if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
-                audioSource.playOnAwake = false;
-            }
         }
 
         private void OnEnable()
         {
             WardShiftHUDLayout layout = GetComponent<WardShiftHUDLayout>();
-            if (layout != null) Configure(layout, hitSfx);
+            if (layout != null) Configure(layout);
         }
 
         private static Image MakeEdge(RectTransform parent, string name,
@@ -105,8 +96,7 @@ namespace WardShift
         {
             flashUntil = Time.unscaledTime + FlashSeconds;
             if (statusHUD != null) statusHUD.ShowContaminationIncrease(amount);
-            if (playSound && hitSfx != null && audioSource != null)
-                audioSource.PlayOneShot(hitSfx);
+            if (playSound) AudioService.Play2D(WardShiftSoundId.PlayerContaminationHit);
         }
 
         private void LateUpdate()

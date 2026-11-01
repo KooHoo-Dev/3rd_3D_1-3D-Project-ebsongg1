@@ -27,6 +27,11 @@ namespace WardShift
             if (controlsPanel != null) controlsPanel.SetActive(false);
         }
 
+        private void Start()
+        {
+            AudioService.PlayLoop(WardShiftSoundId.TitleMusic);
+        }
+
         private void OnEnable()
         {
             if (startButton != null) startButton.onClick.AddListener(StartNewGame);
@@ -46,6 +51,7 @@ namespace WardShift
         private void StartNewGame()
         {
             if (isTransitioning) return;
+            AudioService.Play2D(WardShiftSoundId.UiButtonClick);
             isTransitioning = true;
             SetMenuButtonsInteractable(false);
             PrepareSceneTransition();
@@ -54,17 +60,21 @@ namespace WardShift
 
         private void OpenControls()
         {
-            if (!isTransitioning && controlsPanel != null)
-                controlsPanel.SetActive(true);
+            if (isTransitioning || controlsPanel == null) return;
+            AudioService.Play2D(WardShiftSoundId.UiButtonClick);
+            controlsPanel.SetActive(true);
         }
 
         private void CloseControls()
         {
-            if (controlsPanel != null) controlsPanel.SetActive(false);
+            if (controlsPanel == null) return;
+            AudioService.Play2D(WardShiftSoundId.UiButtonClick);
+            controlsPanel.SetActive(false);
         }
 
         private void QuitGame()
         {
+            AudioService.Play2D(WardShiftSoundId.UiButtonClick);
 #if UNITY_EDITOR
             UnityEditor.EditorApplication.isPlaying = false;
 #else

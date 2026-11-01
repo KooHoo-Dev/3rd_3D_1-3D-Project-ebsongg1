@@ -58,11 +58,6 @@ namespace WardShift
         [SerializeField, Min(0f)] private float stageThreeStabilityLossPerSecond = 1f;
         [SerializeField, Min(0f)] private float ruptureStabilityDamage = 20f;
 
-        [Header("안정화 완료 사운드")]
-        [Tooltip("게이지가 100%에 도달해 진압 판정이 확정될 때 재생합니다. 비워 두어도 진압은 정상 처리됩니다.")]
-        [SerializeField] private AudioClip stabilizationCompleteSfx;
-        [SerializeField, Range(0f, 1f)] private float stabilizationCompleteSfxVolume = 0.65f;
-
         [Header("실행 상태 (읽기 전용)")]
         [SerializeField] private float age;
         [SerializeField] private int dangerStage = 1;
@@ -108,6 +103,12 @@ namespace WardShift
         public float SecondsUntilNextAttack => SecondsUntilNextBurst;
         public float SecondsUntilNextBurst => IsHazardActive ? Mathf.Max(0f, secondsUntilNextBurst) : 0f;
         public float RecoveryRemaining => IsHazardActive ? Mathf.Max(0f, recoveryRemaining) : 0f;
+        public void PlayAttackWarningSfx(WardShiftSoundId soundId)
+        {
+            if (!IsHazardActive || deviceVisuals == null) return;
+            deviceVisuals.PlayAttackWarningSfx(soundId);
+        }
+
         public float StabilizationSpeedMultiplier => RecoveryRemaining > 0f
             ? Mathf.Max(1f, recoveryStabilizationMultiplier) : 1f;
         public void ConfigureAttackPattern(bool alternate)
@@ -204,6 +205,7 @@ namespace WardShift
                 if (deviceVisuals != null) deviceVisuals.MarkRuptured();
                 immediateStabilityDamage = Mathf.Max(0f, ruptureStabilityDamage);
                 Debug.Log("장치형 마력 폭주 파열: 시설 안정도 피해 후 폭주 로직 제거", this);
+                PlayRuptureSfx(deviceVisuals != null ? deviceVisuals.transform.position : transform.position);
                 NotifyRuptured();
                 Destroy(gameObject);
                 return stabilityLoss;
@@ -332,9 +334,9 @@ namespace WardShift
             if (!resolutionSfxPlayed)
             {
                 resolutionSfxPlayed = true;
-                MagicVfxUtility.PlayDetachedSound(stabilizationCompleteSfx,
+                AudioService.Play3DAt(WardShiftSoundId.ManaDeviceStabilized,
                     deviceVisuals != null ? deviceVisuals.transform.position : transform.position,
-                    stabilizationCompleteSfxVolume);
+                    GetInstanceID());
             }
             try { NotifyResolved(); }
             finally { if (this != null) Destroy(gameObject); }

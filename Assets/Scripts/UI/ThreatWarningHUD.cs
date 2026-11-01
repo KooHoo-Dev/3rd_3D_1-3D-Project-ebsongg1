@@ -36,7 +36,6 @@ namespace WardShift
         private TMP_Text bannerKicker;
         private TMP_Text bannerHeadline;
         private TMP_Text bannerDetail;
-        private AudioSource audioSource;
 
         private int currentStage;
         private float stageNoticeRemaining;
@@ -90,8 +89,6 @@ namespace WardShift
             activeRadialWarnings = 0;
             activeProjectileWarnings = 0;
             nearestDeviceAttackSeconds = float.PositiveInfinity;
-            bool newRadialWarning = false;
-            bool newProjectileWarning = false;
             PlayerContamination player = dayFlow != null ? dayFlow.Player : null;
             if (player == null) player = FindFirstObjectByType<PlayerContamination>();
 
@@ -149,8 +146,10 @@ namespace WardShift
                 if (!previousDeviceWarnings.TryGetValue(instanceId, out ManaDeviceAnomaly.AttackKind oldAttack)
                     || oldAttack != attack)
                 {
-                    if (attack == ManaDeviceAnomaly.AttackKind.TrackingBolt) newProjectileWarning = true;
-                    else newRadialWarning = true;
+                    bool trackingBolt = attack == ManaDeviceAnomaly.AttackKind.TrackingBolt;
+                    device.PlayAttackWarningSfx(trackingBolt
+                        ? WardShiftSoundId.ManaDeviceTrackingWarning
+                        : WardShiftSoundId.ManaDeviceRadialWarning);
                 }
             }
 
@@ -159,10 +158,6 @@ namespace WardShift
             UpdateAttackWarningHistory();
             hasAttackWarning = gameplayActive
                 && (activeRadialWarnings > 0 || activeProjectileWarnings > 0);
-            if ((newRadialWarning || newProjectileWarning) && gameplayActive)
-                PlayWarningSound(newProjectileWarning
-                    ? layout.TrackingBoltWarningSfx : layout.RadialBurstWarningSfx);
-
             if (hasAttackWarning)
             {
                 PauseStageNotice();
@@ -229,7 +224,7 @@ namespace WardShift
             bannerDetail.text = "지도와 Q 마력 감응으로 위치를 확인할 수 있습니다.";
             ApplyBannerStyle(layout.SpecialSpawnWarningColor, false);
             if (specialSpawnWarningSoundPlayed) return;
-            PlayWarningSound(layout.SpecialSpawnWarningSfx);
+            AudioService.Play2D(WardShiftSoundId.SpecialRiftSpawn);
             specialSpawnWarningSoundPlayed = true;
         }
 
@@ -550,7 +545,9 @@ namespace WardShift
             stageNoticeRemaining = layout.StageWarningDuration;
             stageEdgeRemaining = layout.StageEdgeFlashDuration;
             RefreshStageCopy();
-            PlayWarningSound(nextStage == 3 ? layout.StageThreeWarningSfx : layout.StageTwoWarningSfx);
+            AudioService.Play2D(nextStage == 3
+                ? WardShiftSoundId.AnomalyStageThree
+                : WardShiftSoundId.AnomalyStageTwo);
         }
 
         private void RefreshStageCopy()
@@ -661,16 +658,6 @@ namespace WardShift
             color.a = Mathf.Clamp01(intensity);
             foreach (Image image in edgeImages)
                 if (image != null) image.color = color;
-        }
-
-        private void PlayWarningSound(AudioClip clip)
-        {
-            if (clip == null) return;
-            if (audioSource == null) audioSource = GetComponent<AudioSource>();
-            if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
-            audioSource.playOnAwake = false;
-            audioSource.spatialBlend = 0f;
-            audioSource.PlayOneShot(clip);
         }
 
         private void LateUpdate()

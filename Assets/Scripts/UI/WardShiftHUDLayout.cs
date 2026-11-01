@@ -1,6 +1,5 @@
 using TMPro;
 using UnityEngine;
-using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 namespace WardShift
@@ -18,9 +17,6 @@ namespace WardShift
         [Tooltip("Crosshair Image의 가로·세로 크기만 변경합니다. 기존 6px의 1.4배는 8.4px입니다.")]
         [SerializeField, Min(1f)] private float crosshairSize = 8.4f;
         [SerializeField] private Color crosshairOutlineColor = new Color(0.08f, 0.04f, 0.16f, 0.8f);
-        [Header("오염도 증가 피드백")]
-        [Tooltip("장치 공격처럼 실제 직접 피격으로 오염도가 증가했을 때만 재생합니다. 지속 노출에는 재생하지 않습니다.")]
-        [FormerlySerializedAs("deviceHitSfx"), SerializeField] private AudioClip contaminationIncreaseSfx;
         [Header("이상현상·장치 위험 경고")]
         [Tooltip("상단 중앙 경고 배너의 기준 해상도 크기입니다.")]
         [SerializeField, InspectorName("경고 배너 크기")] private Vector2 threatBannerSize = new Vector2(920f, 132f);
@@ -38,9 +34,6 @@ namespace WardShift
         private float specialSpawnWarningDuration = 2.2f;
         [SerializeField, InspectorName("특별 출현 경고 색")]
         private Color specialSpawnWarningColor = new Color(0.78f, 0.48f, 1f, 1f);
-        [Tooltip("비워 두면 특별 마력 균열 출현 경고음을 재생하지 않습니다.")]
-        [SerializeField, InspectorName("특별 출현 경고음")]
-        private AudioClip specialSpawnWarningSfx;
         [SerializeField, InspectorName("2단계 경고 색")] private Color stageTwoWarningColor = new Color(1f, 0.62f, 0.25f, 1f);
         [SerializeField, InspectorName("3단계 경고 색")] private Color stageThreeWarningColor = new Color(1f, 0.24f, 0.2f, 1f);
         [SerializeField, InspectorName("원형 방출 경고 색")] private Color radialBurstWarningColor = new Color(1f, 0.34f, 0.16f, 1f);
@@ -62,11 +55,6 @@ namespace WardShift
         [SerializeField, Range(0f, 1f), InspectorName("장치 공격 테두리 강도")]
         private float deviceAttackEdgeIntensity = 0.62f;
         [SerializeField, Min(0f), InspectorName("테두리 점멸 속도")] private float threatEdgePulseSpeed = 7f;
-        [Tooltip("비워 두면 소리 없이 표시합니다. 각 경고에 맞는 짧은 경고음을 선택적으로 연결하세요.")]
-        [SerializeField, InspectorName("2단계 경고음")] private AudioClip stageTwoWarningSfx;
-        [SerializeField, InspectorName("3단계 경고음")] private AudioClip stageThreeWarningSfx;
-        [SerializeField, InspectorName("원형 방출 경고음")] private AudioClip radialBurstWarningSfx;
-        [SerializeField, InspectorName("추적탄 경고음")] private AudioClip trackingBoltWarningSfx;
         [SerializeField] private RectTransform hudRoot;
         [SerializeField] private TMP_Text dayStatusText;
         [SerializeField] private TMP_Text pickupText;
@@ -88,7 +76,6 @@ namespace WardShift
         internal float StageWarningDuration => Mathf.Max(0.1f, stageWarningDuration);
         internal float SpecialSpawnWarningDuration => Mathf.Max(0.1f, specialSpawnWarningDuration);
         internal Color SpecialSpawnWarningColor => specialSpawnWarningColor;
-        internal AudioClip SpecialSpawnWarningSfx => specialSpawnWarningSfx;
         internal Color StageTwoWarningColor => stageTwoWarningColor;
         internal Color StageThreeWarningColor => stageThreeWarningColor;
         internal Color RadialBurstWarningColor => radialBurstWarningColor;
@@ -102,10 +89,6 @@ namespace WardShift
         internal float StageThreeEdgeIntensity => Mathf.Clamp01(stageThreeEdgeIntensity);
         internal float DeviceAttackEdgeIntensity => Mathf.Clamp01(deviceAttackEdgeIntensity);
         internal float ThreatEdgePulseSpeed => Mathf.Max(0f, threatEdgePulseSpeed);
-        internal AudioClip StageTwoWarningSfx => stageTwoWarningSfx;
-        internal AudioClip StageThreeWarningSfx => stageThreeWarningSfx;
-        internal AudioClip RadialBurstWarningSfx => radialBurstWarningSfx;
-        internal AudioClip TrackingBoltWarningSfx => trackingBoltWarningSfx;
         public static readonly Color PanelColor = new Color(0.025f, 0.035f, 0.052f, 0.91f);
         public static readonly Color Muted = new Color(0.72f, 0.77f, 0.82f);
         public static readonly Color Gold = new Color(0.91f, 0.76f, 0.43f);
@@ -195,7 +178,7 @@ namespace WardShift
         {
             ContaminationHitFeedback feedback = GetComponent<ContaminationHitFeedback>();
             if (feedback == null) feedback = gameObject.AddComponent<ContaminationHitFeedback>();
-            feedback.Configure(this, contaminationIncreaseSfx);
+            feedback.Configure(this);
         }
 
         private void ConfigureThreatWarnings()

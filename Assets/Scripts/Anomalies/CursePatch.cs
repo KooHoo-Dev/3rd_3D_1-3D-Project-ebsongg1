@@ -41,9 +41,6 @@ namespace WardShift
         [SerializeField, Min(0.005f)] private float purifiedFallbackParticleSize = 0.035f;
         [SerializeField, Min(0.1f)] private float purifiedFallbackParticleLifetime = 0.65f;
         [SerializeField, Min(0f)] private float purifiedFallbackParticleSpeed = 0.7f;
-        [Tooltip("패치가 제거될 때 한 번 재생합니다. 비워 두어도 정화는 정상 처리됩니다.")]
-        [SerializeField] private AudioClip purifiedSfxClip;
-        [SerializeField, Range(0f, 1f)] private float purifiedSfxVolume = 0.3f;
         [SerializeField, Min(0.1f)] private float dangerRadius = 0.65f;
         [SerializeField, Min(0f)] private float surfaceOffset = 0.02f;
         [Tooltip("단계별 색상입니다. 파티클은 원본 텍스처 밝기를 보존하도록 RGB 색조와 알파를 적용합니다.")]
@@ -346,7 +343,8 @@ namespace WardShift
                     purifyingMoteColor, purifiedFallbackParticleCount, purifiedFallbackParticleSize,
                     purifiedFallbackParticleLifetime, purifiedFallbackParticleSpeed, 0.035f);
             }
-            MagicVfxUtility.PlayDetachedSound(purifiedSfxClip, completionPosition, purifiedSfxVolume);
+            AudioService.Play3DAt(WardShiftSoundId.CursePatchPurified,
+                completionPosition, GetInstanceID());
             Purified?.Invoke(this);
         }
 

@@ -51,6 +51,7 @@ namespace WardShift
         private float contaminationEmphasisUntil;
         private bool emphasizedFirstStabilityLoss;
         private bool emphasizedFirstContaminationGain;
+        private bool wasFacilityStabilityDanger;
         public FacilityZoneTracker ZoneTracker => zoneTracker;
 
         public void ShowContaminationIncrease(float amount)
@@ -113,6 +114,10 @@ namespace WardShift
             previousStability = status.Stability;
             previousContamination = player.Value;
             bool gameplayActive = dayFlow == null || dayFlow.State == DayState.Playing;
+            bool facilityStabilityDanger = gameplayActive && status.Stability <= 20f;
+            if (facilityStabilityDanger && !wasFacilityStabilityDanger)
+                AudioService.Play2D(WardShiftSoundId.FacilityStabilityDanger);
+            wasFacilityStabilityDanger = facilityStabilityDanger;
             if (!gameplayActive) directHitUntil = 0f;
             priorities.Clear();
             seenAnomalies.Clear();

@@ -152,6 +152,12 @@ namespace WardShift
             RefreshVFX();
         }
 
+        public void PlayAttackWarningSfx(WardShiftSoundId soundId)
+        {
+            Transform anchor = visualRoot != null ? visualRoot : transform;
+            AudioService.Play3DAt(soundId, anchor.position, GetInstanceID());
+        }
+
         public void ShowProjectileLaunch()
         {
             impactUntil = Time.time + 0.25f;

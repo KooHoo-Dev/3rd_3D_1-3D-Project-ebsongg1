@@ -251,9 +251,13 @@ namespace WardShift
                 button.targetGraphic = slot.GetComponent<Image>();
                 button.onClick.AddListener(() =>
                 {
+                    AudioService.Play2D(WardShiftSoundId.UiButtonClick);
                     if (inventory != null && dayFlow != null)
-                        inventory.TryUseItem(slotIndex, dayFlow.Player, dayFlow.Status,
-                            dayFlow.PotionRecoveryAmount);
+                    {
+                        if (inventory.TryUseItem(slotIndex, dayFlow.Player, dayFlow.Status,
+                            dayFlow.PotionRecoveryAmount))
+                            AudioService.Play2D(WardShiftSoundId.PlayerItemUse);
+                    }
                 });
                 slotButtons[i] = button;
 
@@ -391,6 +395,7 @@ namespace WardShift
                 new Vector2(0.5f, 0.5f), position, size, new Color(0.12f, 0.42f, 0.6f, 1f));
             Button button = buttonObject.AddComponent<Button>();
             button.targetGraphic = buttonObject.GetComponent<Image>();
+            button.onClick.AddListener(() => AudioService.Play2D(WardShiftSoundId.UiButtonClick));
             button.onClick.AddListener(onClick);
             CreateText("Label", buttonObject.transform, Vector2.zero, Vector2.one,
                 new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero, 22,
@@ -428,6 +433,7 @@ namespace WardShift
                 new Vector2(-145f, 55f), new Vector2(260f, 72f), new Color(0.12f, 0.32f, 0.43f, 1f));
             Button button = buttonObject.AddComponent<Button>();
             button.targetGraphic = buttonObject.GetComponent<Image>();
+            button.onClick.AddListener(() => AudioService.Play2D(WardShiftSoundId.UiButtonClick));
             button.onClick.AddListener(onClick);
             CreateText("ButtonLabel", buttonObject.transform, Vector2.zero, Vector2.one,
                 new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero, 26,
@@ -444,6 +450,7 @@ namespace WardShift
                 new Vector2(145f, 55f), new Vector2(260f, 66f), new Color(0.11f, 0.12f, 0.17f, 1f));
             Button button = buttonObject.AddComponent<Button>();
             button.targetGraphic = buttonObject.GetComponent<Image>();
+            button.onClick.AddListener(() => AudioService.Play2D(WardShiftSoundId.UiButtonClick));
             button.onClick.AddListener(onClick);
             CreateText("ButtonLabel", buttonObject.transform, Vector2.zero, Vector2.one,
                 new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero, 22,

@@ -162,6 +162,7 @@ namespace WardShift
             hasRuptured = true;
             immediateStabilityDamage = Mathf.Max(0f, ruptureStabilityDamage);
             Debug.Log("마력 균열 파열: 시설 안정도 피해 후 제거", this);
+            PlayRuptureSfx(transform.position);
             Ruptured?.Invoke(this);
             NotifyRuptured();
             Destroy(gameObject);

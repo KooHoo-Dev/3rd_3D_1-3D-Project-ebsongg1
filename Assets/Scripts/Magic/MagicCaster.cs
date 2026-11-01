@@ -139,6 +139,7 @@ namespace WardShift
             CancelCast();
             continuousPurifySession = false;
             selectedMagic = magic;
+            AudioService.Play2D(WardShiftSoundId.PlayerMagicSelect);
             StopPurifyBeamVfx();
             resultUntil = 0f;
             waitingForRelease = castAction.IsPressed();
@@ -251,6 +252,7 @@ namespace WardShift
             if (!pressed || !castAction.WasPressedThisFrame()) return;
             if (aimed == null || aimed.RequiredMagic != selectedMagic) return;
             castingTarget = aimed;
+            AudioService.Play2D(WardShiftSoundId.PlayerMagicCast);
             resultUntil = 0f;
             Charge(aimed);
         }
@@ -262,7 +264,8 @@ namespace WardShift
             if (activeSealRift != null && activeSealRift.IsSealChainInProgress)
             {
                 ManaRift chain = activeSealRift;
-                chain.TryCompleteSealClick(aimed);
+                if (chain.TryCompleteSealClick(aimed))
+                    AudioService.Play2D(WardShiftSoundId.PlayerMagicCast);
                 if (chain != null && !chain.IsSealChainInProgress
                     && chain.CompletedSealCount >= chain.SealPointCount)
                     StopTrackingSealRift();
@@ -274,12 +277,15 @@ namespace WardShift
             ManaRift rift = aimed.GetComponentInParent<ManaRift>();
             if (rift != null)
             {
-                if (rift.TryCompleteSealClick(aimed) && rift.IsSealChainInProgress)
+                bool accepted = rift.TryCompleteSealClick(aimed);
+                if (accepted) AudioService.Play2D(WardShiftSoundId.PlayerMagicCast);
+                if (accepted && rift.IsSealChainInProgress)
                     TrackSealRift(rift);
                 return;
             }
 
-            aimed.CompleteInstantly(MagicType.Seal);
+            if (aimed.CompleteInstantly(MagicType.Seal))
+                AudioService.Play2D(WardShiftSoundId.PlayerMagicCast);
         }
 
         private void UpdatePurifyBeamVfx()
@@ -371,6 +377,7 @@ namespace WardShift
 
             if (aimed == null || !aimed.AllowHeldPurifyChain) return;
             castingTarget = aimed;
+            AudioService.Play2D(WardShiftSoundId.PlayerMagicCast);
             continuousPurifySession = true;
             resultUntil = 0f;
             ChargeContinuousPurify(aimed);

@@ -260,6 +260,7 @@ namespace WardShift
         private void OnStartClicked()
         {
             if (!isVisible || dayFlow == null) return;
+            AudioService.Play2D(WardShiftSoundId.UiButtonClick);
             isVisible = false;
             root.SetActive(false);
             dayFlow.StartPreparedDayFromBriefing();
