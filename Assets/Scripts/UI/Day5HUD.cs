@@ -57,11 +57,8 @@ namespace WardShift
         private GameObject clearPanel;
         private GameObject failedPanel;
         private GameObject endingPanel;
+        private SupplyShopUIController supplyView;
         private GameObject supplyPanel;
-        private GameObject supplyOptionsRoot;
-        private Button supplyPotionButton;
-        private Button supplyRepairButton;
-        private Button supplyContinueButton;
         private TMP_Text clearSummaryText;
         private TMP_Text failedSummaryText;
         private TMP_Text endingSummaryText;
@@ -71,15 +68,7 @@ namespace WardShift
         private TMP_Text endingManaValueText;
         private TMP_Text upgradeResultText;
         private TMP_Text anomalyResolutionFeedbackText;
-        private TMP_Text supplyTitleText;
-        private TMP_Text supplyMessageText;
-        private TMP_Text supplyBalanceText;
-        private TMP_Text supplyPurchaseCountText;
-        private TMP_Text supplyPotionLabel;
-        private TMP_Text supplyRepairLabel;
-        private TMP_Text supplyContinueLabel;
         private string upgradeResult = string.Empty;
-        private string supplyFeedback = string.Empty;
         private int lastDisplayedClearDay;
         private float anomalyResolutionFeedbackUntil;
         public bool HasKoreanFont => koreanFont != null;
@@ -101,6 +90,7 @@ namespace WardShift
             inventory = playerInventory;
             if (uiFont != null) koreanFont = uiFont;
             inventoryView?.Bind(inventory, dayFlow);
+            supplyView?.Bind(dayFlow, inventory);
             SubscribeResolutionFeedback();
         }
 
@@ -163,7 +153,7 @@ namespace WardShift
             {
                 lastDisplayedClearDay = dayFlow.CurrentDay;
                 upgradeResult = string.Empty;
-                supplyFeedback = string.Empty;
+                supplyView?.ClearFeedback();
             }
             RefreshSupplyUI();
             if (clearSummaryText != null)
@@ -287,44 +277,8 @@ namespace WardShift
 
         private void BuildSupplyPanel(Transform parent)
         {
-            supplyPanel = CreatePanel("DaySupplyShopPanel", parent, new Vector2(0.5f, 0.5f),
-                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero,
-                new Vector2(760f, 600f), new Color(0.035f, 0.055f, 0.09f, 0.98f));
-            supplyTitleText = CreateText("Title", supplyPanel.transform, new Vector2(0f, 1f), new Vector2(1f, 1f),
-                new Vector2(0.5f, 1f), new Vector2(0f, -38f), new Vector2(-40f, 58f),
-                38, TextAlignmentOptions.Center, new Color(0.65f, 0.92f, 1f));
-            supplyTitleText.text = "보급 상점";
-            supplyBalanceText = CreateText("ManaCrystalBalance", supplyPanel.transform,
-                new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f),
-                new Vector2(0f, -108f), new Vector2(-64f, 34f), 23,
-                TextAlignmentOptions.Center, WardShiftHUDLayout.Gold);
-            supplyPurchaseCountText = CreateText("PurchaseCount", supplyPanel.transform,
-                new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f),
-                new Vector2(0f, -148f), new Vector2(-64f, 32f), 19,
-                TextAlignmentOptions.Center, new Color(0.85f, 0.9f, 1f));
-            supplyMessageText = CreateText("ShopMessage", supplyPanel.transform,
-                new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f),
-                new Vector2(0f, -190f), new Vector2(-64f, 46f), 17,
-                TextAlignmentOptions.Center, Color.white);
-
-            supplyOptionsRoot = CreateRectTransformObject("SupplyOptions", supplyPanel.transform);
-            supplyPotionButton = CreateActionButton("BuyPurificationPotion", supplyOptionsRoot.transform,
-                new Vector2(-172f, -55f), new Vector2(320f, 220f), "정화 물약",
-                () => TryPurchaseSupply(ItemType.PurificationPotion));
-            supplyPotionLabel = supplyPotionButton.GetComponentInChildren<TMP_Text>();
-            supplyPotionLabel.fontSize = 20f;
-            supplyRepairButton = CreateActionButton("BuyEmergencyRepairKit", supplyOptionsRoot.transform,
-                new Vector2(172f, -55f), new Vector2(320f, 220f), "시설 수리 키트",
-                () => TryPurchaseSupply(ItemType.EmergencyRepairKit));
-            supplyRepairLabel = supplyRepairButton.GetComponentInChildren<TMP_Text>();
-            supplyRepairLabel.fontSize = 20f;
-
-            supplyContinueButton = CreateActionButton("ContinueToNextDay", supplyPanel.transform,
-                new Vector2(0f, 32f), new Vector2(360f, 60f), "구매하지 않고 다음 DAY",
-                () => { if (dayFlow != null) dayFlow.CompleteSupplyShopAndBeginNextDay(); }, true,
-                new Vector2(0.5f, 0f), new Vector2(0.5f, 0f));
-            supplyContinueLabel = supplyContinueButton.GetComponentInChildren<TMP_Text>();
-            supplyPanel.SetActive(false);
+            supplyView = new SupplyShopUIController(parent, koreanFont, dayFlow, inventory);
+            supplyPanel = supplyView.Panel;
         }
 
         private Button CreateActionButton(string name, Transform parent, Vector2 position,
@@ -528,61 +482,13 @@ namespace WardShift
 
         private void RefreshSupplyUI()
         {
-            if (dayFlow == null || supplyPanel == null) return;
+            if (dayFlow == null || supplyView == null) return;
             bool pending = dayFlow.DaySupplyPending && dayFlow.State == DayState.DayClear;
             bool open = pending && dayFlow.SupplyPanelOpen;
-            supplyPanel.SetActive(open);
+            string tutorialHint = dayFlow.CurrentDay == 1 && tutorial != null
+                && !tutorial.Learned(DayTutorialController.Supply) ? tutorialCopy.supply : null;
+            supplyView.SetVisible(open, tutorialHint);
             clearPanel.SetActive(dayFlow.State == DayState.DayClear && !open);
-            if (!open) return;
-
-            supplyBalanceText.text = $"보유 마력 조각: {inventory.ManaCrystals}개";
-            supplyPurchaseCountText.text = $"이번 보급 구매: {dayFlow.SupplyPurchasesThisShop} / {dayFlow.MaximumSupplyPurchases}"
-                + $"   (남은 구매 {dayFlow.RemainingSupplyPurchases}회)";
-            supplyOptionsRoot.SetActive(true);
-            supplyTitleText.text = $"DAY {dayFlow.CurrentDay} 보급 상점";
-
-            RefreshSupplyOption(supplyPotionButton, supplyPotionLabel, ItemType.PurificationPotion,
-                "정화 물약", $"오염도 {dayFlow.NextDayPotionRecoveryAmount:F0} 회복", dayFlow.PurificationPotionPrice);
-            RefreshSupplyOption(supplyRepairButton, supplyRepairLabel, ItemType.EmergencyRepairKit,
-                "시설 수리 키트", $"시설 안정도 {PlayerInventory.RepairKitRecovery:F0} 회복",
-                dayFlow.EmergencyRepairKitPrice);
-
-            supplyContinueLabel.text = dayFlow.SupplyPurchasesThisShop == 0
-                ? "구매하지 않고 다음 DAY" : "다음 DAY 시작";
-            if (!string.IsNullOrEmpty(supplyFeedback))
-                supplyMessageText.text = supplyFeedback;
-            else if (dayFlow.RemainingSupplyPurchases <= 0)
-                supplyMessageText.text = "이번 DAY 구매 한도에 도달했습니다. 다음 DAY로 진행할 수 있습니다.";
-            else if (dayFlow.CurrentDay == 1 && tutorial != null
-                && !tutorial.Learned(DayTutorialController.Supply))
-                supplyMessageText.text = tutorialCopy.supply;
-            else supplyMessageText.text = "필요한 보급품을 구매하거나, 구매하지 않고 다음 DAY로 진행하세요.";
-        }
-
-        private void RefreshSupplyOption(Button button, TMP_Text label, ItemType item,
-            string itemName, string description, int price)
-        {
-            SupplyPurchaseBlockReason reason = dayFlow.GetSupplyPurchaseBlockReason(item);
-            label.richText = true;
-            label.text = $"<b>{itemName}</b>\n{description}\n가격: {price} 마력 조각"
-                + $"\n보유 수량: {inventory.GetItemCount(item)}개\n{GetSupplyBlockReasonText(reason)}";
-            button.interactable = reason == SupplyPurchaseBlockReason.None;
-            button.GetComponent<Image>().color = button.interactable
-                ? new Color(0.12f, 0.42f, 0.6f, 1f)
-                : new Color(0.22f, 0.25f, 0.3f, 1f);
-        }
-
-        private static string GetSupplyBlockReasonText(SupplyPurchaseBlockReason reason)
-        {
-            switch (reason)
-            {
-                case SupplyPurchaseBlockReason.None: return "구매 가능";
-                case SupplyPurchaseBlockReason.PurchaseLimitReached: return "구매 한도 도달";
-                case SupplyPurchaseBlockReason.DuplicateInput: return "중복 입력 방지 중";
-                case SupplyPurchaseBlockReason.InsufficientManaCrystals: return "마력 조각 부족";
-                case SupplyPurchaseBlockReason.InventoryFull: return "인벤토리 공간 부족";
-                default: return "구매 불가";
-            }
         }
 
         private void OnUpgradeClicked(DayUpgradeType type)
@@ -592,28 +498,6 @@ namespace WardShift
             upgradeResult = purchased ? $"{GetUpgradeName(type)} 강화 구매 완료"
                 : "구매할 수 없습니다. 결정 수량과 오늘 구매 여부를 확인하세요.";
             RefreshUpgradeCards();
-        }
-
-        private void TryPurchaseSupply(ItemType item)
-        {
-            if (dayFlow == null) return;
-            bool purchased = dayFlow.TryPurchaseDaySupply(item, out SupplyPurchaseBlockReason failure);
-            supplyFeedback = purchased
-                ? $"{(item == ItemType.PurificationPotion ? "정화 물약" : "시설 수리 키트")} 구매 완료."
-                : GetSupplyPurchaseFailureMessage(failure);
-            RefreshSupplyUI();
-        }
-
-        private static string GetSupplyPurchaseFailureMessage(SupplyPurchaseBlockReason reason)
-        {
-            switch (reason)
-            {
-                case SupplyPurchaseBlockReason.PurchaseLimitReached: return "이번 DAY 구매 한도에 도달했습니다.";
-                case SupplyPurchaseBlockReason.DuplicateInput: return "구매 요청을 처리 중입니다. 잠시 후 다시 시도하세요.";
-                case SupplyPurchaseBlockReason.InsufficientManaCrystals: return "마력 조각이 부족합니다.";
-                case SupplyPurchaseBlockReason.InventoryFull: return "인벤토리에 해당 아이템을 넣을 공간이 없습니다.";
-                default: return "현재는 이 아이템을 구매할 수 없습니다.";
-            }
         }
 
         private static GameObject CreatePanel(string name, Transform parent, Vector2 anchorMin,
