@@ -375,7 +375,6 @@ namespace WardShift.Editor
 
                 case 111:
                     if (!day.IsCleaningUp) return;
-                    SetPrivateField(ward.Player, "recoveryPerSecond", 0f);
                     SetPrivateField(ward.Player, "contamination", 100f);
                     phase = 112;
                     phaseStartedAt = EditorApplication.timeSinceStartup;

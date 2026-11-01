@@ -130,7 +130,7 @@ namespace WardShift.Editor
                 {
                     AssertStoryCodeHasNoFloodReferences();
                     AssertNoConditionUi();
-                    AssertBaseRecoveryAndPotion();
+                    AssertExposureAndPotion();
                     AssertBaseAnomalyRewardsAndNoDuplicatePayout();
                     runtimeAssertionsDone = true;
                     return;
@@ -177,7 +177,7 @@ namespace WardShift.Editor
                 Assert(GetPrivateField<GameObject>(dayHud, "endingPanel").activeSelf,
                     "DAY 7 ending panel was not shown.");
                 AssertNoConditionUi();
-                Finish(true, "DAY 1–7 stayed condition-free; base recovery, potion and 1/2/3 rewards passed; upgrade, shop, retry, and DAY 7 ending passed.");
+                Finish(true, "DAY 1–7 stayed condition-free; no passive recovery, potion and 1/2/3 rewards passed; upgrade, shop, retry, and DAY 7 ending passed.");
                 return;
             }
 
@@ -266,24 +266,17 @@ namespace WardShift.Editor
                 "HUD layout retains no serialized flood text reference.");
         }
 
-        private static void AssertBaseRecoveryAndPotion()
+        private static void AssertExposureAndPotion()
         {
-            GameObject zoneObject = new GameObject("Temporary Story Check Safe Zone");
             GameObject playerObject = new GameObject("Temporary Story Check Player");
             GameObject inventoryObject = new GameObject("Temporary Story Check Inventory");
             try
             {
-                BoxCollider box = zoneObject.AddComponent<BoxCollider>();
-                box.isTrigger = true;
-                box.size = Vector3.one * 10f;
-                SafeZone zone = zoneObject.AddComponent<SafeZone>();
                 PlayerContamination player = playerObject.AddComponent<PlayerContamination>();
                 SetPrivateField(player, "contamination", 50f);
-                Assert(Mathf.Approximately(player.SafeZoneRecoveryPerSecond, 10f),
-                    "Safe zone recovery is not at its 10-point-per-second base rate.");
-                player.Advance(1f, Array.Empty<AnomalyBehaviour>(), new[] { zone });
-                Assert(player.InSafeZone && Mathf.Approximately(player.Value, 40f),
-                    "A safe zone did not recover the 10-point base amount in one second.");
+                player.Advance(1f, Array.Empty<AnomalyBehaviour>());
+                Assert(Mathf.Approximately(player.Value, 50f) && Mathf.Approximately(player.ExposurePerSecond, 0f),
+                    "Contamination changed without an anomaly or an item.");
 
                 PlayerInventory testInventory = inventoryObject.AddComponent<PlayerInventory>();
                 Assert(testInventory.TryAddItem(ItemType.PurificationPotion), "Could not add a test potion.");
@@ -296,7 +289,6 @@ namespace WardShift.Editor
             }
             finally
             {
-                UnityEngine.Object.Destroy(zoneObject);
                 UnityEngine.Object.Destroy(playerObject);
                 UnityEngine.Object.Destroy(inventoryObject);
             }

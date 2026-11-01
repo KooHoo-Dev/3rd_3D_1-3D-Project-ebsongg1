@@ -82,7 +82,7 @@ namespace WardShift
             if (!Mathf.Approximately(previousStability, stability))
                 StabilityChanged?.Invoke(stability);
             if (player.isActiveAndEnabled)
-                player.Advance(Time.deltaTime, anomalies, FindObjectsByType<SafeZone>(FindObjectsSortMode.None));
+                player.Advance(Time.deltaTime, anomalies);
             if (stability <= 0f || player.Value >= 100f)
                 Fail(stability <= 0f ? "시설 안정도 0" : "마력 오염도 100");
         }

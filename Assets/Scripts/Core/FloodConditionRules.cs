@@ -42,11 +42,6 @@ namespace WardShift
             return false;
         }
 
-        public static float SafeZoneRecoveryMultiplier(FloodCondition condition)
-        {
-            return condition == FloodCondition.PurificationCycle ? 2f : 1f;
-        }
-
         public static float PotionRecoveryMultiplier(FloodCondition condition)
         {
             return condition == FloodCondition.PurificationCycle ? 2f / 3f : 1f;
@@ -80,7 +75,7 @@ namespace WardShift
             switch (condition)
             {
                 case FloodCondition.PurificationCycle:
-                    return "안전 구역 오염 회복 속도 2배 · 정화약 회복량 2/3";
+                    return "정화약 회복량 2/3";
                 case FloodCondition.EarlySealBonus:
                     return "1단계 이상현상 진압 보상 1개 → 2개 · 2·3단계 보상 유지";
                 default:
@@ -94,10 +89,8 @@ namespace WardShift
             switch (condition)
             {
                 case FloodCondition.PurificationCycle:
-                    float recoveryMultiplier = SafeZoneRecoveryMultiplier(condition);
                     float potionMultiplier = PotionRecoveryMultiplier(condition);
-                    return "안전 구역 오염 회복 속도 <color=#75E6A5>"
-                        + recoveryMultiplier.ToString("0.##") + "배</color> · 정화약 회복량 <color=#F5A067>"
+                    return "정화약 회복량 <color=#F5A067>"
                         + FormatRatio(potionMultiplier) + "</color>";
                 case FloodCondition.EarlySealBonus:
                     int baseReward = 1;
@@ -114,7 +107,7 @@ namespace WardShift
             switch (condition)
             {
                 case FloodCondition.PurificationCycle:
-                    return "정화약의 회복량이 줄어듭니다. 안전 구역으로 자주 복귀하세요.";
+                    return "정화약의 회복량이 줄어듭니다.";
                 case FloodCondition.EarlySealBonus:
                     return "이상현상을 1단계에서 빠르게 진압하면 보상을 더 얻습니다.";
                 default:

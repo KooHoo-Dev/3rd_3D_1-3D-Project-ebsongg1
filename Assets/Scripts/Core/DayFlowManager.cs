@@ -332,8 +332,7 @@ namespace WardShift
         {
             if (state != DayState.Playing) return;
             session.CompleteDay(FinalDay);
-            if (state != DayState.Ending)
-                AudioService.StopLoop(WardShiftSoundId.FacilityAmbient);
+            AudioService.StopLoop(WardShiftSoundId.FacilityAmbient);
             if (state == DayState.Ending)
             {
                 AudioService.Play2D(WardShiftSoundId.UiEndingResult);

@@ -159,7 +159,7 @@ namespace WardShift
             {
                 ZoneIdentity zone = zoneTracker != null ? zoneTracker.CurrentZone : null;
                 locationText.text = (zone != null ? zone.DisplayName + "  ·  " : "")
-                    + (player.InSafeZone ? "안전 구역" : string.Format("노출 +{0:F1}/초", player.ExposurePerSecond));
+                    + string.Format("노출 +{0:F1}/초", player.ExposurePerSecond);
             }
             if (stabilityFill != null) stabilityFill.fillAmount = status.Stability / 100f;
             if (contaminationFill != null) contaminationFill.fillAmount = player.Value / 100f;
@@ -177,7 +177,7 @@ namespace WardShift
             {
                 warningText.color = new Color(1f, 0.44f, 0.4f);
                 string globalWarning = player.Value >= 80f && status.Stability <= 20f ? "오염도 / 시설 안정도 모두 위험"
-                    : player.Value >= 80f ? "오염도 위험 · 안전 구역으로 이동"
+                    : player.Value >= 80f ? "오염도 위험 · 오염원에서 벗어나세요"
                     : status.Stability <= 20f ? "시설 안정도 위험 · 긴급 대응 필요"
                     : player.ExposurePerSecond > 0f ? "위험 영역 근처: 오염도 증가 중" : "";
                 // 단계 상승과 장치 공격은 별도의 상단 경고 배너가 우선 관리합니다.

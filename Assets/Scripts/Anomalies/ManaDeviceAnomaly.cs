@@ -280,7 +280,7 @@ namespace WardShift
             workedThisBurstCycle = false;
             recoveryRemaining = earnedRecovery ? Mathf.Max(0f, recoverySeconds) : 0f;
             if (deviceVisuals != null) deviceVisuals.SetRecovery(recoveryRemaining > 0f);
-            if (player == null || player.InSafeZone || outsideRadius) return;
+            if (player == null || outsideRadius) return;
 
             float amount = dangerStage >= 3 ? stageThreeBurstContamination
                 : dangerStage == 2 ? stageTwoBurstContamination : stageOneBurstContamination;
@@ -309,7 +309,7 @@ namespace WardShift
 
         public void ApplyDeviceHit(PlayerContamination player, float amount, Vector3? impactOrigin = null)
         {
-            if (player == null || player.InSafeZone || amount <= 0f) return;
+            if (player == null || amount <= 0f) return;
             float applied = player.AddContamination(amount);
             if (applied <= 0f) return;
             if (player.GetComponent<CharacterController>() != null)

@@ -20,7 +20,7 @@ MonoBehaviour:
   warnings:
   - id: 0
     displayName: "\uC774\uC0C1\uD604\uC0C1 2\uB2E8\uACC4 \uACBD\uACE0"
-    clip: {fileID: 8300000, guid: bceb8d53b7aac4ebab89a8fd2e1139a5, type: 3}
+    clip: {fileID: 8300000, guid: 8be3f93ed3dfec442bac2c6a86065685, type: 3}
     volume: 0.75
     spatialBlend: 0
     minDistance: 1
@@ -52,7 +52,7 @@ MonoBehaviour:
       m_RotationOrder: 4
   - id: 1
     displayName: "\uC774\uC0C1\uD604\uC0C1 3\uB2E8\uACC4 \uACBD\uACE0"
-    clip: {fileID: 8300000, guid: 4955b9bf15ab4b54eabd54ca3ba746b6, type: 3}
+    clip: {fileID: 8300000, guid: 8be3f93ed3dfec442bac2c6a86065685, type: 3}
     volume: 0.9
     spatialBlend: 0
     minDistance: 1
@@ -84,7 +84,7 @@ MonoBehaviour:
       m_RotationOrder: 4
   - id: 2
     displayName: "\uD2B9\uBCC4 \uB9C8\uB825 \uADE0\uC5F4 \uCD9C\uD604"
-    clip: {fileID: 8300000, guid: 1f963e15f212dd148812bf8af648f77a, type: 3}
+    clip: {fileID: 8300000, guid: e3b0ea808b6a35e44ba0e904126f9430, type: 3}
     volume: 0.85
     spatialBlend: 0
     minDistance: 1
@@ -116,7 +116,7 @@ MonoBehaviour:
       m_RotationOrder: 4
   - id: 3
     displayName: "\uB9C8\uB825 \uC7A5\uCE58 \uC6D0\uD615 \uD3ED\uC8FC \uC608\uACE0"
-    clip: {fileID: 8300000, guid: 7ab957190ff732244a81f823c026f674, type: 3}
+    clip: {fileID: 8300000, guid: 96038a5bb5a13574485420fc935adcb5, type: 3}
     volume: 0.8
     spatialBlend: 1
     minDistance: 1
@@ -149,7 +149,7 @@ MonoBehaviour:
   - id: 4
     displayName: "\uB9C8\uB825 \uC7A5\uCE58 \uCD94\uC801\uD0C4 \uC608\uACE0"
     clip: {fileID: 8300000, guid: b899a87c85da8cf46b93d00bea5305f8, type: 3}
-    volume: 0.8
+    volume: 0.69
     spatialBlend: 1
     minDistance: 1
     maxDistance: 8
@@ -535,7 +535,7 @@ MonoBehaviour:
       m_RotationOrder: 4
   - id: 16
     displayName: "\uC544\uC774\uD15C \uC0AC\uC6A9"
-    clip: {fileID: 0}
+    clip: {fileID: 8300000, guid: c96dfddd9b841448a83bb59b901cf15f, type: 3}
     volume: 1
     spatialBlend: 0
     minDistance: 1
@@ -696,7 +696,7 @@ MonoBehaviour:
       m_RotationOrder: 4
   - id: 21
     displayName: "DAY \uC2DC\uC791"
-    clip: {fileID: 8300000, guid: efef4e4f71d584c8292cb6c63010a1b7, type: 3}
+    clip: {fileID: 0}
     volume: 1
     spatialBlend: 0
     minDistance: 1
@@ -728,7 +728,7 @@ MonoBehaviour:
       m_RotationOrder: 4
   - id: 22
     displayName: "DAY \uD074\uB9AC\uC5B4"
-    clip: {fileID: 8300000, guid: bd57e0392de944bb49d834101f39706d, type: 3}
+    clip: {fileID: 0}
     volume: 1
     spatialBlend: 0
     minDistance: 1
@@ -890,7 +890,7 @@ MonoBehaviour:
   ambient:
   - id: 26
     displayName: "\uC2DC\uC124 \uD658\uACBD\uC74C"
-    clip: {fileID: 8300000, guid: 0fec33a645d9e4b42a00b7a402d0e5bb, type: 3}
+    clip: {fileID: 8300000, guid: 42794b8a1aa2a4aeda3a2f2438785681, type: 3}
     volume: 1
     spatialBlend: 1
     minDistance: 1
