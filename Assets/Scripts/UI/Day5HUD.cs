@@ -2,6 +2,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 namespace WardShift
@@ -68,6 +69,10 @@ namespace WardShift
         private TMP_Text clearSummaryText;
         private TMP_Text failedSummaryText;
         private TMP_Text endingSummaryText;
+        private TMP_Text endingDayValueText;
+        private TMP_Text endingStabilityValueText;
+        private TMP_Text endingContaminationValueText;
+        private TMP_Text endingManaValueText;
         private TMP_Text upgradeResultText;
         private TMP_Text anomalyResolutionFeedbackText;
         private TMP_Text supplyTitleText;
@@ -175,10 +180,16 @@ namespace WardShift
                         ? dayFlow.Status.FailureReason : "시설 관리 실패")
                     + "\nDAY 시작 시점의 자원과 픽업을 복원해 재도전합니다."
                     + (showRuptureOnFailure ? "\n" + tutorialCopy.rupture : "");
-            if (endingSummaryText != null)
-                endingSummaryText.text = $"총 {dayFlow.FinalDay}일 근무를 모두 마쳤습니다.\n"
-                    + $"마력 결정: {inventory.ManaCrystals}개\n시설 안정도: "
-                    + (dayFlow.Status != null ? dayFlow.Status.Stability.ToString("F0") : "-");
+            if (endingDayValueText != null)
+                endingDayValueText.text = $"{dayFlow.CurrentDay}일";
+            if (endingStabilityValueText != null)
+                endingStabilityValueText.text = dayFlow.Status != null
+                    ? $"{dayFlow.Status.Stability:F0}%" : "-";
+            if (endingContaminationValueText != null)
+                endingContaminationValueText.text = dayFlow.Player != null
+                    ? $"{dayFlow.Player.Value:F0}%" : "-";
+            if (endingManaValueText != null)
+                endingManaValueText.text = $"{inventory.ManaCrystals}개";
             RefreshInventory();
             RefreshUpgradeCards();
         }
@@ -209,10 +220,7 @@ namespace WardShift
                 "같은 날 재도전", () => { if (dayFlow != null) dayFlow.RetryCurrentDay(); }, false);
             AddOverlaySecondaryButton(failedPanel, "TitleButton", "타이틀로 돌아가기",
                 TitleMenuController.ReturnToTitle);
-            endingPanel = BuildOverlay(canvasObject.transform, "DayEndingPanel", "WARD SHIFT 완료", out endingSummaryText,
-                "게임 종료", () => Application.Quit(), false);
-            AddOverlaySecondaryButton(endingPanel, "TitleButton", "타이틀로 돌아가기",
-                TitleMenuController.ReturnToTitle);
+            BuildEndingPanel(canvasObject.transform);
             BuildSupplyPanel(canvasObject.transform);
             clearPanel.SetActive(false);
             failedPanel.SetActive(false);
@@ -440,6 +448,89 @@ namespace WardShift
             CreateText("ButtonLabel", buttonObject.transform, Vector2.zero, Vector2.one,
                 new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero, 22,
                 TextAlignmentOptions.Center, new Color(0.9f, 0.9f, 0.94f, 1f)).text = label;
+        }
+
+        private void BuildEndingPanel(Transform parent)
+        {
+            endingPanel = CreatePanel("DayEndingPanel", parent, new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero,
+                new Vector2(920f, 650f), new Color32(11, 27, 35, 252));
+            Outline outline = endingPanel.AddComponent<Outline>();
+            outline.effectColor = new Color32(92, 134, 137, 190);
+            outline.effectDistance = new Vector2(1f, -1f);
+            outline.useGraphicAlpha = true;
+
+            CreatePanel("TopAccent", endingPanel.transform, new Vector2(0f, 1f), new Vector2(1f, 1f),
+                new Vector2(0.5f, 1f), new Vector2(0f, -12f), new Vector2(-28f, 2f),
+                new Color32(180, 160, 108, 235));
+            CreateText("ReportEyebrow", endingPanel.transform, new Vector2(0f, 1f), new Vector2(1f, 1f),
+                new Vector2(0.5f, 1f), new Vector2(0f, -36f), new Vector2(-64f, 28f),
+                16f, TextAlignmentOptions.Center, new Color32(150, 184, 183, 255)).text =
+                "제17 마력 제어소  ·  최종 근무 기록";
+            CreateText("Title", endingPanel.transform, new Vector2(0f, 1f), new Vector2(1f, 1f),
+                new Vector2(0.5f, 1f), new Vector2(0f, -73f), new Vector2(-64f, 64f),
+                39f, TextAlignmentOptions.Center, new Color32(225, 232, 222, 255)).text = "범람기 종료 보고";
+            CreatePanel("HeaderDivider", endingPanel.transform, new Vector2(0f, 1f), new Vector2(1f, 1f),
+                new Vector2(0.5f, 1f), new Vector2(0f, -151f), new Vector2(-72f, 1f),
+                new Color32(91, 119, 119, 210));
+
+            endingSummaryText = CreateText("ClosingReport", endingPanel.transform,
+                new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(0f, -169f), new Vector2(-112f, 104f), 20f,
+                TextAlignmentOptions.Center, new Color32(218, 224, 216, 255));
+            endingSummaryText.text = "7일간 지속된 마력 범람기가 종료되었습니다.\n"
+                + "제17 마력 제어소는 전 기간 동안 운용을 유지했으며,\n"
+                + "근무 기록이 정상적으로 종료되었습니다.";
+
+            CreateText("ResultsHeading", endingPanel.transform, new Vector2(0f, 1f),
+                new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -287f),
+                new Vector2(-84f, 24f), 15f, TextAlignmentOptions.MidlineLeft,
+                new Color32(150, 184, 183, 255)).text = "최종 근무 현황";
+
+            endingDayValueText = CreateEndingResultRow(endingPanel.transform, "SurvivedDays",
+                "생존 일수", new Vector2(0f, -320f));
+            endingStabilityValueText = CreateEndingResultRow(endingPanel.transform, "FacilityStability",
+                "최종 시설 안정도", new Vector2(0f, -369f));
+            endingContaminationValueText = CreateEndingResultRow(endingPanel.transform, "ManaContamination",
+                "최종 마력 오염도", new Vector2(0f, -418f));
+            endingManaValueText = CreateEndingResultRow(endingPanel.transform, "ManaCrystals",
+                "보유 마력 결정", new Vector2(0f, -467f));
+
+            CreatePanel("FooterDivider", endingPanel.transform, new Vector2(0f, 0f), new Vector2(1f, 0f),
+                new Vector2(0.5f, 0f), new Vector2(0f, 115f), new Vector2(-72f, 1f),
+                new Color32(91, 119, 119, 210));
+            Button restartButton = CreateActionButton("RestartButton", endingPanel.transform,
+                new Vector2(-166f, -264f), new Vector2(310f, 58f), "다시 플레이", RestartGameplay);
+            restartButton.GetComponentInChildren<TMP_Text>().fontSize = 21f;
+            Button titleButton = CreateActionButton("TitleButton", endingPanel.transform,
+                new Vector2(166f, -264f), new Vector2(310f, 58f), "타이틀로 돌아가기",
+                TitleMenuController.ReturnToTitle);
+            titleButton.GetComponent<Image>().color = new Color32(29, 43, 51, 255);
+            titleButton.GetComponentInChildren<TMP_Text>().fontSize = 20f;
+
+            endingPanel.SetActive(false);
+        }
+
+        private TMP_Text CreateEndingResultRow(Transform parent, string name, string label,
+            Vector2 topAnchoredPosition)
+        {
+            GameObject row = CreatePanel(name, parent, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(0.5f, 1f), topAnchoredPosition, new Vector2(820f, 43f),
+                new Color32(19, 39, 45, 235));
+            CreateText("Label", row.transform, new Vector2(0f, 0f), new Vector2(0.62f, 1f),
+                new Vector2(0f, 0.5f), new Vector2(16f, 0f), Vector2.zero, 18f,
+                TextAlignmentOptions.MidlineLeft, new Color32(183, 199, 194, 255)).text = label;
+            return CreateText("Value", row.transform, new Vector2(0.62f, 0f), new Vector2(1f, 1f),
+                new Vector2(1f, 0.5f), new Vector2(-16f, 0f), Vector2.zero, 20f,
+                TextAlignmentOptions.MidlineRight, new Color32(229, 205, 143, 255));
+        }
+
+        private static void RestartGameplay()
+        {
+            Time.timeScale = 1f;
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+            SceneManager.LoadScene(TitleMenuController.GameplaySceneName, LoadSceneMode.Single);
         }
 
         private void RefreshInventory()

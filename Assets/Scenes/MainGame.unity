@@ -19220,7 +19220,7 @@ MonoBehaviour:
   combatHintDownPixels: 106
   dayFlow: {fileID: 411442693}
   inventory: {fileID: 411442694}
-  koreanFont: {fileID: 11400000, guid: 659ceb8947c683b4a9e1216df0a67515, type: 2}
+  koreanFont: {fileID: 11400000, guid: 81c4f499ad74fa74b84100132192c588, type: 2}
   mobilityTitleHighlightColor: {r: 0.43137255, g: 0.78431374, b: 1, a: 1}
   facilityDefenseTitleHighlightColor: {r: 0.43137255, g: 0.9019608, b: 0.6666667, a: 1}
   contaminationResistanceTitleHighlightColor: {r: 0.8039216, g: 0.627451, b: 1, a: 1}
@@ -22024,7 +22024,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 9005220659476430818, guid: 2d3a85ecde41a8246a79669975912b74, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 51.82
+      value: 52.251
       objectReference: {fileID: 0}
     - target: {fileID: 9005220659476430818, guid: 2d3a85ecde41a8246a79669975912b74, type: 3}
       propertyPath: m_LocalRotation.w
@@ -36784,7 +36784,7 @@ Transform:
   m_GameObject: {fileID: 738035764}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -411.074, y: 6.15, z: 51.82}
+  m_LocalPosition: {x: -411.074, y: 6.15, z: 52.251}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -81648,7 +81648,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8997996947095583982, guid: c5efc39a8aaf6e64ea40e9ad573e9b47, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 51.82
+      value: 52.251
       objectReference: {fileID: 0}
     - target: {fileID: 8997996947095583982, guid: c5efc39a8aaf6e64ea40e9ad573e9b47, type: 3}
       propertyPath: m_LocalRotation.w
@@ -92649,7 +92649,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8762286023885395322, guid: 9c489a8547f4d9e4387da15a4ff82c81, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 51.82
+      value: 52.251
       objectReference: {fileID: 0}
     - target: {fileID: 8762286023885395322, guid: 9c489a8547f4d9e4387da15a4ff82c81, type: 3}
       propertyPath: m_LocalRotation.w

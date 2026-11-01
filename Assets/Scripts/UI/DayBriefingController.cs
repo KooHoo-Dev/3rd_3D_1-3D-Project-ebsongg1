@@ -22,8 +22,9 @@ namespace WardShift
         private TMP_Text bodyLabel;
         private GameObject cautionPanel;
         private TMP_Text cautionLabel;
-        private GameObject sidePanel;
-        private TMP_Text sidePanelLabel;
+        private GameObject memoShadow;
+        private GameObject memoPanel;
+        private TMP_Text memoLabel;
         private Button startButton;
         private bool isVisible;
 
@@ -47,6 +48,17 @@ namespace WardShift
             }
             if (!EnsureUi()) return false;
 
+            if (data.KoreanFont != null)
+            {
+                string requiredCharacters = record.RecordType + record.Title + record.Body
+                    + record.Caution + record.HandoffMemo
+                    + "제17 마력 제어소 주간 담당자 인수인계 근무 시작 근무 주의사항 근무 인계 완료"
+                    + "DAY 0123456789/";
+                if (!data.KoreanFont.TryAddCharacters(requiredCharacters, out string missingCharacters)
+                    && !string.IsNullOrEmpty(missingCharacters))
+                    Debug.LogWarning($"WARD SHIFT: 브리핑 폰트에 글리프가 없습니다: {missingCharacters}", this);
+            }
+
             dayLabel.text = $"DAY {record.Day:00}  /  07";
             recordTypeLabel.text = record.RecordType;
             titleLabel.text = record.Title;
@@ -56,9 +68,10 @@ namespace WardShift
             cautionPanel.SetActive(hasCaution);
             if (hasCaution) cautionLabel.text = record.Caution;
 
-            bool hasSidePanel = !string.IsNullOrWhiteSpace(record.SidePanelText);
-            sidePanel.SetActive(hasSidePanel);
-            if (hasSidePanel) sidePanelLabel.text = record.SidePanelText;
+            bool hasMemo = !string.IsNullOrWhiteSpace(record.HandoffMemo);
+            memoLabel.text = hasMemo ? record.HandoffMemo : string.Empty;
+            memoShadow.SetActive(hasMemo);
+            memoPanel.SetActive(hasMemo);
 
             isVisible = true;
             root.SetActive(true);
@@ -99,81 +112,136 @@ namespace WardShift
             GameObject backdrop = CreateRect("Backdrop", parent, Vector2.zero, Vector2.one,
                 Vector2.zero, Vector2.zero);
             Image backdropImage = backdrop.AddComponent<Image>();
-            backdropImage.color = new Color(0.008f, 0.014f, 0.025f, 0.12f);
+            backdropImage.color = new Color(0.008f, 0.014f, 0.025f, 0.055f);
             backdropImage.raycastTarget = true;
 
             RectTransform main = CreateFramedPanel("RecordPanel", parent,
-                new Vector2(0.055f, 0.105f), new Vector2(0.49f, 0.895f));
-            AddBar("TopRule", main, new Color32(93, 153, 165, 230), 28f, 26f, 3f);
+                new Vector2(0.045f, 0.09f), new Vector2(0.455f, 0.91f));
+            AddBar("TopRule", main, new Color32(91, 137, 142, 220), 28f, 24f, 2f);
 
             TMP_FontAsset uiFont = data.KoreanFont != null
                 ? data.KoreanFont : TMP_Settings.defaultFontAsset;
-            TMP_FontAsset headingFont = data.EnglishFont != null ? data.EnglishFont : uiFont;
+            TMP_FontAsset headingFont = uiFont;
 
             TMP_Text facility = CreateText("FacilityName", main, new Vector2(0f, 1f), new Vector2(1f, 1f),
-                new Vector2(0f, -34f), new Vector2(-52f, 30f), 22f, uiFont,
-                new Color32(143, 205, 211, 255), TextAlignmentOptions.TopLeft);
-            facility.text = "WARD SHIFT   ·   제17 마력 제어소";
+                new Vector2(0f, -32f), new Vector2(-52f, 30f), 21f, uiFont,
+                new Color32(145, 181, 179, 255), TextAlignmentOptions.TopLeft);
+            facility.text = "제17 마력 제어소";
 
             dayLabel = CreateText("DayNumber", main, Vector2.one, Vector2.one,
-                new Vector2(-26f, -34f), new Vector2(210f, 30f), 21f, headingFont,
-                new Color32(218, 202, 163, 255), TextAlignmentOptions.TopRight);
+                new Vector2(-26f, -32f), new Vector2(210f, 30f), 20f, headingFont,
+                new Color32(191, 181, 155, 255), TextAlignmentOptions.TopRight);
             recordTypeLabel = CreateText("RecordType", main, new Vector2(0f, 1f), new Vector2(1f, 1f),
-                new Vector2(0f, -91f), new Vector2(-52f, 28f), 21f, uiFont,
-                new Color32(120, 200, 203, 255), TextAlignmentOptions.TopLeft);
+                new Vector2(0f, -82f), new Vector2(-52f, 28f), 18f, uiFont,
+                new Color32(132, 177, 176, 255), TextAlignmentOptions.TopLeft);
             titleLabel = CreateText("RecordTitle", main, new Vector2(0f, 1f), new Vector2(1f, 1f),
-                new Vector2(0f, -121f), new Vector2(-52f, 60f), 36f, uiFont,
-                new Color32(239, 239, 232, 255), TextAlignmentOptions.TopLeft);
-            AddBar("TitleRule", main, new Color32(115, 130, 137, 170), 26f, 198f, 1f);
+                new Vector2(0f, -116f), new Vector2(-52f, 60f), 31f, uiFont,
+                new Color32(240, 237, 230, 255), TextAlignmentOptions.TopLeft);
+            titleLabel.enableAutoSizing = true;
+            titleLabel.fontSizeMin = 26f;
+            titleLabel.fontSizeMax = 31f;
+            AddBar("TitleRule", main, new Color32(86, 101, 104, 180), 26f, 188f, 1f);
+            AddBottomShortRule("RecordFooterRule", main,
+                new Color32(86, 101, 104, 180), 104f, 128f);
 
             bodyLabel = CreateText("RecordBody", main, new Vector2(0f, 1f), new Vector2(1f, 1f),
-                new Vector2(0f, -225f), new Vector2(-56f, 390f), 27f, uiFont,
-                new Color32(218, 222, 224, 255), TextAlignmentOptions.TopLeft);
-            bodyLabel.lineSpacing = 7f;
-            bodyLabel.paragraphSpacing = 9f;
+                new Vector2(0f, -214f), new Vector2(-56f, 425f), 23f, uiFont,
+                new Color32(224, 227, 223, 255), TextAlignmentOptions.TopLeft);
+            bodyLabel.enableAutoSizing = true;
+            bodyLabel.fontSizeMin = 21f;
+            bodyLabel.fontSizeMax = 23f;
+            bodyLabel.lineSpacing = 5f;
+            bodyLabel.paragraphSpacing = 10f;
 
             cautionPanel = CreatePanel("Caution", main, new Vector2(0f, 0f), new Vector2(1f, 0f),
-                new Vector2(0f, 112f), new Vector2(-40f, 100f),
-                new Color(0.14f, 0.055f, 0.16f, 0.72f));
-            AddBar("CautionAccent", cautionPanel.GetComponent<RectTransform>(),
-                new Color32(166, 115, 177, 245), 0f, 0f, 3f);
+                new Vector2(0f, 128f), new Vector2(-40f, 132f),
+                new Color32(40, 45, 44, 245));
+            TMP_Text cautionHeading = CreateText("CautionHeading",
+                cautionPanel.GetComponent<RectTransform>(), new Vector2(0f, 1f), Vector2.one,
+                new Vector2(0f, -10f), new Vector2(-30f, 24f), 17f, uiFont,
+                new Color32(202, 181, 143, 255), TextAlignmentOptions.TopLeft);
+            cautionHeading.text = "근무 주의사항";
             cautionLabel = CreateText("CautionText", cautionPanel.GetComponent<RectTransform>(),
-                Vector2.zero, Vector2.one, Vector2.zero, new Vector2(-34f, -20f),
-                21f, uiFont, new Color32(227, 217, 230, 255), TextAlignmentOptions.TopLeft);
-            cautionLabel.lineSpacing = 3f;
+                Vector2.zero, Vector2.one, new Vector2(0f, -17f), new Vector2(-30f, -54f),
+                17f, uiFont, new Color32(224, 227, 223, 255), TextAlignmentOptions.TopLeft);
+            cautionLabel.enableAutoSizing = true;
+            cautionLabel.fontSizeMin = 16f;
+            cautionLabel.fontSizeMax = 17f;
+            cautionLabel.lineSpacing = 2f;
 
-            sidePanel = CreatePanel("DailyWork", parent, new Vector2(0.735f, 0.32f),
-                new Vector2(0.955f, 0.66f), Vector2.zero, Vector2.zero,
-                new Color(0.025f, 0.05f, 0.072f, 0.93f));
-            RectTransform sideRect = sidePanel.GetComponent<RectTransform>();
-            AddBar("SideRule", sideRect, new Color32(83, 145, 158, 220), 18f, 20f, 2f);
-            CreateText("DailyWorkHeading", sideRect, new Vector2(0f, 1f), new Vector2(1f, 1f),
-                new Vector2(0f, -34f), new Vector2(-40f, 32f), 23f, uiFont,
-                new Color32(146, 207, 208, 255), TextAlignmentOptions.TopLeft).text = "오늘의 업무";
-            sidePanelLabel = CreateText("DailyWorkText", sideRect, Vector2.zero, new Vector2(1f, 1f),
-                new Vector2(0f, -29f), new Vector2(-40f, -96f), 20f, uiFont,
-                new Color32(218, 223, 224, 255), TextAlignmentOptions.TopLeft);
-            sidePanelLabel.lineSpacing = 3f;
+            BuildHandoffMemo(parent, uiFont);
 
             startButton = CreateStartButton(main, uiFont);
+        }
+
+        private void BuildHandoffMemo(RectTransform parent, TMP_FontAsset font)
+        {
+            Vector2 anchorMin = new Vector2(0.70f, 0.17f);
+            Vector2 anchorMax = new Vector2(0.94f, 0.75f);
+
+            memoShadow = CreateRect("HandoffMemoShadow", parent, anchorMin, anchorMax,
+                new Vector2(9f, -10f), Vector2.zero);
+            Image shadowImage = memoShadow.AddComponent<Image>();
+            shadowImage.color = new Color(0.025f, 0.022f, 0.018f, 0.34f);
+            shadowImage.raycastTarget = false;
+
+            memoPanel = CreateRect("HandoffMemo", parent, anchorMin, anchorMax,
+                Vector2.zero, Vector2.zero);
+            Image frame = memoPanel.AddComponent<Image>();
+            frame.color = new Color32(160, 148, 123, 255);
+            frame.raycastTarget = false;
+
+            RectTransform paper = CreateRect("Paper", memoPanel.transform, Vector2.zero,
+                Vector2.one, Vector2.zero, new Vector2(-4f, -4f)).GetComponent<RectTransform>();
+            Image paperImage = paper.gameObject.AddComponent<Image>();
+            paperImage.color = new Color32(217, 208, 185, 250);
+            paperImage.raycastTarget = false;
+
+            GameObject edge = CreateRect("PaperEdge", paper, Vector2.zero,
+                new Vector2(0f, 1f), new Vector2(16f, 0f), new Vector2(2f, -34f));
+            Image edgeImage = edge.AddComponent<Image>();
+            edgeImage.color = new Color32(170, 157, 133, 180);
+            edgeImage.raycastTarget = false;
+
+            CreateText("HandoffHeading", paper, new Vector2(0f, 1f), Vector2.one,
+                new Vector2(0f, -24f), new Vector2(-48f, 30f), 19f, font,
+                new Color32(118, 108, 88, 255), TextAlignmentOptions.TopLeft).text =
+                "주간 담당자 · 인수인계";
+            AddBar("MemoHeaderRule", paper, new Color32(170, 157, 133, 210), 24f, 62f, 1f);
+
+            memoLabel = CreateText("HandoffText", paper, Vector2.zero, Vector2.one,
+                new Vector2(0f, -8f), new Vector2(-48f, -132f), 21f, font,
+                new Color32(62, 58, 50, 255), TextAlignmentOptions.TopLeft);
+            memoLabel.enableAutoSizing = true;
+            memoLabel.fontSizeMin = 18f;
+            memoLabel.fontSizeMax = 21f;
+            memoLabel.lineSpacing = 5f;
+            memoLabel.paragraphSpacing = 8f;
+
+            AddMemoBottomRule("MemoFooterRule", paper, new Color32(170, 157, 133, 210));
+            CreateText("HandoffFooter", paper, new Vector2(1f, 0f),
+                new Vector2(1f, 0f), new Vector2(-24f, 18f),
+                new Vector2(180f, 24f), 14f, font,
+                new Color32(118, 108, 88, 255), TextAlignmentOptions.BottomRight).text =
+                "근무 인계 완료";
         }
 
         private Button CreateStartButton(RectTransform parent, TMP_FontAsset font)
         {
             GameObject buttonObject = CreateRect("StartShiftButton", parent,
                 new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-                new Vector2(0f, 35f), new Vector2(320f, 64f));
+                new Vector2(0f, 30f), new Vector2(300f, 56f));
             Image image = buttonObject.AddComponent<Image>();
-            image.color = new Color32(35, 69, 83, 255);
+            image.color = new Color32(38, 64, 69, 255);
             Button button = buttonObject.AddComponent<Button>();
             button.targetGraphic = image;
             button.transition = Selectable.Transition.ColorTint;
             button.colors = new ColorBlock
             {
-                normalColor = new Color32(35, 69, 83, 255),
-                highlightedColor = new Color32(52, 101, 115, 255),
-                pressedColor = new Color32(25, 49, 61, 255),
-                selectedColor = new Color32(45, 89, 102, 255),
+                normalColor = new Color32(38, 64, 69, 255),
+                highlightedColor = new Color32(53, 84, 88, 255),
+                pressedColor = new Color32(27, 46, 49, 255),
+                selectedColor = new Color32(47, 75, 79, 255),
                 disabledColor = new Color32(35, 48, 54, 180),
                 colorMultiplier = 1f,
                 fadeDuration = 0.12f
@@ -183,7 +251,7 @@ namespace WardShift
             TMP_Text label = CreateText("Label", buttonObject.GetComponent<RectTransform>(),
                 Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, 25f, font,
                 new Color32(241, 244, 241, 255), TextAlignmentOptions.Center);
-            label.text = "근무 시작   ·   ENTER";
+            label.text = "근무 시작";
             label.fontStyle = FontStyles.Bold;
             label.raycastTarget = false;
             return button;
@@ -227,12 +295,12 @@ namespace WardShift
             GameObject frame = CreateRect(name + "Frame", parent, anchorMin, anchorMax,
                 Vector2.zero, Vector2.zero);
             Image frameImage = frame.AddComponent<Image>();
-            frameImage.color = new Color32(97, 108, 114, 242);
+            frameImage.color = new Color32(55, 67, 72, 242);
             frameImage.raycastTarget = false;
             RectTransform panel = CreateRect(name, frame.transform, Vector2.zero, Vector2.one,
                 Vector2.zero, new Vector2(-4f, -4f)).GetComponent<RectTransform>();
             Image image = panel.gameObject.AddComponent<Image>();
-            image.color = new Color(0.018f, 0.035f, 0.056f, 0.94f);
+            image.color = new Color32(23, 33, 38, 246);
             image.raycastTarget = true;
             return panel;
         }
@@ -259,6 +327,25 @@ namespace WardShift
             image.raycastTarget = false;
         }
 
+        private static void AddMemoBottomRule(string name, RectTransform parent, Color color)
+        {
+            GameObject rule = CreateRect(name, parent, Vector2.zero, new Vector2(1f, 0f),
+                new Vector2(0f, 48f), new Vector2(-48f, 1f));
+            Image image = rule.AddComponent<Image>();
+            image.color = color;
+            image.raycastTarget = false;
+        }
+
+        private static void AddBottomShortRule(string name, RectTransform parent, Color color,
+            float bottomInset, float width)
+        {
+            GameObject rule = CreateRect(name, parent, new Vector2(0.5f, 0f),
+                new Vector2(0.5f, 0f), new Vector2(0f, bottomInset), new Vector2(width, 1f));
+            Image image = rule.AddComponent<Image>();
+            image.color = color;
+            image.raycastTarget = false;
+        }
+
         private static TMP_Text CreateText(string name, Transform parent, Vector2 anchorMin,
             Vector2 anchorMax, Vector2 position, Vector2 size, float fontSize, TMP_FontAsset font,
             Color color, TextAlignmentOptions alignment)
@@ -271,7 +358,7 @@ namespace WardShift
             text.alignment = alignment;
             text.raycastTarget = false;
             text.textWrappingMode = TextWrappingModes.Normal;
-            text.overflowMode = TextOverflowModes.Ellipsis;
+            text.overflowMode = TextOverflowModes.Overflow;
             return text;
         }
 

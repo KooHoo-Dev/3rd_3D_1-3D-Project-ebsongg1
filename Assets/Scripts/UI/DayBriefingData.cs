@@ -1,6 +1,7 @@
 using System;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace WardShift
 {
@@ -16,14 +17,14 @@ namespace WardShift
             [SerializeField] private string title;
             [SerializeField, TextArea(6, 14)] private string body;
             [SerializeField, TextArea(2, 4)] private string caution;
-            [SerializeField, TextArea(4, 10)] private string sidePanelText;
+            [FormerlySerializedAs("sidePanelText"), SerializeField, TextArea(5, 12)] private string handoffMemo;
 
             public int Day => Mathf.Clamp(day, 1, 7);
             public string RecordType => recordType ?? string.Empty;
             public string Title => title ?? string.Empty;
             public string Body => body ?? string.Empty;
             public string Caution => caution ?? string.Empty;
-            public string SidePanelText => sidePanelText ?? string.Empty;
+            public string HandoffMemo => handoffMemo ?? string.Empty;
         }
 
         [Header("브리핑 UI 폰트")]
