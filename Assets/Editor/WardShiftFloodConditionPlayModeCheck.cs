@@ -236,12 +236,12 @@ namespace WardShift.Editor
             string projectRoot = Directory.GetParent(Application.dataPath).FullName;
             string[] storyFiles =
             {
-                "Assets/Scripts/Core/DayFlowManager.cs",
-                "Assets/Scripts/Core/DayFlowManager.Api.cs",
-                "Assets/Scripts/Core/DaySession.cs",
-                "Assets/Scripts/Core/DayAnomalyRewardController.cs",
-                "Assets/Scripts/Core/DayPlayerUpgradeEffects.cs",
-                "Assets/Scripts/Core/DayUpgradeController.cs",
+                "Assets/Scripts/Day/DayFlowManager.cs",
+                "Assets/Scripts/Day/DayFlowManager.Api.cs",
+                "Assets/Scripts/Day/DaySession.cs",
+                "Assets/Scripts/Day/DayAnomalyRewardController.cs",
+                "Assets/Scripts/Day/DayPlayerUpgradeEffects.cs",
+                "Assets/Scripts/Day/DayUpgradeController.cs",
                 "Assets/Scripts/Player/PlayerContamination.cs",
                 "Assets/Scripts/UI/Day5HUD.cs",
                 "Assets/Scripts/UI/WardShiftHUDLayout.cs"

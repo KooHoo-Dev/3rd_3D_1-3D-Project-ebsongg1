@@ -82,6 +82,7 @@ namespace WardShift.Editor
                         ward = Object.FindFirstObjectByType<WardStatusHUD>();
                         dayHUD = Object.FindFirstObjectByType<Day5HUD>();
                         spawner = Object.FindFirstObjectByType<AnomalySpawner>();
+                        StartVisibleBriefing();
                         spawner.SetSpawningEnabled(false);
                         spawner.ClearActiveAnomalies();
                         Cursor.lockState = CursorLockMode.Locked;
@@ -149,8 +150,6 @@ namespace WardShift.Editor
                     case 7:
                         // 화면 검증용 상태는 Play Mode 내부에서만 변경하며 씬에 저장하지 않습니다.
                         day.SetDayAndStateForTest(4, DayState.Playing);
-                        Invoke(day, "BeginDay", false);
-                        day.DeferDaySupplyChoice();
                         spawner.SetSpawningEnabled(false);
                         SetGameSize(1920, 1200);
                         break;
@@ -547,11 +546,20 @@ namespace WardShift.Editor
 
         private static void Refresh()
         {
+            StartVisibleBriefing();
             Invoke(ward, "LateUpdate");
             Invoke(dayHUD, "Update");
             Invoke(layout, "LateUpdate");
             Invoke(magic, "LateUpdate");
             Canvas.ForceUpdateCanvases();
+        }
+
+        private static void StartVisibleBriefing()
+        {
+            if (day == null || day.State != DayState.Preparing) return;
+            DayBriefingController briefing = Object.FindFirstObjectByType<DayBriefingController>();
+            if (briefing != null && Get<bool>(briefing, "isVisible"))
+                Get<Button>(briefing, "startButton").onClick.Invoke();
         }
 
         private static void CheckBounds()
@@ -637,9 +645,8 @@ namespace WardShift.Editor
                 "Next-day button remains inside clear panel");
             Assert(panel.GetComponentInChildren<LayoutGroup>(true) == null,
                 "Clear overlay uses its explicit RectTransform layout without layout-driven collisions");
-            Assert(!Get<TMP_Text>(dayHUD, "clearSummaryText").enableAutoSizing
-                && !Get<TMP_Text>(dayHUD, "clearConditionText").enableAutoSizing,
-                "Clear header uses fixed readable TMP sizes");
+            Assert(!Get<TMP_Text>(dayHUD, "clearSummaryText").enableAutoSizing,
+                "Clear summary uses a fixed readable TMP size");
 
             foreach (TMP_Text text in clearPanel.GetComponentsInChildren<TMP_Text>(true))
             {

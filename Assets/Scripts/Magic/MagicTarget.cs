@@ -26,6 +26,8 @@ namespace WardShift
         [SerializeField] private bool deactivateOnComplete = true;
         [Tooltip("봉인점 완료 후 균열 처리나 효과를 연결할 수 있는 이벤트.")]
         [SerializeField] private UnityEvent onCompleted = new UnityEvent();
+        [Header("진단 (선택)")]
+        [SerializeField] private bool logCastResults;
 
         [Header("시전 상태 (실행 중 확인용)")]
         [SerializeField, Range(0f, 1f)] private float progress;
@@ -133,7 +135,8 @@ namespace WardShift
                 if (!preserveProgressOnCancel || result != MagicCastResult.Canceled)
                     progress = 0f;
                 StopCasting();
-                if (result == MagicCastResult.Undercharged || result == MagicCastResult.Overcharged)
+                if (logCastResults && (result == MagicCastResult.Undercharged
+                    || result == MagicCastResult.Overcharged))
                     Debug.Log($"{displayName}: {result}", this);
                 CastResolved?.Invoke(this, result);
                 return result;

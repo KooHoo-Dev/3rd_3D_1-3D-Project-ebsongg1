@@ -18,7 +18,7 @@ namespace WardShift
         [SerializeField] private Vector3 cameraLocalOffset = new Vector3(0.25f, -0.22f, 0.65f);
         [Header("정화 광선 (선택)")]
         [SerializeField] private GameObject continuousPurifyBeamPrefab;
-        [SerializeField] private bool logBeamDiagnostics = true;
+        [SerializeField] private bool logBeamDiagnostics;
 
         public static SealBeamVFX Active { get; private set; }
         private readonly List<Beam> beams = new List<Beam>();

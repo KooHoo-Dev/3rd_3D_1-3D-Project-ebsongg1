@@ -86,6 +86,12 @@ namespace WardShift.Editor
 
             DayFlowManager day = Object.FindFirstObjectByType<DayFlowManager>();
             MagicCaster caster = Object.FindFirstObjectByType<MagicCaster>();
+            if (day != null && day.State == DayState.Preparing)
+            {
+                DayBriefingController briefing = Object.FindFirstObjectByType<DayBriefingController>();
+                if (briefing != null && GetField<bool>(briefing, "isVisible"))
+                    Invoke(briefing, "OnStartClicked");
+            }
             if (day == null || caster == null || day.State != DayState.Playing) return;
 
             EditorApplication.update -= Tick;
@@ -225,19 +231,14 @@ namespace WardShift.Editor
                 Invoke(caster, "UpdatePurifyBeamVfx");
                 object beamState = GetField<object>(beamVfx, "continuousPurifyBeam");
                 Assert(beamState != null, "A real Purify cast should start a continuous beam.");
-                Invoke(beamVfx, "AdvanceBeams", 0.016f);
-                LineRenderer beamLine = GetBeamLine(beamState);
-                Assert(Vector3.Distance(beamLine.GetPosition(0), originObject.transform.position) < 0.001f
-                    && Vector3.Distance(beamLine.GetPosition(1), a.Patch.transform.position) < 0.001f,
-                    "The sustained beam must connect its configured origin and current patch.");
+                Invoke(beamVfx, "LateUpdate");
+                AssertContinuousBeam(beamState, originObject.transform.position, a.Patch.transform.position);
                 AssertVfxIsNonInteractive(GetField<GameObject>(beamState, "Root"));
 
                 originObject.transform.position += new Vector3(0.2f, 0.1f, 0.3f);
                 a.Patch.transform.position += new Vector3(0.1f, 0f, 0.2f);
-                Invoke(beamVfx, "AdvanceBeams", 0.016f);
-                Assert(Vector3.Distance(beamLine.GetPosition(0), originObject.transform.position) < 0.001f
-                    && Vector3.Distance(beamLine.GetPosition(1), a.Patch.transform.position) < 0.001f,
-                    "The sustained beam must follow a moving origin and patch.");
+                Invoke(beamVfx, "LateUpdate");
+                AssertContinuousBeam(beamState, originObject.transform.position, a.Patch.transform.position);
 
                 b.Target.AdvanceCast(MagicType.Purify, 0.1f);
                 Assert(b.Target.IsCasting, "Patch B did not start casting.");
@@ -246,9 +247,8 @@ namespace WardShift.Editor
                 Assert(GetField<object>(beamVfx, "continuousPurifyBeam") == beamState
                     && GetField<Transform>(beamState, "FollowTarget") == b.Patch.transform,
                     "Switching the casting target must retarget the same continuous beam.");
-                Invoke(beamVfx, "AdvanceBeams", 0.016f);
-                Assert(Vector3.Distance(beamLine.GetPosition(1), b.Patch.transform.position) < 0.001f,
-                    "The beam endpoint must move to the newly selected patch.");
+                Invoke(beamVfx, "LateUpdate");
+                AssertContinuousBeam(beamState, originObject.transform.position, b.Patch.transform.position);
                 SetField(caster, "selectedMagic", MagicType.Seal);
                 Invoke(caster, "UpdatePurifyBeamVfx");
                 Assert(GetField<object>(beamVfx, "continuousPurifyBeam") == null,
@@ -418,13 +418,17 @@ namespace WardShift.Editor
             return prefab;
         }
 
-        private static LineRenderer GetBeamLine(object beamState)
+        private static void AssertContinuousBeam(object beamState, Vector3 origin, Vector3 target)
         {
             GameObject root = GetField<GameObject>(beamState, "Root");
             Assert(root != null, "Continuous beam root is missing.");
-            LineRenderer line = root.GetComponentInChildren<LineRenderer>(true);
-            Assert(line != null, "Continuous beam prefab must contain a LineRenderer or stretched particle.");
-            return line;
+            Vector3 direction = target - origin;
+            Assert(Vector3.Distance(root.transform.position, origin) < 0.001f
+                && Vector3.Distance(GetField<Vector3>(beamState, "Start"), origin) < 0.001f
+                && Vector3.Distance(GetField<Vector3>(beamState, "End"), target) < 0.001f
+                && (direction.sqrMagnitude < 0.000001f
+                    || Quaternion.Angle(root.transform.rotation, Quaternion.LookRotation(direction)) < 0.01f),
+                "The continuous beam must follow its origin and face the current target.");
         }
 
         private static void AssertVfxIsNonInteractive(GameObject effect)

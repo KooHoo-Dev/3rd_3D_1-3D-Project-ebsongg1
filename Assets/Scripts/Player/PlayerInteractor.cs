@@ -27,7 +27,7 @@ namespace WardShift
         [Header("실행 상태 확인 (Current Target은 직접 연결하지 않음)")]
         [SerializeField] private MagicTarget currentTarget;
         [SerializeField] private bool logTargetChanges;
-        [SerializeField] private bool drawDebugRay = true;
+        [SerializeField] private bool drawDebugRay;
 
         public MagicTarget CurrentTarget => currentTarget;
         public Transform PlayerRoot => playerRoot;

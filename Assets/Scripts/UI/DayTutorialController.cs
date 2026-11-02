@@ -72,6 +72,11 @@ namespace WardShift
 
         internal Hint Tick(DayFlowManager dayFlow, MagicCaster caster, MagicDetector detector)
         {
+            // DAY 1 브리핑의 근무 시작으로 기존 인트로 모달을 대체한 경우에도
+            // 같은 완료 기록을 남겨 이후 TAB 지도 안내 조건을 충족시킵니다.
+            if (dayFlow.CurrentDay == 1 && dayFlow.State == DayState.Playing
+                && dayFlow.HasStartedDayBriefingThisRun && IntroPage < 0)
+                Learn(Intro);
             if (dayFlow.CurrentDay > 1) Learn(Clear);
             if (dayFlow.State == DayState.DayFailed)
             {

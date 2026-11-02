@@ -65407,7 +65407,7 @@ MonoBehaviour:
   sealReadyColor: {r: 0.3, g: 1, b: 0.65, a: 1}
   currentTarget: {fileID: 0}
   logTargetChanges: 0
-  drawDebugRay: 1
+  drawDebugRay: 0
 --- !u!114 &1359426624
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -65550,7 +65550,7 @@ MonoBehaviour:
   beamOrigin: {fileID: 0}
   cameraLocalOffset: {x: 0.25, y: -0.22, z: 0.65}
   continuousPurifyBeamPrefab: {fileID: 0}
-  logBeamDiagnostics: 1
+  logBeamDiagnostics: 0
 --- !u!1001 &1360095291
 PrefabInstance:
   m_ObjectHideFlags: 0

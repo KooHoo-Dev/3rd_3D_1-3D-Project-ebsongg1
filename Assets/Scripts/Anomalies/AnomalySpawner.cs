@@ -95,6 +95,8 @@ namespace WardShift
 
         [Header("DAY 5~7 특별 마력 균열")]
         [SerializeField] private SpecialManaRiftSchedule specialManaRiftSchedule = new SpecialManaRiftSchedule();
+        [Header("진단 (선택)")]
+        [SerializeField] private bool logSpawnDiagnostics;
 
         private readonly List<AnomalyBehaviour> activeAnomalies = new List<AnomalyBehaviour>();
         private float spawnCountdown;
@@ -536,8 +538,9 @@ namespace WardShift
                     SpecialManaRiftSpawned?.Invoke(rift, activeDay);
                 }
             }
-            Debug.Log($"이상현상 생성: {point.name} ({instance.GetType().Name})", this);
-            if (isSpecialManaRift)
+            if (logSpawnDiagnostics)
+                Debug.Log($"이상현상 생성: {point.name} ({instance.GetType().Name})", this);
+            if (isSpecialManaRift && logSpawnDiagnostics)
                 Debug.Log($"특별 마력 균열 생성: DAY {activeDay}, stage {initialRiftStage}", this);
             return true;
         }

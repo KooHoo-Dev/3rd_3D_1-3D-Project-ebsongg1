@@ -65,6 +65,8 @@ namespace WardShift
         [SerializeField] private bool isBurstWarningActive;
         [SerializeField] private bool hasRuptured;
         [SerializeField] private bool isResolved;
+        [Header("진단 (선택)")]
+        [SerializeField] private bool logHitDiagnostics;
 
         private ManaDeviceVisuals deviceVisuals;
         private MagicTarget stabilizationTarget;
@@ -319,7 +321,8 @@ namespace WardShift
                 reaction.Play(impactOrigin ?? transform.position, hitKnockbackDistance,
                     hitKnockbackDuration, hitShakeIntensity, hitShakeDuration);
             }
-            Debug.Log($"장치 공격 피격: 오염도 +{applied:0.##}", player);
+            if (logHitDiagnostics)
+                Debug.Log($"장치 공격 피격: 오염도 +{applied:0.##}", player);
         }
 
         private void OnStabilizationCompleted(MagicTarget target)
