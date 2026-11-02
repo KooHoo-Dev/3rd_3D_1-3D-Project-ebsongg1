@@ -243,8 +243,8 @@ namespace WardShift.Editor
                 "Assets/Scripts/Day/DayPlayerUpgradeEffects.cs",
                 "Assets/Scripts/Day/DayUpgradeController.cs",
                 "Assets/Scripts/Player/PlayerContamination.cs",
-                "Assets/Scripts/UI/Day5HUD.cs",
-                "Assets/Scripts/UI/WardShiftHUDLayout.cs"
+                "Assets/Scripts/UI/DayScreens/Day5HUD.cs",
+                "Assets/Scripts/UI/HUD/WardShiftHUDLayout.cs"
             };
 
             foreach (string relativePath in storyFiles)
