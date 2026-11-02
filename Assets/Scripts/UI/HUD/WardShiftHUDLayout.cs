@@ -94,6 +94,17 @@ namespace WardShift
         public static readonly Color Gold = new Color(0.91f, 0.76f, 0.43f);
         public static readonly Color StabilityColor = new Color(0.29f, 0.77f, 0.93f);
         public static readonly Color ContaminationColor = new Color(0.73f, 0.4f, 0.98f);
+        public static readonly Color RecordPanelColor = new Color32(10, 25, 34, 246);
+        public static readonly Color RecordCardColor = new Color32(17, 34, 42, 248);
+        public static readonly Color RecordFrameColor = new Color32(139, 126, 92, 190);
+        public static readonly Color RecordDividerColor = new Color32(82, 116, 117, 180);
+        public static readonly Color RecordHeaderColor = new Color32(150, 184, 183, 255);
+        public static readonly Color RecordTitleColor = new Color32(236, 237, 229, 255);
+        public static readonly Color RecordBodyColor = new Color32(220, 225, 218, 255);
+        public static readonly Color RecordButtonColor = new Color32(49, 91, 91, 255);
+        public static readonly Color RecordButtonHoverColor = new Color32(68, 116, 112, 255);
+        public static readonly Color RecordButtonPressedColor = new Color32(34, 67, 71, 255);
+        public static readonly Color RecordButtonDisabledColor = new Color32(47, 57, 60, 255);
 
         public static WardShiftHUDLayout Ensure(TMP_FontAsset font = null)
         {

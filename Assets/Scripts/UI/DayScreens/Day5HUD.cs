@@ -59,6 +59,7 @@ namespace WardShift
         private GameObject endingPanel;
         private SupplyShopUIController supplyView;
         private GameObject supplyPanel;
+        private TMP_Text clearHeaderText;
         private TMP_Text clearSummaryText;
         private TMP_Text failedSummaryText;
         private TMP_Text endingSummaryText;
@@ -156,14 +157,18 @@ namespace WardShift
             }
             RefreshSupplyUI();
             if (clearSummaryText != null)
-                clearSummaryText.text = $"DAY {dayFlow.CurrentDay} 근무 완료\n"
-                    + $"이번 근무 획득 결정 +{inventory.CrystalsEarnedToday}개  ·  현재 보유 {inventory.ManaCrystals}개\n"
+            {
+                if (clearHeaderText != null)
+                    clearHeaderText.text = $"제17 마력 제어소  ·  DAY {dayFlow.CurrentDay} 성장 기록";
+                clearSummaryText.text = $"이번 DAY 획득 <color=#E8C26E>+{inventory.CrystalsEarnedToday}</color> 마력 조각"
+                    + $"   ·   현재 보유 <color=#E8C26E>{inventory.ManaCrystals}개</color>\n"
                     + (dayFlow.UpgradePurchasedThisClear
                         ? "이번 근무 강화 구매 완료 · 추가 구매 불가"
                         : dayFlow.CurrentDay == 1 && tutorial != null
                             && !tutorial.Learned(DayTutorialController.Clear)
                             ? tutorialCopy.firstClear
                             : "강화는 이번 근무에 한 종류만 구매할 수 있습니다.");
+            }
             if (failedSummaryText != null)
                 failedSummaryText.text = $"{dayFlow.CurrentDay}일차\n"
                     + (dayFlow.Status != null && !string.IsNullOrEmpty(dayFlow.Status.FailureReason)
@@ -229,13 +234,26 @@ namespace WardShift
         {
             clearPanel = CreatePanel("DayClearPanel", parent, new Vector2(0.5f, 0.5f),
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero,
-                new Vector2(1160f, 720f), new Color(0.035f, 0.055f, 0.09f, 0.98f));
+                new Vector2(1160f, 720f), WardShiftHUDLayout.RecordPanelColor);
+            Outline outline = clearPanel.AddComponent<Outline>();
+            outline.effectColor = WardShiftHUDLayout.RecordFrameColor;
+            outline.effectDistance = new Vector2(1f, -1f);
+            outline.useGraphicAlpha = true;
+            AddRecordPanelOrnaments(clearPanel);
+            clearHeaderText = CreateText("FacilityDayHeader", clearPanel.transform,
+                new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(0f, -23f), new Vector2(-60f, 24f), 16f,
+                TextAlignmentOptions.Center, WardShiftHUDLayout.RecordHeaderColor);
+            CreatePanel("HeaderRule", clearPanel.transform, new Vector2(0f, 1f), new Vector2(1f, 1f),
+                new Vector2(0.5f, 1f), new Vector2(0f, -41f), new Vector2(-72f, 1.5f),
+                WardShiftHUDLayout.RecordDividerColor).GetComponent<Image>().raycastTarget = false;
             CreateText("Title", clearPanel.transform, new Vector2(0f, 1f), new Vector2(1f, 1f),
-                new Vector2(0.5f, 1f), new Vector2(0f, -30f), new Vector2(-50f, 66f),
-                44, TextAlignmentOptions.Center, new Color(0.65f, 0.92f, 1f)).text = "근무 완료 · 강화 선택";
+                new Vector2(0.5f, 1f), new Vector2(0f, -49f), new Vector2(-50f, 54f),
+                38, TextAlignmentOptions.Center, WardShiftHUDLayout.RecordTitleColor).text = "근무 완료 · 강화 선택";
             clearSummaryText = CreateText("Summary", clearPanel.transform, new Vector2(0f, 1f),
-                new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -102f),
-                new Vector2(-60f, 78f), 19, TextAlignmentOptions.Center, Color.white);
+                new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -112f),
+                new Vector2(-60f, 68f), 18, TextAlignmentOptions.Center, WardShiftHUDLayout.RecordBodyColor);
+            clearSummaryText.richText = true;
             upgradeView = new UpgradeUIController(clearPanel.transform, koreanFont, dayFlow, inventory,
                 new UpgradeUIController.Style
                 {
@@ -253,10 +271,47 @@ namespace WardShift
                     Unavailable = upgradeUnavailableHighlightColor,
                     Complete = upgradeCompleteHighlightColor
                 });
-            CreateActionButton("OpenSupplyShop", clearPanel.transform, new Vector2(0f, -321f),
-                new Vector2(360f, 58f), "강화 건너뛰고 보급 상점",
+            Button skipUpgradeButton = CreateActionButton("OpenSupplyShop", clearPanel.transform, new Vector2(0f, -321f),
+                new Vector2(360f, 50f), "강화 건너뛰고 보급 상점",
                 () => { if (dayFlow != null) dayFlow.OpenDaySupplyShop(); });
+            ApplyRecordButtonStyle(skipUpgradeButton, true);
+            TMP_Text skipLabel = skipUpgradeButton.GetComponentInChildren<TMP_Text>(true);
+            skipLabel.fontSize = 18f;
+            skipLabel.color = new Color32(192, 204, 197, 255);
             clearPanel.SetActive(false);
+        }
+
+        private static void AddRecordPanelOrnaments(GameObject panel)
+        {
+            AddRecordCorner(panel.transform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(14f, -14f));
+            AddRecordCorner(panel.transform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-14f, -14f));
+            AddRecordCorner(panel.transform, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(14f, 14f));
+            AddRecordCorner(panel.transform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-14f, 14f));
+        }
+
+        private static void AddRecordCorner(Transform parent, Vector2 anchor, Vector2 pivot, Vector2 position)
+        {
+            GameObject horizontal = CreatePanel("FrameMarkH", parent, anchor, anchor,
+                pivot, position, new Vector2(18f, 1.5f), WardShiftHUDLayout.RecordFrameColor);
+            GameObject vertical = CreatePanel("FrameMarkV", parent, anchor, anchor,
+                pivot, position, new Vector2(1.5f, 18f), WardShiftHUDLayout.RecordFrameColor);
+            horizontal.GetComponent<Image>().raycastTarget = false;
+            vertical.GetComponent<Image>().raycastTarget = false;
+        }
+
+        private static void ApplyRecordButtonStyle(Button button, bool secondary)
+        {
+            if (button == null) return;
+            ColorBlock colors = button.colors;
+            colors.normalColor = secondary ? new Color32(31, 50, 54, 255) : WardShiftHUDLayout.RecordButtonColor;
+            colors.highlightedColor = secondary ? new Color32(45, 70, 72, 255) : WardShiftHUDLayout.RecordButtonHoverColor;
+            colors.pressedColor = WardShiftHUDLayout.RecordButtonPressedColor;
+            colors.selectedColor = colors.highlightedColor;
+            colors.disabledColor = WardShiftHUDLayout.RecordButtonDisabledColor;
+            colors.colorMultiplier = 1f;
+            button.colors = colors;
+            button.transition = Selectable.Transition.ColorTint;
+            button.targetGraphic.color = colors.normalColor;
         }
 
         private void BuildSupplyPanel(Transform parent)
