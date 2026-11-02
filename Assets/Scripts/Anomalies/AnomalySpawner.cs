@@ -143,12 +143,9 @@ namespace WardShift
                 var compatiblePoints = new HashSet<AnomalySpawnPoint>();
                 foreach (AnomalySpawnPoint point in GetAllSpawnPoints())
                 {
-                    if (point == null || !point.isActiveAndEnabled) continue;
                     foreach (AnomalyBehaviour prefab in prefabs)
                     {
-                        if (prefab.SpawnSurface != point.Surface) continue;
-                        if (prefab is CurseAnomaly curse
-                            && !curse.CanConfigureFromSpawnPoint(point.GetCursePatchPoints().Length)) continue;
+                        if (!IsCompatibleForCapacity(point, prefab)) continue;
                         compatiblePoints.Add(point);
                         break;
                     }
@@ -244,13 +241,11 @@ namespace WardShift
             var compatiblePoints = new HashSet<AnomalySpawnPoint>();
             foreach (AnomalySpawnPoint point in GetAllSpawnPoints())
             {
-                if (point == null || !point.isActiveAndEnabled) continue;
                 foreach (AnomalyBehaviour prefab in GetConfiguredPrefabs())
                 {
                     if (profile != null && profile.GetSpawnWeight(prefab) <= 0) continue;
-                    if (prefab.SpawnSurface != point.Surface) continue;
-                    if (prefab is CurseAnomaly curse
-                        && !curse.CanConfigureFromSpawnPoint(point.GetCursePatchPoints().Length)) continue;
+                    if (!IsCompatibleForCapacity(point, prefab)) continue;
+                    // Preserve this DAY count's device-readiness check; the general count has no such check.
                     if (prefab is ManaDeviceAnomaly && !point.CanSpawnPrefab(prefab)) continue;
                     compatiblePoints.Add(point);
                     break;
@@ -332,9 +327,7 @@ namespace WardShift
                 int weight = activeDayProfile != null ? activeDayProfile.GetSpawnWeight(prefab) : 1;
                 if (weight <= 0) continue;
 
-                var points = new List<AnomalySpawnPoint>();
-                foreach (AnomalySpawnPoint point in availableSpawnPoints)
-                    if (CanUse(point, prefab)) points.Add(point);
+                List<AnomalySpawnPoint> points = GetUsableSpawnPoints(availableSpawnPoints, prefab);
                 if (points.Count == 0) continue;
 
                 SpawnKind kind = GetSpawnKind(prefab);
@@ -392,9 +385,7 @@ namespace WardShift
             }
 
             List<AnomalySpawnPoint> availableSpawnPoints = GetAllSpawnPoints();
-            var compatiblePoints = new List<AnomalySpawnPoint>();
-            foreach (AnomalySpawnPoint point in availableSpawnPoints)
-                if (CanUse(point, riftPrefab)) compatiblePoints.Add(point);
+            List<AnomalySpawnPoint> compatiblePoints = GetUsableSpawnPoints(availableSpawnPoints, riftPrefab);
             if (compatiblePoints.Count == 0)
             {
                 LogSpecialSpawnWaiting("no unoccupied compatible ManaRift spawn point is available");
@@ -595,8 +586,25 @@ namespace WardShift
 
         private static bool CanUse(AnomalySpawnPoint point, AnomalyBehaviour prefab)
         {
-            return point != null && point.isActiveAndEnabled && !point.IsOccupied
-                && point.Surface == prefab.SpawnSurface && point.CanSpawnPrefab(prefab);
+            return point != null && point.CanSpawnPrefab(prefab);
+        }
+
+        // Capacity checks retain their original scope: they do not require an unoccupied point.
+        private static bool IsCompatibleForCapacity(AnomalySpawnPoint point, AnomalyBehaviour prefab)
+        {
+            return point != null && point.isActiveAndEnabled
+                && prefab.SpawnSurface == point.Surface
+                && (!(prefab is CurseAnomaly curse)
+                    || curse.CanConfigureFromSpawnPoint(point.GetCursePatchPoints().Length));
+        }
+
+        private static List<AnomalySpawnPoint> GetUsableSpawnPoints(
+            List<AnomalySpawnPoint> points, AnomalyBehaviour prefab)
+        {
+            var usablePoints = new List<AnomalySpawnPoint>();
+            foreach (AnomalySpawnPoint point in points)
+                if (CanUse(point, prefab)) usablePoints.Add(point);
+            return usablePoints;
         }
 
         private List<AnomalySpawnPoint> GetAllSpawnPoints()

@@ -18998,7 +18998,7 @@ MonoBehaviour:
     manaDeviceOverloadWeight: 1
     otherAnomaliesWeight: 1
     maximumConcurrentAnomalies: 2
-    spawnIntervalSeconds: 15
+    spawnIntervalSeconds: 12
   - day: 4
     allowManaRift: 1
     allowCurseContamination: 1
@@ -19010,7 +19010,7 @@ MonoBehaviour:
     manaDeviceOverloadWeight: 1
     otherAnomaliesWeight: 1
     maximumConcurrentAnomalies: 2
-    spawnIntervalSeconds: 12
+    spawnIntervalSeconds: 11
   - day: 5
     allowManaRift: 1
     allowCurseContamination: 1
@@ -19022,7 +19022,7 @@ MonoBehaviour:
     manaDeviceOverloadWeight: 1
     otherAnomaliesWeight: 1
     maximumConcurrentAnomalies: 2
-    spawnIntervalSeconds: 11
+    spawnIntervalSeconds: 10
   - day: 6
     allowManaRift: 1
     allowCurseContamination: 1
@@ -19034,7 +19034,7 @@ MonoBehaviour:
     manaDeviceOverloadWeight: 1
     otherAnomaliesWeight: 1
     maximumConcurrentAnomalies: 3
-    spawnIntervalSeconds: 10
+    spawnIntervalSeconds: 9
   - day: 7
     allowManaRift: 1
     allowCurseContamination: 1
@@ -19046,7 +19046,7 @@ MonoBehaviour:
     manaDeviceOverloadWeight: 1
     otherAnomaliesWeight: 1
     maximumConcurrentAnomalies: 3
-    spawnIntervalSeconds: 9.5
+    spawnIntervalSeconds: 8
   specialManaRiftSchedule:
     dayRules:
     - day: 1
@@ -76319,7 +76319,6 @@ MonoBehaviour:
   gaugeSprite: {fileID: 10905, guid: 0000000000000000f000000000000000, type: 0}
   crosshairSize: 8.4
   crosshairOutlineColor: {r: 0.08, g: 0.04, b: 0.16, a: 0.8}
-  contaminationIncreaseSfx: {fileID: 8300000, guid: 139331ff6cd0b8845bf9cd5982c7bbcf, type: 3}
   threatBannerSize: {x: 920, y: 132}
   threatBannerTopOffset: {x: 0, y: -252}
   threatKickerFontSize: 16
@@ -76328,7 +76327,6 @@ MonoBehaviour:
   stageWarningDuration: 3.5
   specialSpawnWarningDuration: 2.2
   specialSpawnWarningColor: {r: 0.78, g: 0.48, b: 1, a: 1}
-  specialSpawnWarningSfx: {fileID: 0}
   stageTwoWarningColor: {r: 1, g: 0.62, b: 0.25, a: 1}
   stageThreeWarningColor: {r: 1, g: 0.24, b: 0.2, a: 1}
   radialBurstWarningColor: {r: 1, g: 0.34, b: 0.16, a: 1}
@@ -76342,10 +76340,6 @@ MonoBehaviour:
   stageThreeEdgeIntensity: 0.36
   deviceAttackEdgeIntensity: 0.62
   threatEdgePulseSpeed: 7
-  stageTwoWarningSfx: {fileID: 0}
-  stageThreeWarningSfx: {fileID: 0}
-  radialBurstWarningSfx: {fileID: 0}
-  trackingBoltWarningSfx: {fileID: 0}
   hudRoot: {fileID: 1056638083}
   dayStatusText: {fileID: 1373657673}
   pickupText: {fileID: 1688405655}
