@@ -23,7 +23,6 @@ namespace WardShift
         public string FailureReason { get; private set; }
         public int HighestStage { get; private set; }
         public bool HasOverloadedAnomaly { get; private set; }
-        public bool HasOverloadedRift => HasOverloadedAnomaly;
         private readonly List<Behaviour> stopped = new List<Behaviour>();
         private readonly List<StarterAssetsInputs> pausedCursorInputs = new List<StarterAssetsInputs>();
         private readonly List<bool> previousCursorLockedSettings = new List<bool>();

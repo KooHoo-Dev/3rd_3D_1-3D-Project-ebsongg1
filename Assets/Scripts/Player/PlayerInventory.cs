@@ -109,21 +109,6 @@ namespace WardShift
             return capacity >= quantity;
         }
 
-        /// <summary>선택한 슬롯의 스택을 새 아이템 하나로 교환합니다.</summary>
-        public bool TryReplaceItem(int slotIndex, ItemType item)
-        {
-            EnsureSlots();
-            if (slotIndex < 0 || slotIndex >= slots.Length || item == ItemType.None) return false;
-            slots[slotIndex].Item = item;
-            slots[slotIndex].Quantity = 1;
-            Changed?.Invoke();
-            return true;
-        }
-
-        /// <summary>해당 칸의 소비 아이템을 사용. 효과 적용에 성공한 뒤에만 하나를 소모.</summary>
-        public bool TryUseItem(int slotIndex, PlayerContamination player)
-            => TryUseItem(slotIndex, player, FindFirstObjectByType<WardStatus>(), PotionRecovery);
-
         /// <summary>소비 아이템의 종류에 맞는 효과가 성공한 경우에만 하나를 소모합니다.</summary>
         public bool TryUseItem(int slotIndex, PlayerContamination player, WardStatus wardStatus,
             float potionRecovery)

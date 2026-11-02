@@ -116,7 +116,6 @@ namespace WardShift
         public event Action<ManaRift, int> SpecialManaRiftSpawned;
 
         public bool SpawningEnabled => spawningEnabled;
-        public bool SpawnWindowOpen => spawnWindowOpen;
         public int ActiveAnomalyCount
         {
             get
