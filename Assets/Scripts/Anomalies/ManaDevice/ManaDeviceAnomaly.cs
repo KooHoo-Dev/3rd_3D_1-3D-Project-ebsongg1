@@ -19,7 +19,8 @@ namespace WardShift
         [SerializeField, Min(0.1f)] private float burstWarningSeconds = 1.5f;
         [Tooltip("공격부터 다음 공격까지의 주기. 각 공격의 경고 시간은 별도로 설정합니다.")]
         [SerializeField, Min(0.2f)] private float burstPeriodSeconds = 9.5f;
-        [SerializeField, Min(0.1f)] private float burstRadius = 4.25f;
+        [SerializeField, Min(0.1f), Tooltip("수평 원형 방출의 기본 반경(m). 실제 범위는 안정화 범위 + 1.25m와 비교해 더 큰 값입니다.")]
+        private float burstRadius = 4.75f;
         [SerializeField, Min(0f)] private float stageOneBurstContamination = 12f;
         [SerializeField, Min(0f)] private float stageTwoBurstContamination = 18f;
         [SerializeField, Min(0f)] private float stageThreeBurstContamination = 24f;
@@ -370,8 +371,7 @@ namespace WardShift
         {
             Gizmos.color = isBurstWarningActive ? new Color(1f, 0.1f, 0.05f, 0.9f)
                 : new Color(1f, 0.45f, 0.05f, 0.75f);
-            float radius = Mathf.Max(Mathf.Max(0.1f, burstRadius),
-                deviceVisuals != null ? deviceVisuals.StabilizeRange + 1.25f : 0.1f);
+            float radius = BurstRadius;
             Vector3 center = transform.position;
             center.y += 0.06f;
             Gizmos.DrawWireSphere(center, radius);

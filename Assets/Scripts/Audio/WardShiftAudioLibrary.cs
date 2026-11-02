@@ -48,6 +48,8 @@ namespace WardShift
         [SerializeField, Min(0.01f)] private float minDistance = 1f;
         [SerializeField, Min(0.1f)] private float maxDistance = 8f;
         [SerializeField, Min(0f)] private float duplicateSuppressionSeconds;
+        [Tooltip("0이면 전체 클립을 재생합니다. 양수면 이 소리만 지정한 초 뒤에 끝냅니다.")]
+        [SerializeField, Min(0f)] private float maxPlaybackDurationSeconds;
         [Tooltip("3D 소리는 이 곡선이 0에 도달하는 최대 거리 밖에서 무음이 됩니다.")]
         [SerializeField] private AnimationCurve distanceAttenuation = new AnimationCurve(
             new Keyframe(0f, 1f), new Keyframe(1f, 0f));
@@ -60,6 +62,7 @@ namespace WardShift
         public float MinDistance => Mathf.Max(0.01f, minDistance);
         public float MaxDistance => Mathf.Max(MinDistance + 0.1f, maxDistance);
         public float DuplicateSuppressionSeconds => Mathf.Max(0f, duplicateSuppressionSeconds);
+        public float MaxPlaybackDurationSeconds => Mathf.Max(0f, maxPlaybackDurationSeconds);
         public AnimationCurve DistanceAttenuation => distanceAttenuation;
 
         public WardShiftAudioEntry(WardShiftSoundId soundId, string label, float baseVolume = 1f,

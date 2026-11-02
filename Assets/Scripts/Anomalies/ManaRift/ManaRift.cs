@@ -57,7 +57,7 @@ namespace WardShift
         [SerializeField, Min(0f)] private float stageThreeStabilityLossPerSecond = 1f;
         [FormerlySerializedAs("overloadDamage"), SerializeField, Min(0f)] private float ruptureStabilityDamage = 20f;
         [Header("주변 오염")]
-        [SerializeField, Min(0f)] private float dangerRadius = 3f;
+        [SerializeField, Min(0f)] private float dangerRadius = 3.75f;
         [SerializeField, Min(0f)] private float stageTwoContamination = 3f;
         [SerializeField, Min(0f)] private float stageThreeContamination = 6f;
         [Header("위험 상태 (실행 중 확인용)")]

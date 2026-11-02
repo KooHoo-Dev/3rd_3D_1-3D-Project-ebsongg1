@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -44,14 +45,20 @@ namespace WardShift
 
         public static bool Play2D(WardShiftSoundId id)
         {
+            return Play2D(id, 1f);
+        }
+
+        /// <summary>특정 UI/입력 재생에만 적용할 볼륨 배수를 전달합니다.</summary>
+        public static bool Play2D(WardShiftSoundId id, float volumeMultiplier)
+        {
             AudioService service = EnsureInstance();
-            return service != null && service.Play(id, Vector3.zero, false, 0);
+            return service != null && service.Play(id, Vector3.zero, false, 0, volumeMultiplier);
         }
 
         public static bool Play3DAt(WardShiftSoundId id, Vector3 position, int emitterInstanceId = 0)
         {
             AudioService service = EnsureInstance();
-            return service != null && service.Play(id, position, true, emitterInstanceId);
+            return service != null && service.Play(id, position, true, emitterInstanceId, 1f);
         }
 
         public static bool PlayLoop(WardShiftSoundId id)
@@ -100,7 +107,8 @@ namespace WardShift
             if (Application.isPlaying) DontDestroyOnLoad(gameObject);
         }
 
-        private bool Play(WardShiftSoundId id, Vector3 position, bool spatial, int emitterInstanceId)
+        private bool Play(WardShiftSoundId id, Vector3 position, bool spatial, int emitterInstanceId,
+            float volumeMultiplier)
         {
             if (library == null) library = Resources.Load<WardShiftAudioLibrary>("WardShiftAudioLibrary");
             if (library == null) return false;
@@ -125,11 +133,25 @@ namespace WardShift
             source.SetCustomCurve(AudioSourceCurveType.CustomRolloff,
                 curve != null && curve.length > 0 ? curve : SilentAtMaxDistance);
             source.dopplerLevel = 0f;
-            source.volume = entry.Volume;
-            voice.BusyUntilDspTime = AudioSettings.dspTime
-                + Mathf.Max(0.02f, entry.Clip.length / Mathf.Max(0.01f, Mathf.Abs(source.pitch)));
+            source.volume = entry.Volume * Mathf.Clamp01(volumeMultiplier);
+            double playbackStartedAt = AudioSettings.dspTime;
+            float fullDuration = Mathf.Max(0.02f,
+                entry.Clip.length / Mathf.Max(0.01f, Mathf.Abs(source.pitch)));
+            float playbackDuration = entry.MaxPlaybackDurationSeconds > 0f
+                ? Mathf.Min(fullDuration, Mathf.Max(0.02f, entry.MaxPlaybackDurationSeconds))
+                : fullDuration;
             source.Play();
+            if (playbackDuration < fullDuration)
+                StartCoroutine(StopPlaybackAfter(source, entry.Clip, playbackDuration));
+            voice.BusyUntilDspTime = playbackStartedAt + playbackDuration;
             return true;
+        }
+
+        private IEnumerator StopPlaybackAfter(AudioSource source, AudioClip clip, float seconds)
+        {
+            yield return new WaitForSecondsRealtime(seconds);
+            if (source != null && source.clip == clip && source.isPlaying)
+                source.Stop();
         }
 
         private bool PlayLoopInternal(WardShiftSoundId id)

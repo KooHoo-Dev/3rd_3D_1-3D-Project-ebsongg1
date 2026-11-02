@@ -49,7 +49,7 @@ MonoBehaviour:
   firstBurstDelaySeconds: 4.5
   burstWarningSeconds: 1.5
   burstPeriodSeconds: 9.5
-  burstRadius: 4.25
+  burstRadius: 4.75
   stageOneBurstContamination: 12
   stageTwoBurstContamination: 18
   stageThreeBurstContamination: 24

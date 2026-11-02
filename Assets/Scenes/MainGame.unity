@@ -1522,6 +1522,7 @@ MonoBehaviour:
   onCompleted:
     m_PersistentCalls:
       m_Calls: []
+  logCastResults: 0
   progress: 0
   isCompleted: 0
 --- !u!65 &27898397
@@ -19077,6 +19078,7 @@ MonoBehaviour:
       enabled: 1
       spawnAfterSeconds: 100
       initialDangerStage: 3
+  logSpawnDiagnostics: 0
 --- !u!114 &411442693
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -19090,7 +19092,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WardShift.DayFlowManager
   dayDurationSeconds: 180
-  spawnStopBeforeEndSeconds: 30
+  spawnStopBeforeEndSeconds: 20
   finalDay: 7
   minimumAnomalyReward: 1
   maximumAnomalyReward: 2

@@ -10,6 +10,7 @@ namespace WardShift
     [DefaultExecutionOrder(10002)]
     public sealed class MagicCaster : MonoBehaviour
     {
+        private const float SealInputSfxVolumeMultiplier = 0.70f;
         [Header("연결")]
         [SerializeField] private PlayerInteractor interactor;
         [SerializeField, Min(0.1f)] private float cursePatchPurifyRange = 2.25f;
@@ -258,7 +259,7 @@ namespace WardShift
             {
                 ManaRift chain = activeSealRift;
                 if (chain.TryCompleteSealClick(aimed))
-                    AudioService.Play2D(WardShiftSoundId.PlayerMagicCast);
+                    AudioService.Play2D(WardShiftSoundId.PlayerMagicCast, SealInputSfxVolumeMultiplier);
                 if (chain != null && !chain.IsSealChainInProgress
                     && chain.CompletedSealCount >= chain.SealPointCount)
                     StopTrackingSealRift();
@@ -271,14 +272,15 @@ namespace WardShift
             if (rift != null)
             {
                 bool accepted = rift.TryCompleteSealClick(aimed);
-                if (accepted) AudioService.Play2D(WardShiftSoundId.PlayerMagicCast);
+                if (accepted) AudioService.Play2D(WardShiftSoundId.PlayerMagicCast,
+                    SealInputSfxVolumeMultiplier);
                 if (accepted && rift.IsSealChainInProgress)
                     TrackSealRift(rift);
                 return;
             }
 
             if (aimed.CompleteInstantly(MagicType.Seal))
-                AudioService.Play2D(WardShiftSoundId.PlayerMagicCast);
+                AudioService.Play2D(WardShiftSoundId.PlayerMagicCast, SealInputSfxVolumeMultiplier);
         }
 
         private void UpdatePurifyBeamVfx()

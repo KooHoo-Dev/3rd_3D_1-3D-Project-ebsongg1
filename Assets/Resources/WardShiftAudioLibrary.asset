@@ -26,6 +26,7 @@ MonoBehaviour:
     minDistance: 1
     maxDistance: 8
     duplicateSuppressionSeconds: 0.15
+    maxPlaybackDurationSeconds: 0
     distanceAttenuation:
       serializedVersion: 2
       m_Curve:
@@ -58,6 +59,7 @@ MonoBehaviour:
     minDistance: 1
     maxDistance: 8
     duplicateSuppressionSeconds: 0.15
+    maxPlaybackDurationSeconds: 0
     distanceAttenuation:
       serializedVersion: 2
       m_Curve:
@@ -90,6 +92,7 @@ MonoBehaviour:
     minDistance: 1
     maxDistance: 8
     duplicateSuppressionSeconds: 0.2
+    maxPlaybackDurationSeconds: 0
     distanceAttenuation:
       serializedVersion: 2
       m_Curve:
@@ -122,6 +125,7 @@ MonoBehaviour:
     minDistance: 1
     maxDistance: 8
     duplicateSuppressionSeconds: 0.2
+    maxPlaybackDurationSeconds: 0
     distanceAttenuation:
       serializedVersion: 2
       m_Curve:
@@ -154,6 +158,7 @@ MonoBehaviour:
     minDistance: 1
     maxDistance: 8
     duplicateSuppressionSeconds: 0.2
+    maxPlaybackDurationSeconds: 0
     distanceAttenuation:
       serializedVersion: 2
       m_Curve:
@@ -186,6 +191,7 @@ MonoBehaviour:
     minDistance: 1
     maxDistance: 12
     duplicateSuppressionSeconds: 0.2
+    maxPlaybackDurationSeconds: 0
     distanceAttenuation:
       serializedVersion: 2
       m_Curve:
@@ -218,6 +224,7 @@ MonoBehaviour:
     minDistance: 1
     maxDistance: 8
     duplicateSuppressionSeconds: 0.4
+    maxPlaybackDurationSeconds: 0
     distanceAttenuation:
       serializedVersion: 2
       m_Curve:
@@ -251,6 +258,7 @@ MonoBehaviour:
     minDistance: 1
     maxDistance: 12
     duplicateSuppressionSeconds: 0
+    maxPlaybackDurationSeconds: 0
     distanceAttenuation:
       serializedVersion: 2
       m_Curve:
@@ -283,6 +291,7 @@ MonoBehaviour:
     minDistance: 1
     maxDistance: 10
     duplicateSuppressionSeconds: 0
+    maxPlaybackDurationSeconds: 0
     distanceAttenuation:
       serializedVersion: 2
       m_Curve:
@@ -315,6 +324,7 @@ MonoBehaviour:
     minDistance: 1
     maxDistance: 12
     duplicateSuppressionSeconds: 0
+    maxPlaybackDurationSeconds: 2.5
     distanceAttenuation:
       serializedVersion: 2
       m_Curve:
@@ -347,6 +357,7 @@ MonoBehaviour:
     minDistance: 1
     maxDistance: 12
     duplicateSuppressionSeconds: 0
+    maxPlaybackDurationSeconds: 0
     distanceAttenuation:
       serializedVersion: 2
       m_Curve:
@@ -379,6 +390,7 @@ MonoBehaviour:
     minDistance: 1
     maxDistance: 20
     duplicateSuppressionSeconds: 0
+    maxPlaybackDurationSeconds: 0
     distanceAttenuation:
       serializedVersion: 2
       m_Curve:
@@ -412,6 +424,7 @@ MonoBehaviour:
     minDistance: 1
     maxDistance: 20
     duplicateSuppressionSeconds: 0
+    maxPlaybackDurationSeconds: 0
     distanceAttenuation:
       serializedVersion: 2
       m_Curve:
@@ -445,6 +458,7 @@ MonoBehaviour:
     minDistance: 1
     maxDistance: 8
     duplicateSuppressionSeconds: 0.2
+    maxPlaybackDurationSeconds: 0
     distanceAttenuation:
       serializedVersion: 2
       m_Curve:
@@ -477,6 +491,7 @@ MonoBehaviour:
     minDistance: 1
     maxDistance: 8
     duplicateSuppressionSeconds: 0
+    maxPlaybackDurationSeconds: 0
     distanceAttenuation:
       serializedVersion: 2
       m_Curve:
@@ -509,6 +524,7 @@ MonoBehaviour:
     minDistance: 1
     maxDistance: 8
     duplicateSuppressionSeconds: 0
+    maxPlaybackDurationSeconds: 0
     distanceAttenuation:
       serializedVersion: 2
       m_Curve:
@@ -541,6 +557,7 @@ MonoBehaviour:
     minDistance: 1
     maxDistance: 8
     duplicateSuppressionSeconds: 0
+    maxPlaybackDurationSeconds: 0
     distanceAttenuation:
       serializedVersion: 2
       m_Curve:
@@ -573,6 +590,7 @@ MonoBehaviour:
     minDistance: 1
     maxDistance: 12
     duplicateSuppressionSeconds: 0
+    maxPlaybackDurationSeconds: 0
     distanceAttenuation:
       serializedVersion: 2
       m_Curve:
@@ -606,6 +624,7 @@ MonoBehaviour:
     minDistance: 1
     maxDistance: 8
     duplicateSuppressionSeconds: 0
+    maxPlaybackDurationSeconds: 0
     distanceAttenuation:
       serializedVersion: 2
       m_Curve:
@@ -633,11 +652,12 @@ MonoBehaviour:
   - id: 19
     displayName: "\uC601\uAD6C \uAC15\uD654 \uAD6C\uB9E4"
     clip: {fileID: 8300000, guid: 1e3954d7795717f489cc345cc54c18b5, type: 3}
-    volume: 1
+    volume: 0.3
     spatialBlend: 0
     minDistance: 1
     maxDistance: 8
     duplicateSuppressionSeconds: 0
+    maxPlaybackDurationSeconds: 0
     distanceAttenuation:
       serializedVersion: 2
       m_Curve:
@@ -665,11 +685,12 @@ MonoBehaviour:
   - id: 20
     displayName: "\uBCF4\uAE09 \uC0C1\uC810 \uAD6C\uB9E4"
     clip: {fileID: 8300000, guid: 7aca01082b047244d87d4e650c889cdf, type: 3}
-    volume: 1
+    volume: 0.3
     spatialBlend: 0
     minDistance: 1
     maxDistance: 8
     duplicateSuppressionSeconds: 0
+    maxPlaybackDurationSeconds: 0
     distanceAttenuation:
       serializedVersion: 2
       m_Curve:
@@ -702,6 +723,7 @@ MonoBehaviour:
     minDistance: 1
     maxDistance: 8
     duplicateSuppressionSeconds: 0
+    maxPlaybackDurationSeconds: 0
     distanceAttenuation:
       serializedVersion: 2
       m_Curve:
@@ -734,6 +756,7 @@ MonoBehaviour:
     minDistance: 1
     maxDistance: 8
     duplicateSuppressionSeconds: 0
+    maxPlaybackDurationSeconds: 0
     distanceAttenuation:
       serializedVersion: 2
       m_Curve:
@@ -766,6 +789,7 @@ MonoBehaviour:
     minDistance: 1
     maxDistance: 8
     duplicateSuppressionSeconds: 0
+    maxPlaybackDurationSeconds: 0
     distanceAttenuation:
       serializedVersion: 2
       m_Curve:
@@ -798,6 +822,7 @@ MonoBehaviour:
     minDistance: 1
     maxDistance: 8
     duplicateSuppressionSeconds: 0
+    maxPlaybackDurationSeconds: 0
     distanceAttenuation:
       serializedVersion: 2
       m_Curve:
@@ -826,11 +851,12 @@ MonoBehaviour:
   - id: 25
     displayName: "\uD0C0\uC774\uD2C0 BGM"
     clip: {fileID: 8300000, guid: 4287842f1516b4ddf820dc918ed208ad, type: 3}
-    volume: 1
+    volume: 0.3
     spatialBlend: 0
     minDistance: 1
     maxDistance: 8
     duplicateSuppressionSeconds: 0
+    maxPlaybackDurationSeconds: 0
     distanceAttenuation:
       serializedVersion: 2
       m_Curve:
@@ -863,6 +889,7 @@ MonoBehaviour:
     minDistance: 1
     maxDistance: 8
     duplicateSuppressionSeconds: 0
+    maxPlaybackDurationSeconds: 0
     distanceAttenuation:
       serializedVersion: 2
       m_Curve:
@@ -896,6 +923,7 @@ MonoBehaviour:
     minDistance: 1
     maxDistance: 25
     duplicateSuppressionSeconds: 0
+    maxPlaybackDurationSeconds: 0
     distanceAttenuation:
       serializedVersion: 2
       m_Curve:

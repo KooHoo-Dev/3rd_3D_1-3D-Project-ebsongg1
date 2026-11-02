@@ -51,6 +51,7 @@ namespace WardShift
         private void StartNewGame()
         {
             if (isTransitioning) return;
+            AudioService.StopLoop(WardShiftSoundId.TitleMusic);
             AudioService.Play2D(WardShiftSoundId.UiButtonClick);
             isTransitioning = true;
             SetMenuButtonsInteractable(false);

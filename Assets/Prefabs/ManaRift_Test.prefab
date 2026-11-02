@@ -166,7 +166,7 @@ MonoBehaviour:
   stageTwoStabilityLossPerSecond: 0.5
   stageThreeStabilityLossPerSecond: 1
   ruptureStabilityDamage: 20
-  dangerRadius: 3
+  dangerRadius: 3.75
   stageTwoContamination: 3
   stageThreeContamination: 6
   age: 0
