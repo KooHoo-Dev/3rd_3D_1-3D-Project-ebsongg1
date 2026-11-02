@@ -184,11 +184,11 @@ namespace WardShift
             }
         }
 
-        /// <summary>DAY CLEAR에서 다음 진행을 요청. 상점이 남아 있으면 상점을 먼저 엽니다.</summary>
+        /// <summary>DAY CLEAR에서 다음 진행을 요청. 상점이 남아 있으면 상점을 먼저 염.</summary>
         public void BeginNextDay()
         {
             if (state != DayState.DayClear) return;
-            // 기존 다음 날 진입 API도 상점 단계로 먼저 연결한다.
+            // 기존 다음 날 진입 API도 상점 단계로 먼저 연결.
             if (supply != null && supply.Pending)
             {
                 supply.Open(InventoryOpen, IsMapOpen);
@@ -204,7 +204,7 @@ namespace WardShift
             PrepareDayAndShowBriefing();
         }
 
-        /// <summary>디버그용 DAY 스킵. 진행 중 현상은 보상 없이 정리하고 다음 DAY를 시작합니다.</summary>
+        /// <summary>디버그용 DAY 스킵. 진행 중 현상은 보상 없이 정리하고 다음 DAY를 시작.</summary>
         public void CheatAdvanceDay()
         {
             if (!CanUseDaySkip) return;
@@ -254,7 +254,7 @@ namespace WardShift
             StartCoroutine(BeginDayNextFrame());
         }
 
-        /// <summary>기존 UI/호출부 호환용 이름. 동작은 현재 DAY 재도전입니다.</summary>
+        /// <summary>기존 UI/호출부 호환용 이름. 동작은 현재 DAY 재도전.</summary>
         public void RestartFromDayOne() => RetryCurrentDay();
 
         private void PrepareDayAndShowBriefing(bool isRetry = false)
@@ -300,7 +300,7 @@ namespace WardShift
             BeginPreparedDay();
         }
 
-        /// <summary>운영 기록의 시작 버튼에서만 준비된 DAY를 실제 근무 상태로 전환합니다.</summary>
+        /// <summary>운영 기록의 시작 버튼에서만 준비된 DAY를 실제 근무 상태로 전환.</summary>
         internal void StartPreparedDayFromBriefing()
         {
             if (!briefingPending || !preparedDayReady || state != DayState.Preparing) return;
