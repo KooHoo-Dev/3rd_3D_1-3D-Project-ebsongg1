@@ -18,8 +18,6 @@ namespace WardShift
         [SerializeField] private InputAction sealAction = new InputAction("SelectSeal", InputActionType.Button, "<Keyboard>/1");
         [SerializeField] private InputAction purifyAction = new InputAction("SelectPurify", InputActionType.Button, "<Keyboard>/2");
         [SerializeField] private InputAction stabilizeAction = new InputAction("SelectStabilize", InputActionType.Button, "<Keyboard>/3");
-        private readonly InputAction scrollMagicAction = new InputAction(
-            "ScrollMagic", InputActionType.PassThrough, "<Mouse>/scroll/y");
         [Tooltip("메뉴를 열 때 SetInputBlocked(true), 닫을 때 false를 전달.")]
         [SerializeField] private bool inputBlocked;
         [Header("실행 상태 확인")]
@@ -29,6 +27,7 @@ namespace WardShift
         private bool continuousPurifySession;
         private bool hasFocus = true;
         private bool inputEnabled;
+        private MagicCasterInput input;
         private float resultUntil;
         private ManaRift activeSealRift;
         private MagicDetector detector;
@@ -90,16 +89,15 @@ namespace WardShift
         {
             if (interactor == null) interactor = GetComponent<PlayerInteractor>();
             detector = GetComponent<MagicDetector>();
+            input = new MagicCasterInput(castAction, sealAction, purifyAction, stabilizeAction);
         }
 
         private void OnEnable()
         {
+            if (input == null)
+                input = new MagicCasterInput(castAction, sealAction, purifyAction, stabilizeAction);
             inputEnabled = true;
-            castAction.Enable();
-            sealAction.Enable();
-            purifyAction.Enable();
-            stabilizeAction.Enable();
-            scrollMagicAction.Enable();
+            if (hasFocus) input.Enable();
             waitingForRelease = true;
         }
 
@@ -129,7 +127,7 @@ namespace WardShift
             resultUntil = 0f;
             outOfRangeClickUntil = 0f;
             distantSealTarget = null;
-            waitingForRelease = castAction.IsPressed();
+            waitingForRelease = input.IsCastPressed;
         }
 
         /// <summary>선택 마법을 변경하며 진행 중 시전을 취소.</summary>
@@ -142,7 +140,7 @@ namespace WardShift
             AudioService.Play2D(WardShiftSoundId.PlayerMagicSelect);
             StopPurifyBeamVfx();
             resultUntil = 0f;
-            waitingForRelease = castAction.IsPressed();
+            waitingForRelease = input.IsCastPressed;
         }
 
         private void LateUpdate()
@@ -165,28 +163,23 @@ namespace WardShift
 
         private void UpdateCastingInput()
         {
-            bool pressed = castAction.IsPressed();
+            bool pressed = input.IsCastPressed;
             if (InputBlocked)
             {
                 CancelCast();
+                continuousPurifySession = false;
                 waitingForRelease = true;
                 return;
             }
-            bool numberSelected = sealAction.WasPressedThisFrame()
-                || purifyAction.WasPressedThisFrame() || stabilizeAction.WasPressedThisFrame();
-            if (sealAction.WasPressedThisFrame()) SelectMagic(MagicType.Seal);
-            if (purifyAction.WasPressedThisFrame()) SelectMagic(MagicType.Purify);
-            if (stabilizeAction.WasPressedThisFrame()) SelectMagic(MagicType.Stabilize);
-            if (!numberSelected && scrollMagicAction.WasPerformedThisFrame())
+            MagicCasterInput.Selection selection = input.ReadSelection();
+            if (selection.SealPressed) SelectMagic(MagicType.Seal);
+            if (selection.PurifyPressed) SelectMagic(MagicType.Purify);
+            if (selection.StabilizePressed) SelectMagic(MagicType.Stabilize);
+            if (selection.ScrollDirection != 0)
             {
-                float scroll = scrollMagicAction.ReadValue<float>();
-                if (Mathf.Abs(scroll) > 0.01f)
-                {
-                    int direction = scroll > 0f ? 1 : -1;
-                    int nextMagic = ((int)selectedMagic + direction + 3) % 3;
-                    SelectMagic((MagicType)nextMagic);
-                    return;
-                }
+                int nextMagic = ((int)selectedMagic + selection.ScrollDirection + 3) % 3;
+                SelectMagic((MagicType)nextMagic);
+                return;
             }
 
             if (selectedMagic == MagicType.Seal)
@@ -196,13 +189,13 @@ namespace WardShift
                     if (!pressed) waitingForRelease = false;
                     return;
                 }
-                if (pressed && castAction.WasPressedThisFrame()) HandleSealClick(AimedTarget);
+                if (pressed && input.WasCastPressedThisFrame) HandleSealClick(AimedTarget);
                 return;
             }
 
             // Another spell's click abandons the chain, then follows that spell's existing path.
             if (activeSealRift != null && activeSealRift.IsSealChainInProgress
-                && !waitingForRelease && pressed && castAction.WasPressedThisFrame())
+                && !waitingForRelease && pressed && input.WasCastPressedThisFrame)
                 activeSealRift.TryCompleteSealClick(null);
 
             // Only explicitly configured non-timing Purify targets may chain while held.
@@ -231,7 +224,7 @@ namespace WardShift
                     waitingForRelease = pressed;
                     return;
                 }
-                if (castAction.WasReleasedThisFrame() || !pressed)
+                if (input.WasCastReleasedThisFrame || !pressed)
                 {
                     CaptureFeedback(target);
                     castingTarget = null;
@@ -249,7 +242,7 @@ namespace WardShift
                 if (!pressed) waitingForRelease = false;
                 return;
             }
-            if (!pressed || !castAction.WasPressedThisFrame()) return;
+            if (!pressed || !input.WasCastPressedThisFrame) return;
             if (aimed == null || aimed.RequiredMagic != selectedMagic) return;
             castingTarget = aimed;
             AudioService.Play2D(WardShiftSoundId.PlayerMagicCast);
@@ -460,7 +453,16 @@ namespace WardShift
         private void OnApplicationFocus(bool focused)
         {
             hasFocus = focused;
-            if (!focused) { CancelCast(); waitingForRelease = true; StopPurifyBeamVfx(); }
+            if (!focused)
+            {
+                CancelCast();
+                continuousPurifySession = false;
+                waitingForRelease = true;
+                StopPurifyBeamVfx();
+                // 창 밖에서 마우스를 놓아도 눌림 상태가 남지 않게 액션을 초기화합니다.
+                input?.Disable();
+            }
+            else if (isActiveAndEnabled) input?.Enable();
         }
 
         private void OnDisable()
@@ -475,14 +477,9 @@ namespace WardShift
             outOfRangeClickUntil = 0f;
             if (interactor != null) interactor.SetSealReady(false);
             // canceled 콜백으로 판정하지 않으므로 액션 비활성화가 성공을 발생시키지 않음.
-            castAction.Disable(); sealAction.Disable(); purifyAction.Disable(); stabilizeAction.Disable();
-            scrollMagicAction.Disable();
+            input?.Disable();
         }
 
-        private void OnDestroy()
-        {
-            castAction.Dispose(); sealAction.Dispose(); purifyAction.Dispose(); stabilizeAction.Dispose();
-            scrollMagicAction.Dispose();
-        }
+        private void OnDestroy() => input?.Dispose();
     }
 }
