@@ -104,7 +104,10 @@ namespace WardShift
                 startingMobilityLevel, startingFacilityDefenseLevel, startingResistanceLevel);
             dayInput = GetComponent<DayInputController>();
             if (dayInput == null) dayInput = gameObject.AddComponent<DayInputController>();
-            dayInput.Configure(this, CanUseDaySkip, daySkipCheatKey);
+            PauseMenuController pauseMenu = GetComponent<PauseMenuController>();
+            if (pauseMenu == null) pauseMenu = gameObject.AddComponent<PauseMenuController>();
+            pauseMenu.Configure(this, wardStatus);
+            dayInput.Configure(this, pauseMenu, CanUseDaySkip, daySkipCheatKey);
             dayBriefing = GetComponent<DayBriefingController>();
             if (dayBriefing == null) dayBriefing = gameObject.AddComponent<DayBriefingController>();
             dayBriefing.Configure(this);
