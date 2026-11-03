@@ -11,7 +11,9 @@ namespace WardShift
         private FirstPersonController firstPersonController;
         private ThirdPersonController thirdPersonController;
         private float firstPersonBaseMoveSpeed;
+        private float firstPersonBaseSprintSpeed;
         private float thirdPersonBaseMoveSpeed;
+        private float thirdPersonBaseSprintSpeed;
         private bool firstPersonSpeedCaptured;
         private bool thirdPersonSpeedCaptured;
 
@@ -33,9 +35,15 @@ namespace WardShift
         {
             CaptureBaseSpeeds();
             if (firstPersonController != null && firstPersonSpeedCaptured)
+            {
                 firstPersonController.MoveSpeed = firstPersonBaseMoveSpeed * Mathf.Max(0f, movementMultiplier);
+                firstPersonController.SprintSpeed = firstPersonBaseSprintSpeed * Mathf.Max(0f, movementMultiplier);
+            }
             if (thirdPersonController != null && thirdPersonSpeedCaptured)
+            {
                 thirdPersonController.MoveSpeed = thirdPersonBaseMoveSpeed * Mathf.Max(0f, movementMultiplier);
+                thirdPersonController.SprintSpeed = thirdPersonBaseSprintSpeed * Mathf.Max(0f, movementMultiplier);
+            }
             if (contamination == null) return;
             contamination.SetContaminationGainMultiplier(contaminationGainMultiplier);
         }
@@ -50,11 +58,13 @@ namespace WardShift
             if (firstPersonController != null && !firstPersonSpeedCaptured)
             {
                 firstPersonBaseMoveSpeed = firstPersonController.MoveSpeed;
+                firstPersonBaseSprintSpeed = firstPersonController.SprintSpeed;
                 firstPersonSpeedCaptured = true;
             }
             if (thirdPersonController != null && !thirdPersonSpeedCaptured)
             {
                 thirdPersonBaseMoveSpeed = thirdPersonController.MoveSpeed;
+                thirdPersonBaseSprintSpeed = thirdPersonController.SprintSpeed;
                 thirdPersonSpeedCaptured = true;
             }
         }
@@ -66,9 +76,15 @@ namespace WardShift
         private void RestoreBaseSpeeds()
         {
             if (firstPersonController != null && firstPersonSpeedCaptured)
+            {
                 firstPersonController.MoveSpeed = firstPersonBaseMoveSpeed;
+                firstPersonController.SprintSpeed = firstPersonBaseSprintSpeed;
+            }
             if (thirdPersonController != null && thirdPersonSpeedCaptured)
+            {
                 thirdPersonController.MoveSpeed = thirdPersonBaseMoveSpeed;
+                thirdPersonController.SprintSpeed = thirdPersonBaseSprintSpeed;
+            }
         }
     }
 }
