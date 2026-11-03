@@ -479,7 +479,7 @@ namespace WardShift.Editor
             Assert(cards.GetComponent<VerticalLayoutGroup>() != null, "Anomaly alerts use one reusable vertical card layout");
             Assert(VisibleAnomalyCardNames().Length == 3, "At most three full anomaly cards are visible");
             Assert(cards.parent.Find("OverflowCount").GetComponent<TMP_Text>().text
-                .Contains("그 외 이상현상 1개"), "Overflow count points to the existing M map");
+                .Contains("그 외 이상현상 1개"), "Overflow count points to the existing TAB map");
 
             if (rifts.Length == 2)
             {

@@ -65,6 +65,8 @@ namespace WardShift
         private TMP_Text pickupPromptText;
         private TMP_Text clearHeaderText;
         private TMP_Text clearSummaryText;
+        private TMP_Text failedDayText;
+        private TMP_Text failedReasonText;
         private TMP_Text failedSummaryText;
         private TMP_Text endingSummaryText;
         private TMP_Text endingDayValueText;
@@ -190,11 +192,14 @@ namespace WardShift
                             : "강화는 이번 근무에 한 종류만 구매할 수 있습니다.");
             }
             
-            if (failedSummaryText != null) failedSummaryText.text = 
-                $"{dayFlow.CurrentDay}일차\n" + (dayFlow.Status != null && !string.IsNullOrEmpty(dayFlow.Status.FailureReason) 
-                    ? dayFlow.Status.FailureReason 
-                    : "시설 관리 실패") + "\nDAY 시작 시점의 자원과 픽업을 복원해 재도전합니다." + (tutorial != null && tutorial.ShowRuptureOnFailure 
-                        ? "\n" + tutorialCopy.rupture 
+            if (failedDayText != null)
+                failedDayText.text = $"DAY {dayFlow.CurrentDay:00} / {dayFlow.FinalDay:00}";
+            if (failedReasonText != null)
+                failedReasonText.text = GetFailureReasonText(dayFlow);
+            if (failedSummaryText != null)
+                failedSummaryText.text = "재도전하면 DAY 시작 시점의 보유 자원과 픽업 상태를 복원해 같은 날을 다시 시작합니다."
+                    + (tutorial != null && tutorial.ShowRuptureOnFailure
+                        ? "\n" + tutorialCopy.rupture
                         : "");
             
             if (endingDayValueText != null) endingDayValueText.text = $"{dayFlow.CurrentDay}일";
@@ -231,10 +236,8 @@ namespace WardShift
 
             BuildInventory(canvasObject.transform);
             BuildClearPanel(canvasObject.transform);
-            failedPanel = BuildOverlay(canvasObject.transform, "DayFailedPanel", "근무 실패", out failedSummaryText,
-                "같은 날 재도전", () => { if (dayFlow != null) dayFlow.RetryCurrentDay(); }, false);
-            AddOverlaySecondaryButton(failedPanel, "TitleButton", "타이틀로 돌아가기",
-                TitleMenuController.ReturnToTitle);
+            failedPanel = BuildFailurePanel(canvasObject.transform, out failedDayText,
+                out failedReasonText, out failedSummaryText);
             BuildEndingPanel(canvasObject.transform);
             BuildSupplyPanel(canvasObject.transform);
             clearPanel.SetActive(false);
@@ -377,45 +380,82 @@ namespace WardShift
             return root;
         }
 
-        private GameObject BuildOverlay(Transform parent, string name, string title, out TMP_Text summary,
-            string buttonLabel, UnityEngine.Events.UnityAction onClick, bool active)
+        private GameObject BuildFailurePanel(Transform parent, out TMP_Text dayLabel,
+            out TMP_Text reasonText, out TMP_Text retryInfoText)
         {
-            GameObject panel = CreatePanel(name, parent, new Vector2(0.5f, 0.5f),
+            GameObject panel = CreatePanel("DayFailedPanel", parent, new Vector2(0.5f, 0.5f),
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero,
-                new Vector2(700f, 430f), new Color(0.035f, 0.055f, 0.09f, 0.98f));
+                new Vector2(860f, 520f), WardShiftHUDLayout.RecordPanelColor);
+            Outline outline = panel.AddComponent<Outline>();
+            outline.effectColor = WardShiftHUDLayout.RecordFrameColor;
+            outline.effectDistance = new Vector2(1f, -1f);
+            outline.useGraphicAlpha = true;
+            AddRecordPanelOrnaments(panel);
+
+            CreatePanel("TopAccent", panel.transform, new Vector2(0f, 1f), new Vector2(1f, 1f),
+                new Vector2(0.5f, 1f), new Vector2(0f, -10f), new Vector2(-28f, 2f),
+                new Color32(180, 160, 108, 235));
+            CreateText("FacilityLabel", panel.transform, new Vector2(0f, 1f), new Vector2(0f, 1f),
+                new Vector2(0f, 1f), new Vector2(34f, -30f), new Vector2(310f, 26f),
+                16f, TextAlignmentOptions.MidlineLeft, WardShiftHUDLayout.RecordHeaderColor).text =
+                "제17 마력 제어소";
+            dayLabel = CreateText("DayLabel", panel.transform, new Vector2(1f, 1f), new Vector2(1f, 1f),
+                new Vector2(1f, 1f), new Vector2(-34f, -30f), new Vector2(310f, 26f),
+                16f, TextAlignmentOptions.MidlineRight, WardShiftHUDLayout.RecordHeaderColor);
+            CreatePanel("HeaderDivider", panel.transform, new Vector2(0f, 1f), new Vector2(1f, 1f),
+                new Vector2(0.5f, 1f), new Vector2(0f, -66f), new Vector2(-68f, 1f),
+                WardShiftHUDLayout.RecordDividerColor);
+
             CreateText("Title", panel.transform, new Vector2(0f, 1f), new Vector2(1f, 1f),
-                new Vector2(0.5f, 1f), new Vector2(0f, -55f), new Vector2(-40f, 90f),
-                48, TextAlignmentOptions.Center, new Color(0.65f, 0.92f, 1f)).text = title;
-            summary = CreateText("Summary", panel.transform, new Vector2(0f, 0.35f),
-                new Vector2(1f, 0.75f), new Vector2(0.5f, 0.5f), Vector2.zero,
-                new Vector2(-55f, 180f), 29, TextAlignmentOptions.Center, Color.white);
-            GameObject buttonObject = CreatePanel("ActionButton", panel.transform,
-                new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-                new Vector2(-145f, 55f), new Vector2(260f, 72f), new Color(0.12f, 0.32f, 0.43f, 1f));
-            Button button = buttonObject.AddComponent<Button>();
-            button.targetGraphic = buttonObject.GetComponent<Image>();
-            button.onClick.AddListener(() => AudioService.Play2D(WardShiftSoundId.UiButtonClick));
-            button.onClick.AddListener(onClick);
-            CreateText("ButtonLabel", buttonObject.transform, Vector2.zero, Vector2.one,
-                new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero, 26,
-                TextAlignmentOptions.Center, Color.white).text = buttonLabel;
-            panel.SetActive(active);
+                new Vector2(0.5f, 1f), new Vector2(0f, -94f), new Vector2(-72f, 62f),
+                40f, TextAlignmentOptions.Center, WardShiftHUDLayout.RecordTitleColor).text = "근무 실패";
+            reasonText = CreateText("FailureReason", panel.transform,
+                new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(0f, -163f), new Vector2(-88f, 42f), 23f,
+                TextAlignmentOptions.Center, new Color32(218, 151, 126, 255));
+            retryInfoText = CreateText("RetryInfo", panel.transform,
+                new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(0f, -232f), new Vector2(-104f, 88f), 18f,
+                TextAlignmentOptions.Center, WardShiftHUDLayout.RecordBodyColor);
+            retryInfoText.lineSpacing = 3f;
+
+            CreatePanel("FooterDivider", panel.transform, new Vector2(0f, 0f), new Vector2(1f, 0f),
+                new Vector2(0.5f, 0f), new Vector2(0f, 126f), new Vector2(-68f, 1f),
+                WardShiftHUDLayout.RecordDividerColor);
+            Button retryButton = CreateActionButton("ActionButton", panel.transform,
+                new Vector2(-170f, 46f), new Vector2(330f, 58f), "같은 날 재도전",
+                () => { if (dayFlow != null) dayFlow.RetryCurrentDay(); }, true,
+                new Vector2(0.5f, 0f), new Vector2(0.5f, 0f));
+            ApplyRecordButtonStyle(retryButton, false);
+            retryButton.GetComponentInChildren<TMP_Text>(true).fontSize = 18f;
+
+            Button titleButton = CreateActionButton("TitleButton", panel.transform,
+                new Vector2(170f, 46f), new Vector2(330f, 58f), "타이틀로 돌아가기",
+                TitleMenuController.ReturnToTitle, true,
+                new Vector2(0.5f, 0f), new Vector2(0.5f, 0f));
+            ApplyRecordButtonStyle(titleButton, true);
+            TMP_Text titleButtonLabel = titleButton.GetComponentInChildren<TMP_Text>(true);
+            titleButtonLabel.fontSize = 18f;
+            titleButtonLabel.color = new Color32(205, 212, 205, 255);
+
+            panel.SetActive(false);
             return panel;
         }
 
-        private void AddOverlaySecondaryButton(GameObject panel, string name, string label,
-            UnityEngine.Events.UnityAction onClick)
+        private static string GetFailureReasonText(DayFlowManager manager)
         {
-            GameObject buttonObject = CreatePanel(name, panel.transform,
-                new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-                new Vector2(145f, 55f), new Vector2(260f, 66f), new Color(0.11f, 0.12f, 0.17f, 1f));
-            Button button = buttonObject.AddComponent<Button>();
-            button.targetGraphic = buttonObject.GetComponent<Image>();
-            button.onClick.AddListener(() => AudioService.Play2D(WardShiftSoundId.UiButtonClick));
-            button.onClick.AddListener(onClick);
-            CreateText("ButtonLabel", buttonObject.transform, Vector2.zero, Vector2.one,
-                new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero, 22,
-                TextAlignmentOptions.Center, new Color(0.9f, 0.9f, 0.94f, 1f)).text = label;
+            WardStatus status = manager != null ? manager.Status : null;
+            string failureReason = status != null ? status.FailureReason : null;
+            if (failureReason == "시설 안정도 0")
+                return "시설 안정도가 0에 도달했습니다.";
+            if (failureReason == "마력 오염도 100")
+                return "플레이어 오염도가 한계에 도달했습니다.";
+            if (!string.IsNullOrWhiteSpace(failureReason)) return failureReason;
+            if (status != null && status.Stability <= 0f)
+                return "시설 안정도가 0에 도달했습니다.";
+            if (status != null && status.Player != null && status.Player.Value >= 100f)
+                return "플레이어 오염도가 한계에 도달했습니다.";
+            return "실패 사유를 확인할 수 없습니다.";
         }
 
         private void BuildEndingPanel(Transform parent)

@@ -406,7 +406,7 @@ namespace WardShift
             statusText.overflowMode = TextOverflowModes.Ellipsis;
             statusText.gameObject.SetActive(visibleCount == 0 && gameplayActive);
             if (visibleCount == 0 && gameplayActive)
-                statusText.text = "활성 이상현상 없음\n<size=18><color=#B8C4D1>시설을 순찰하세요 · M 지도</color></size>";
+                statusText.text = "활성 이상현상 없음\n<size=18><color=#B8C4D1>시설을 순찰하세요 · TAB 지도</color></size>";
 
             anomalyCardList.gameObject.SetActive(visibleCount > 0);
             for (int i = 0; i < visibleCount; i++)
@@ -444,7 +444,7 @@ namespace WardShift
             overflowText.gameObject.SetActive(hasOverflow);
             if (hasOverflow)
             {
-                overflowText.text = string.Format("그 외 이상현상 {0}개 · M 지도에서 위치 확인",
+                overflowText.text = string.Format("그 외 이상현상 {0}개 · TAB 지도에서 위치 확인",
                     priorities.Count - MaximumVisibleAlerts);
             }
         }

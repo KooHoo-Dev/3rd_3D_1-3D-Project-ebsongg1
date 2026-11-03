@@ -20,9 +20,9 @@ namespace WardShift
         [Header("강화 설정")]
         [SerializeField, Min(0), InspectorName("단계별 마력 조각 가격"),
          Tooltip("1·2·3단계 구매에 각각 지불하는 가격입니다.")] private int[] upgradeStagePrices = { 4, 7, 10 };
-        [Header("DAY 스킵 (Editor / Development Build)")]
+        [Header("DAY 스킵")]
         [SerializeField] private bool enableDaySkipCheat = true;
-        [Tooltip("Development Build에서 F8 DAY 스킵을 허용합니다. 일반 빌드에서는 이 값과 관계없이 비활성화됩니다.")]
+        [Tooltip("기존 씬 설정을 유지하기 위한 필드입니다. F8 DAY 스킵 사용 여부에는 영향을 주지 않습니다.")]
         [SerializeField] private bool demoMode;
         [SerializeField] private Key daySkipCheatKey = Key.F8;
         [Header("씬 참조")]
@@ -64,16 +64,7 @@ namespace WardShift
 
         private bool CanUseDaySkip
         {
-            get
-            {
-#if UNITY_EDITOR
-                return enableDaySkipCheat;
-#elif DEVELOPMENT_BUILD
-                return enableDaySkipCheat && demoMode;
-#else
-                return false;
-#endif
-            }
+            get => enableDaySkipCheat;
         }
 
         internal bool CanUseDaySkipInput => CanUseDaySkip;
