@@ -169,6 +169,7 @@ namespace WardShift
                     anomalySpawner.SetSpawnWindowOpen(false);
                 }
                 int activeCount = anomalySpawner != null ? anomalySpawner.ActiveAnomalyCount : 0;
+                
                 if (activeCount > 0)
                 {
                     if (!session.IsCleaningUp)
@@ -178,6 +179,7 @@ namespace WardShift
                     }
                     return;
                 }
+                
                 if (HasSurvivedDay()) CompleteDay();
                 else if (wardStatus == null || !wardStatus.HasFailed)
                     OnDayFailed("근무 종료 시 생존 조건을 만족하지 못했습니다.");
@@ -245,11 +247,13 @@ namespace WardShift
                 anomalySpawner.SetSpawningEnabled(false);
                 anomalySpawner.SetSpawnWindowOpen(false);
             }
+            
             anomalyRewards.UnsubscribeAll();
             dayScene.ClearAllAnomalies();
             session.PrepareRetry();
             dayUi.SetMapOpen(false, false);
             checkpoint.Restore(inventory);
+            
             if (pickupInteractor != null) pickupInteractor.ClearCurrentPickup();
             StartCoroutine(BeginDayNextFrame());
         }
@@ -260,43 +264,55 @@ namespace WardShift
         private void PrepareDayAndShowBriefing(bool isRetry = false)
         {
             if (state != DayState.Preparing) return;
+            
             preparedDayReady = false;
             briefingPending = false;
             dayUi.CloseInventory();
             dayUi.SetMapOpen(false, false);
             anomalyRewards.ResetForDay();
+            
             if (anomalySpawner != null)
             {
                 anomalySpawner.SetSpawningEnabled(false);
                 anomalySpawner.SetSpawnWindowOpen(false);
             }
+            
             dayScene.ClearAllAnomalies();
             dayScene.ResetManaDevices();
             dayScene.TeleportPlayerToStart();
+            
             if (dayRandomSeed == 0) session.EnsureDaySeed(CreateDaySeed());
             inventory.BeginDay();
+            
             if (wardStatus != null) wardStatus.ResetForNewDay();
             if (!isRetry) upgrades.ResetPurchaseForNewPhase();
+            
             supply.BeginDay(currentDay, isRetry);
             ApplyUpgradeEffects();
+            
             if (magicCaster != null)
             {
                 magicCaster.ResetForNewDay();
                 magicCaster.SetInputBlocked(true);
             }
+            
             if (anomalySpawner != null)
             {
                 anomalySpawner.ConfigureForDay(currentDay, dayRandomSeed);
             }
+            
             checkpoint.Capture(inventory);
+            
             if (wardStatus != null) wardStatus.PauseGameForUI();
 
             preparedDayReady = true;
+            
             if (!isRetry && dayBriefing != null && dayBriefing.Show(currentDay))
             {
                 briefingPending = true;
                 return;
             }
+            
             BeginPreparedDay();
         }
 

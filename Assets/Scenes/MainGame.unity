@@ -19187,7 +19187,7 @@ MonoBehaviour:
   spawnOnStart: 0
   spawnIntervalSeconds: 10
   maximumConcurrentAnomalies: 2
-  firstSpawnDelaySeconds: 15
+  firstSpawnDelaySeconds: 13
   daySpawnProfiles:
   - day: 1
     allowManaRift: 1

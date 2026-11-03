@@ -15,7 +15,7 @@ namespace WardShift
         [SerializeField] private DayFlowManager dayFlow;
         [SerializeField] private PlayerInventory inventory;
         [SerializeField] private TMP_FontAsset koreanFont;
-
+        
         [Header("강화 제목 강조 색상")]
         [SerializeField, InspectorName("이동 속도 제목")]
         private Color mobilityTitleHighlightColor = new Color32(110, 200, 255, 255);
@@ -47,18 +47,22 @@ namespace WardShift
         private Color upgradeUnavailableHighlightColor = new Color32(255, 125, 115, 255);
         [SerializeField, InspectorName("최대 단계·구매 완료 상태")]
         private Color upgradeCompleteHighlightColor = new Color32(175, 190, 210, 255);
-
-        private TMP_Text dayStatusText;
-        private TMP_Text pickupPromptText;
+        
         private InventoryUIController inventoryView;
         private UpgradeUIController upgradeView;
+        
         private GameObject inventoryPanel;
-        private RectTransform overlayRoot;
         private GameObject clearPanel;
         private GameObject failedPanel;
         private GameObject endingPanel;
-        private SupplyShopUIController supplyView;
         private GameObject supplyPanel;
+        
+        private RectTransform overlayRoot;
+        
+        private SupplyShopUIController supplyView;
+        
+        private TMP_Text dayStatusText;
+        private TMP_Text pickupPromptText;
         private TMP_Text clearHeaderText;
         private TMP_Text clearSummaryText;
         private TMP_Text failedSummaryText;
@@ -68,8 +72,10 @@ namespace WardShift
         private TMP_Text endingContaminationValueText;
         private TMP_Text endingManaValueText;
         private TMP_Text anomalyResolutionFeedbackText;
+        
         private int lastDisplayedClearDay;
         private float anomalyResolutionFeedbackUntil;
+        
         public bool HasKoreanFont => koreanFont != null;
 
         private void Awake()
@@ -77,6 +83,7 @@ namespace WardShift
             if (dayFlow == null) dayFlow = GetComponent<DayFlowManager>();
             if (inventory == null && dayFlow != null) inventory = dayFlow.Inventory;
             if (inventory == null) inventory = FindFirstObjectByType<PlayerInventory>();
+            
             BuildUI();
             BuildTutorialUI();
         }
@@ -115,6 +122,7 @@ namespace WardShift
         private void SubscribeResolutionFeedback()
         {
             if (!isActiveAndEnabled || dayFlow == null) return;
+            
             dayFlow.AnomalyResolutionRewarded -= OnAnomalyResolutionRewarded;
             dayFlow.AnomalyResolutionRewarded += OnAnomalyResolutionRewarded;
         }
@@ -131,23 +139,33 @@ namespace WardShift
         private void Update()
         {
             if (dayFlow == null || inventory == null) return;
+            
             UpdateTutorial();
             FitOverlaysToScreen();
+            
             dayStatusText.text = (dayFlow.IsCleaningUp
                     ? $"<color=#E8C26E>DAY {dayFlow.CurrentDay}</color>\n<size=20>잔여 이상현상 정리 중 ({dayFlow.CleanupAnomalyCount}개)</size>\n"
                     : $"<color=#E8C26E>DAY {dayFlow.CurrentDay}</color>   남은 {FormatTime(dayFlow.RemainingSeconds)}\n")
-                + $"마력 결정  {inventory.ManaCrystals}개";
+                        + $"마력 결정  {inventory.ManaCrystals}개";
+            
             ItemPickup pickup = dayFlow.PickupInteractor != null
-                ? dayFlow.PickupInteractor.CurrentPickup : null;
-            pickupPromptText.text = pickup != null && !dayFlow.InventoryOpen && !dayFlow.SupplyPanelOpen
+                ? (dayFlow.PickupInteractor.CurrentPickup) 
+                : null;
+            
+            pickupPromptText.text = pickup != null && (dayFlow.InventoryOpen == false) && !dayFlow.SupplyPanelOpen
                 && !dayFlow.IsMapOpen && dayFlow.State == DayState.Playing
-                ? $"[E] {GetItemName(pickup.Item)} 획득" : "";
+                ? $"[E] {GetItemName(pickup.Item)} 획득" 
+                : "";
+            
             inventoryView?.SetVisible(dayFlow.State == DayState.Playing && dayFlow.InventoryOpen);
+            
             if (anomalyResolutionFeedbackText != null)
                 anomalyResolutionFeedbackText.gameObject.SetActive(dayFlow.State == DayState.Playing
                     && Time.unscaledTime < anomalyResolutionFeedbackUntil);
+            
             clearPanel.SetActive(dayFlow.State == DayState.DayClear && !dayFlow.SupplyPanelOpen);
             failedPanel.SetActive(dayFlow.State == DayState.DayFailed);
+            
             if (endingPanel != null) endingPanel.SetActive(dayFlow.State == DayState.Ending);
             if (dayFlow.State == DayState.DayClear && lastDisplayedClearDay != dayFlow.CurrentDay)
             {
@@ -155,36 +173,39 @@ namespace WardShift
                 upgradeView?.ClearFeedback();
                 supplyView?.ClearFeedback();
             }
+            
             RefreshSupplyUI();
+            
             if (clearSummaryText != null)
             {
                 if (clearHeaderText != null)
                     clearHeaderText.text = $"제17 마력 제어소  ·  DAY {dayFlow.CurrentDay} 성장 기록";
+                
                 clearSummaryText.text = $"이번 DAY 획득 <color=#E8C26E>+{inventory.CrystalsEarnedToday}</color> 마력 조각"
                     + $"   ·   현재 보유 <color=#E8C26E>{inventory.ManaCrystals}개</color>\n"
                     + (dayFlow.UpgradePurchasedThisClear
                         ? "이번 근무 강화 구매 완료 · 추가 구매 불가"
-                        : dayFlow.CurrentDay == 1 && tutorial != null
-                            && !tutorial.Learned(DayTutorialController.Clear)
+                        : dayFlow.CurrentDay == 1 && tutorial != null && !tutorial.Learned(DayTutorialController.Clear)
                             ? tutorialCopy.firstClear
                             : "강화는 이번 근무에 한 종류만 구매할 수 있습니다.");
             }
-            if (failedSummaryText != null)
-                failedSummaryText.text = $"{dayFlow.CurrentDay}일차\n"
-                    + (dayFlow.Status != null && !string.IsNullOrEmpty(dayFlow.Status.FailureReason)
-                        ? dayFlow.Status.FailureReason : "시설 관리 실패")
-                    + "\nDAY 시작 시점의 자원과 픽업을 복원해 재도전합니다."
-                    + (tutorial != null && tutorial.ShowRuptureOnFailure ? "\n" + tutorialCopy.rupture : "");
-            if (endingDayValueText != null)
-                endingDayValueText.text = $"{dayFlow.CurrentDay}일";
-            if (endingStabilityValueText != null)
-                endingStabilityValueText.text = dayFlow.Status != null
-                    ? $"{dayFlow.Status.Stability:F0}%" : "-";
-            if (endingContaminationValueText != null)
-                endingContaminationValueText.text = dayFlow.Player != null
-                    ? $"{dayFlow.Player.Value:F0}%" : "-";
-            if (endingManaValueText != null)
-                endingManaValueText.text = $"{inventory.ManaCrystals}개";
+            
+            if (failedSummaryText != null) failedSummaryText.text = 
+                $"{dayFlow.CurrentDay}일차\n" + (dayFlow.Status != null && !string.IsNullOrEmpty(dayFlow.Status.FailureReason) 
+                    ? dayFlow.Status.FailureReason 
+                    : "시설 관리 실패") + "\nDAY 시작 시점의 자원과 픽업을 복원해 재도전합니다." + (tutorial != null && tutorial.ShowRuptureOnFailure 
+                        ? "\n" + tutorialCopy.rupture 
+                        : "");
+            
+            if (endingDayValueText != null) endingDayValueText.text = $"{dayFlow.CurrentDay}일";
+            if (endingStabilityValueText != null) endingStabilityValueText.text = dayFlow.Status != null
+                    ? $"{dayFlow.Status.Stability:F0}%" 
+                    : "-";
+            if (endingContaminationValueText != null) endingContaminationValueText.text = dayFlow.Player != null
+                    ? $"{dayFlow.Player.Value:F0}%" 
+                    : "-";
+            if (endingManaValueText != null) endingManaValueText.text = $"{inventory.ManaCrystals}개";
+            
             upgradeView?.Refresh();
         }
 
