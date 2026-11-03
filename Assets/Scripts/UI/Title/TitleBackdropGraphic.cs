@@ -62,14 +62,14 @@ namespace WardShift
                 }
             }
         }
-
+#if UNITY_EDITOR
         protected override void OnValidate()
         {
             base.OnValidate();
             fadeEnd = Mathf.Max(fadeStart + 0.01f, fadeEnd);
             SetVerticesDirty();
         }
-
+#endif
         private Color EvaluateColor(float u, float v)
         {
             float fade = 1f - SmoothStep(fadeStart, fadeEnd, u);
