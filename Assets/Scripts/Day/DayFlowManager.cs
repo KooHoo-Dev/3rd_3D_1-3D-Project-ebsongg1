@@ -16,7 +16,7 @@ namespace WardShift
         [SerializeField, Min(0f)] private float spawnStopBeforeEndSeconds = 30f;
         [SerializeField, Min(1)] private int finalDay = 7;
         [FormerlySerializedAs("minimumRiftReward"), SerializeField, Min(0)] private int minimumAnomalyReward = 1;
-        [FormerlySerializedAs("maximumRiftReward"), SerializeField, Min(0)] private int maximumAnomalyReward = 2;
+        [FormerlySerializedAs("maximumRiftReward"), SerializeField, Min(0)] private int maximumAnomalyReward = 1;
         [Header("강화 설정")]
         [SerializeField, Min(0), InspectorName("단계별 마력 조각 가격"),
          Tooltip("1·2·3단계 구매에 각각 지불하는 가격입니다.")] private int[] upgradeStagePrices = { 4, 7, 10 };

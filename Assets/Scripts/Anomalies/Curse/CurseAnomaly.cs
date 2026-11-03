@@ -89,7 +89,7 @@ namespace WardShift
 
         /// <summary>이상현상 생성 후 흐른 시간입니다.</summary>
         public float Age => age;
-        /// <summary>성장 단계와 같은 수의 마력 결정을 진압 보상으로 지급합니다.</summary>
+        /// <summary>위험 단계와 관계없이 마력 조각 1개를 진압 보상으로 지급합니다.</summary>
         public override int DangerStage => dangerStage;
         public override float SecondsUntilRupture
         {
@@ -103,8 +103,8 @@ namespace WardShift
         }
         /// <summary>파열 후 공통 시설 피해 처리가 이미 끝났는지 반환합니다.</summary>
         public override bool HasOverloaded => hasRuptured;
-        /// <summary>정상 진압 시 지급할 마력 결정 수입니다.</summary>
-        public override int ResolutionReward => dangerStage;
+        /// <summary>정상 진압 시 지급할 마력 조각 수입니다.</summary>
+        public override int ResolutionReward => 1;
         /// <summary>시설 지도와 상태 HUD에 표시할 이름입니다.</summary>
         public override string DisplayName => "저주 오염";
         /// <summary>Floor 앵커에서만 생성할 수 있습니다.</summary>

@@ -34,8 +34,8 @@ namespace WardShift
         /// <summary>UI에서 읽는 현재 단계 기준 파열까지 남은 초입니다.</summary>
         public virtual float SecondsUntilRupture => float.PositiveInfinity;
         public virtual bool HasOverloaded => false;
-        /// <summary>Normal-resolution reward amount. A negative value uses the DAY fallback range.</summary>
-        public virtual int ResolutionReward => -1;
+        /// <summary>모든 이상현상의 정상 진압 보상은 마력 조각 1개입니다.</summary>
+        public virtual int ResolutionReward => 1;
         public virtual float AdvanceHazard(float deltaTime) => 0f;
         /// <summary>Returns continuous stability loss separately from rupture damage for facility upgrades.</summary>
         public virtual float AdvanceHazard(float deltaTime, out float immediateStabilityDamage)

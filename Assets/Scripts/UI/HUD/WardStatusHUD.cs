@@ -15,6 +15,13 @@ namespace WardShift
         private const float AlertCardSpacing = 7f;
         private const float AlertListTop = 62f;
         private const float MaximumAlertPanelHeight = 590f;
+        private const float StabilityDamageFlashDuration = 0.22f;
+        private const float StabilityDamageFlashInterval = 0.42f;
+        private const float StabilityThresholdWarningDuration = 0.46f;
+        private const float StabilityThresholdWarningCooldown = 1.2f;
+        private static readonly Color StabilityDamageFlashColor = new Color(1f, 0.34f, 0.18f);
+        private static readonly Color StabilityDangerColor = new Color(1f, 0.30f, 0.25f);
+        private static readonly Color StabilityCautionColor = new Color(1f, 0.70f, 0.25f);
 
         [SerializeField] private WardStatus status;
         [SerializeField] private TMP_Text statusText;
@@ -47,11 +54,15 @@ namespace WardShift
         private float directHitAmount;
         private float previousStability = float.NaN;
         private float previousContamination = float.NaN;
-        private float stabilityEmphasisUntil;
         private float contaminationEmphasisUntil;
-        private bool emphasizedFirstStabilityLoss;
         private bool emphasizedFirstContaminationGain;
         private bool wasFacilityStabilityDanger;
+        private CanvasGroup stabilityThresholdWarning;
+        private float stabilityDamageFlashUntil;
+        private float nextStabilityDamageFlashAt;
+        private float stabilityThresholdWarningStartedAt;
+        private float stabilityThresholdWarningUntil;
+        private float nextStabilityThresholdWarningAt;
         public FacilityZoneTracker ZoneTracker => zoneTracker;
 
         public void ShowContaminationIncrease(float amount)
@@ -80,38 +91,114 @@ namespace WardShift
         private void OnEnable()
         {
             if (status != null) status.StabilityChanged += OnStabilityChanged;
+            previousStability = status != null ? status.Stability : float.NaN;
+            ResetStabilityFeedback();
         }
 
         private void OnDisable()
         {
             if (status != null) status.StabilityChanged -= OnStabilityChanged;
+            ResetStabilityFeedback();
             ReleaseAllCards();
         }
 
         private void OnStabilityChanged(float stability)
         {
+            float now = Time.unscaledTime;
+            float previous = previousStability;
+            if (!float.IsNaN(previous) && stability < previous - 0.001f
+                && CanShowStabilityFeedback())
+            {
+                if (now >= nextStabilityDamageFlashAt)
+                {
+                    stabilityDamageFlashUntil = now + StabilityDamageFlashDuration;
+                    nextStabilityDamageFlashAt = now + StabilityDamageFlashInterval;
+                }
+
+                if (CrossedStabilityWarningThreshold(previous, stability)
+                    && now >= nextStabilityThresholdWarningAt)
+                {
+                    stabilityThresholdWarningStartedAt = now;
+                    stabilityThresholdWarningUntil = now + StabilityThresholdWarningDuration;
+                    nextStabilityThresholdWarningAt = now + StabilityThresholdWarningCooldown;
+                }
+            }
             if (stabilityFill != null) stabilityFill.fillAmount = stability / 100f;
+            previousStability = stability;
+        }
+
+        public void ConfigureStabilityThresholdWarning(CanvasGroup warning)
+        {
+            stabilityThresholdWarning = warning;
+            if (stabilityThresholdWarning == null) return;
+            stabilityThresholdWarning.interactable = false;
+            stabilityThresholdWarning.blocksRaycasts = false;
+            stabilityThresholdWarning.alpha = 0f;
+        }
+
+        private bool CanShowStabilityFeedback()
+        {
+            if (status == null || status.HasFailed) return false;
+            return dayFlow == null || (dayFlow.State == DayState.Playing
+                && !dayFlow.InventoryOpen && !dayFlow.IsMapOpen && !dayFlow.SupplyPanelOpen);
+        }
+
+        private static bool CrossedStabilityWarningThreshold(float previous, float current)
+        {
+            for (int threshold = 90; threshold >= 10; threshold -= 10)
+            {
+                if ((previous > threshold && current <= threshold)
+                    || (Mathf.Approximately(previous, threshold) && current < threshold))
+                    return true;
+            }
+            return false;
+        }
+
+        private void ResetStabilityFeedback()
+        {
+            stabilityDamageFlashUntil = 0f;
+            nextStabilityDamageFlashAt = 0f;
+            stabilityThresholdWarningStartedAt = 0f;
+            stabilityThresholdWarningUntil = 0f;
+            nextStabilityThresholdWarningAt = 0f;
+            if (stabilityThresholdWarning != null) stabilityThresholdWarning.alpha = 0f;
+        }
+
+        private void UpdateStabilityThresholdWarning(float now, bool visible)
+        {
+            if (stabilityThresholdWarning == null) return;
+            if (!visible)
+            {
+                ResetStabilityFeedback();
+                return;
+            }
+
+            if (stabilityThresholdWarningUntil <= now)
+            {
+                stabilityThresholdWarning.alpha = 0f;
+                return;
+            }
+
+            float fadeIn = Mathf.Clamp01((now - stabilityThresholdWarningStartedAt) / 0.055f);
+            float fadeOut = Mathf.Clamp01((stabilityThresholdWarningUntil - now) / 0.30f);
+            stabilityThresholdWarning.alpha = Mathf.Min(fadeIn, fadeOut);
         }
 
         private void LateUpdate()
         {
+            float now = Time.unscaledTime;
+            bool feedbackVisible = CanShowStabilityFeedback();
+            UpdateStabilityThresholdWarning(now, feedbackVisible);
             if (status == null || status.Player == null) return;
             EnsureAlertHierarchy();
 
             PlayerContamination player = status.Player;
-            if (!emphasizedFirstStabilityLoss && !float.IsNaN(previousStability)
-                && status.Stability < previousStability - 0.001f)
-            {
-                emphasizedFirstStabilityLoss = true;
-                stabilityEmphasisUntil = Time.unscaledTime + 1f;
-            }
             if (!emphasizedFirstContaminationGain && !float.IsNaN(previousContamination)
                 && player.Value > previousContamination + 0.001f)
             {
                 emphasizedFirstContaminationGain = true;
-                contaminationEmphasisUntil = Time.unscaledTime + 1f;
+                contaminationEmphasisUntil = now + 1f;
             }
-            previousStability = status.Stability;
             previousContamination = player.Value;
             bool gameplayActive = dayFlow == null || dayFlow.State == DayState.Playing;
             bool facilityStabilityDanger = gameplayActive && status.Stability <= 20f;
@@ -144,14 +231,17 @@ namespace WardShift
             RefreshAnomalyCards(gameplayActive);
 
             if (stabilityText != null) stabilityText.text = string.Format("시설 안정도  {0:F0} / 100", status.Stability);
-            if (stabilityText != null) stabilityText.color = Time.unscaledTime < stabilityEmphasisUntil
-                ? new Color(1f, 0.76f, 0.36f) : Color.white;
-            bool directHitVisible = Time.unscaledTime < directHitUntil;
+            bool stabilityDamageFlash = feedbackVisible && now < stabilityDamageFlashUntil;
+            Color stabilityBaseColor = status.Stability <= 30f ? StabilityDangerColor
+                : status.Stability <= 50f ? StabilityCautionColor : Color.white;
+            Color stabilityDisplayColor = stabilityDamageFlash ? StabilityDamageFlashColor : stabilityBaseColor;
+            if (stabilityText != null) stabilityText.color = stabilityDisplayColor;
+            bool directHitVisible = now < directHitUntil;
             if (contaminationText != null)
             {
                 contaminationText.text = string.Format("마력 오염도  {0:F0} / 100", player.Value)
                     + (directHitVisible ? FormatContaminationIncrease(directHitAmount) : "");
-                contaminationText.color = directHitVisible || Time.unscaledTime < contaminationEmphasisUntil
+                contaminationText.color = directHitVisible || now < contaminationEmphasisUntil
                     ? new Color(1f, 0.55f, 0.8f)
                     : Color.white;
             }
@@ -163,10 +253,10 @@ namespace WardShift
             }
             if (stabilityFill != null) stabilityFill.fillAmount = status.Stability / 100f;
             if (contaminationFill != null) contaminationFill.fillAmount = player.Value / 100f;
-            if (stabilityFill != null) stabilityFill.color = Time.unscaledTime < stabilityEmphasisUntil
-                ? new Color(1f, 0.76f, 0.36f)
-                : status.Stability <= 20f ? new Color(1, 0.3f, 0.25f)
-                : status.Stability <= 50f ? new Color(1, 0.7f, 0.25f) : WardShiftHUDLayout.StabilityColor;
+            if (stabilityFill != null) stabilityFill.color = stabilityDamageFlash
+                ? StabilityDamageFlashColor
+                : status.Stability <= 30f ? StabilityDangerColor
+                : status.Stability <= 50f ? StabilityCautionColor : WardShiftHUDLayout.StabilityColor;
             if (contaminationFill != null) contaminationFill.color = directHitVisible
                 || Time.unscaledTime < contaminationEmphasisUntil
                 ? new Color(1f, 0.45f, 0.8f)
@@ -176,9 +266,9 @@ namespace WardShift
             if (warningText != null)
             {
                 warningText.color = new Color(1f, 0.44f, 0.4f);
-                string globalWarning = player.Value >= 80f && status.Stability <= 20f ? "오염도 / 시설 안정도 모두 위험"
+                string globalWarning = player.Value >= 80f && status.Stability <= 30f ? "오염도 / 시설 안정도 모두 위험"
                     : player.Value >= 80f ? "오염도 위험 · 오염원에서 벗어나세요"
-                    : status.Stability <= 20f ? "시설 안정도 위험 · 긴급 대응 필요"
+                    : status.Stability <= 30f ? "시설 안정도 위험 · 긴급 대응 필요"
                     : player.ExposurePerSecond > 0f ? "위험 영역 근처: 오염도 증가 중" : "";
                 // 단계 상승과 장치 공격은 별도의 상단 경고 배너가 우선 관리합니다.
                 warningText.text = status.HasFailed ? "근무 실패" : globalWarning;

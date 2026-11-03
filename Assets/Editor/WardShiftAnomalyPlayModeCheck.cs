@@ -288,10 +288,10 @@ namespace WardShift.Editor
                 case 61:
                     // ManaRift completes the two clicked seals in LateUpdate.
                     if (secondRift != null) return;
-                    int expectedCleanupReward = cleanupRewardCap;
+                    int expectedCleanupReward = 1;
                     if (day.Inventory.ManaCrystals != crystalsBeforeCleanupResolution + expectedCleanupReward)
                     {
-                        Finish(false, "post-deadline growth increased the resolution reward: expected "
+                        Finish(false, "cleanup resolution did not pay exactly one crystal after post-deadline growth: expected "
                             + expectedCleanupReward + ", received "
                             + (day.Inventory.ManaCrystals - crystalsBeforeCleanupResolution));
                         return;

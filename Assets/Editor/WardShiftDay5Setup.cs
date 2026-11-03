@@ -70,7 +70,7 @@ namespace WardShift.Editor
                 Undo.AddComponent<DayAnomalyRewardController>(dayFlow.gameObject);
             dayFlow.Configure(status, spawner, inventory, caster, playerRoot, startPoint,
                 Object.FindFirstObjectByType<PlayerPickupInteractor>(FindObjectsInactive.Include));
-            if (createdDayFlow) dayFlow.ConfigureDaySettings(180f, 1, 2);
+            if (createdDayFlow) dayFlow.ConfigureDaySettings(180f, 1, 1);
             EditorUtility.SetDirty(dayFlow);
 
             Day5HUD hud = Object.FindFirstObjectByType<Day5HUD>(FindObjectsInactive.Include);

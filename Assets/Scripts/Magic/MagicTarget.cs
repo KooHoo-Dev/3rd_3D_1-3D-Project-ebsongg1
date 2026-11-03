@@ -10,7 +10,7 @@ namespace WardShift
     {
         [Header("마법 대상 설정")]
         [Tooltip("화면과 로그에 표시할 대상 이름.")]
-        [SerializeField] private string displayName = "테스트 봉인점";
+        [SerializeField] private string displayName = "봉인점";
         [SerializeField] private MagicType requiredMagic = MagicType.Seal;
         [SerializeField, Min(0.1f)] private float castDuration = 2f;
         [Header("타이밍 판정")]

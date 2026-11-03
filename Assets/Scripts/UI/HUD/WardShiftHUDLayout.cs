@@ -62,6 +62,15 @@ namespace WardShift
         [SerializeField] private TMP_Text[] magicLabels = new TMP_Text[3];
         [SerializeField] private TMP_Text[] itemLabels = new TMP_Text[PlayerInventory.SlotCount];
         [SerializeField] private Image[] itemAccents = new Image[PlayerInventory.SlotCount];
+        [SerializeField] private Image[] itemIcons = new Image[PlayerInventory.SlotCount];
+        [SerializeField] private TMP_Text[] itemQuantities = new TMP_Text[PlayerInventory.SlotCount];
+        [SerializeField] private Image[] itemSlotBackgrounds = new Image[PlayerInventory.SlotCount];
+        [SerializeField] private Outline[] itemSlotFrames = new Outline[PlayerInventory.SlotCount];
+        private readonly ItemType[] lastDisplayedItems = new ItemType[PlayerInventory.SlotCount];
+        private readonly int[] lastDisplayedItemCounts = { -1, -1, -1, -1 };
+        private Sprite purificationPotionIcon;
+        private Sprite emergencyRepairKitIcon;
+        private CanvasGroup stabilityThresholdWarning;
 
         public Canvas Canvas => GetComponent<Canvas>();
         public TMP_Text DayStatusText => dayStatusText;
@@ -128,12 +137,17 @@ namespace WardShift
             if (font != null) koreanFont = font;
             if (dayFlow == null) dayFlow = FindFirstObjectByType<DayFlowManager>();
             if (caster == null) caster = FindFirstObjectByType<MagicCaster>();
+            LoadItemIcons();
             if (gaugeSprite == null)
                 foreach (Image image in GetComponentsInChildren<Image>(true))
                     if (image.type == Image.Type.Filled && image.sprite != null) { gaugeSprite = image.sprite; break; }
             if (hudRoot != null)
             {
                 ConfigureCrosshair();
+                EnsureItemSlotVisuals();
+                stabilityThresholdWarning = EnsureStabilityThresholdWarning();
+                WardStatusHUD presenter = FindFirstObjectByType<WardStatusHUD>(FindObjectsInactive.Include);
+                if (presenter != null) presenter.ConfigureStabilityThresholdWarning(stabilityThresholdWarning);
                 ConfigureHitFeedback();
                 ConfigureThreatWarnings();
                 foreach (Image image in hudRoot.GetComponentsInChildren<Image>(true))
@@ -173,6 +187,7 @@ namespace WardShift
             BuildCast(magicHUD);
             BuildDay();
             BuildLoadout();
+            EnsureItemSlotVisuals();
             RectTransform controls = Panel("Controls", hudRoot, new Vector2(1, 0), new Vector2(1, 0),
                 new Vector2(-32, 32), new Vector2(320, 200));
             Text("Keys", controls, new Vector2(16, -12), new Vector2(288, 176), 21,
@@ -181,6 +196,8 @@ namespace WardShift
             Place(pickupText.rectTransform, new Vector2(0.5f, 0), new Vector2(0.5f, 0),
                 new Vector2(0, 208), new Vector2(600, 42));
             ApplyReadableMetrics();
+            stabilityThresholdWarning = EnsureStabilityThresholdWarning();
+            if (wardHUD != null) wardHUD.ConfigureStabilityThresholdWarning(stabilityThresholdWarning);
             ConfigureHitFeedback();
             ConfigureThreatWarnings();
         }
@@ -255,6 +272,7 @@ namespace WardShift
 
         private void BuildStatus(WardStatusHUD presenter)
         {
+            stabilityThresholdWarning = EnsureStabilityThresholdWarning();
             RectTransform alerts = Panel("AnomalyAlerts", hudRoot, Vector2.up, Vector2.up,
                 new Vector2(32, -32), new Vector2(480, 354));
             Text("Heading", alerts, new Vector2(20, -14), new Vector2(440, 30), 22,
@@ -331,6 +349,220 @@ namespace WardShift
             }
         }
 
+        private void LoadItemIcons()
+        {
+            if (purificationPotionIcon == null)
+                purificationPotionIcon = Resources.Load<Sprite>("WardShift/UI/wardshift_icon_purification_potion");
+            if (emergencyRepairKitIcon == null)
+                emergencyRepairKitIcon = Resources.Load<Sprite>("WardShift/UI/wardshift_icon_emergency_repair_kit");
+        }
+
+        /// <summary>직렬화된 기존 HUD와 새 런타임 HUD 모두에서 같은 네 개 슬롯을 보강합니다.</summary>
+        private void EnsureItemSlotVisuals()
+        {
+            if (hudRoot == null) return;
+            EnsureItemViewArrays();
+            Transform loadout = hudRoot.Find("MagicAndInventory");
+            if (loadout == null) return;
+
+            for (int i = 0; i < PlayerInventory.SlotCount; i++)
+            {
+                Transform slot = loadout.Find("ItemSlot_" + i);
+                if (slot == null) continue;
+                itemSlotBackgrounds[i] = slot.GetComponent<Image>();
+                if (itemSlotBackgrounds[i] != null)
+                {
+                    itemSlotBackgrounds[i].raycastTarget = false;
+                    itemSlotBackgrounds[i].color = new Color32(17, 34, 42, 248);
+                }
+
+                itemSlotFrames[i] = slot.GetComponent<Outline>();
+                if (itemSlotFrames[i] == null) itemSlotFrames[i] = slot.gameObject.AddComponent<Outline>();
+                itemSlotFrames[i].effectColor = new Color32(139, 126, 92, 190);
+                itemSlotFrames[i].effectDistance = new Vector2(1f, -1f);
+                itemSlotFrames[i].useGraphicAlpha = true;
+
+                if (itemLabels[i] == null)
+                {
+                    Transform oldLabel = slot.Find("Contents");
+                    if (oldLabel != null) itemLabels[i] = oldLabel.GetComponent<TMP_Text>();
+                }
+                if (itemLabels[i] == null)
+                    itemLabels[i] = Text("ItemName", slot, new Vector2(4f, -52f),
+                        new Vector2(114f, 23f), 14f, string.Empty, RecordTitleColor);
+                ConfigureSlotText(itemLabels[i], new Vector2(4f, -52f),
+                    new Vector2(114f, 23f), 14f, 12f, RecordTitleColor);
+
+                if (itemAccents[i] == null)
+                {
+                    Transform oldAccent = slot.Find("ItemAccent");
+                    if (oldAccent != null) itemAccents[i] = oldAccent.GetComponent<Image>();
+                }
+                if (itemAccents[i] == null)
+                {
+                    RectTransform accentRect = Rect("ItemAccent", slot,
+                        Vector2.up, Vector2.up, new Vector2(0f, 0f), new Vector2(122f, 2f));
+                    itemAccents[i] = accentRect.gameObject.AddComponent<Image>();
+                }
+                ConfigureSlotImageRect(itemAccents[i].rectTransform, Vector2.up,
+                    new Vector2(0f, 0f), new Vector2(122f, 2f));
+                itemAccents[i].raycastTarget = false;
+
+                Transform iconTransform = slot.Find("ItemIcon");
+                if (iconTransform == null)
+                {
+                    GameObject iconObject = new GameObject("ItemIcon",
+                        typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+                    iconObject.transform.SetParent(slot, false);
+                    iconTransform = iconObject.transform;
+                }
+                itemIcons[i] = iconTransform.GetComponent<Image>();
+                ConfigureSlotImageRect(itemIcons[i].rectTransform, new Vector2(0.5f, 1f),
+                    new Vector2(0f, -4f), new Vector2(48f, 48f));
+                itemIcons[i].preserveAspect = true;
+                itemIcons[i].raycastTarget = false;
+                itemIcons[i].color = Color.white;
+
+                if (itemQuantities[i] == null)
+                {
+                    Transform oldQuantity = slot.Find("ItemQuantity");
+                    if (oldQuantity != null) itemQuantities[i] = oldQuantity.GetComponent<TMP_Text>();
+                }
+                if (itemQuantities[i] == null)
+                    itemQuantities[i] = Text("ItemQuantity", slot, new Vector2(4f, -70f),
+                        new Vector2(114f, 24f), 15f, string.Empty, Gold);
+                ConfigureSlotText(itemQuantities[i], new Vector2(4f, -70f),
+                    new Vector2(114f, 24f), 15f, 13f, Gold);
+
+                RectTransform slotRect = (RectTransform)slot;
+                slotRect.anchorMin = slotRect.anchorMax = Vector2.up;
+                slotRect.pivot = Vector2.up;
+                slotRect.anchoredPosition = new Vector2(458f + i * 132f, -45f);
+                slotRect.sizeDelta = new Vector2(122f, 94f);
+                lastDisplayedItemCounts[i] = -1;
+            }
+        }
+
+        private void EnsureItemViewArrays()
+        {
+            if (itemLabels == null || itemLabels.Length != PlayerInventory.SlotCount)
+                itemLabels = new TMP_Text[PlayerInventory.SlotCount];
+            if (itemAccents == null || itemAccents.Length != PlayerInventory.SlotCount)
+                itemAccents = new Image[PlayerInventory.SlotCount];
+            if (itemIcons == null || itemIcons.Length != PlayerInventory.SlotCount)
+                itemIcons = new Image[PlayerInventory.SlotCount];
+            if (itemQuantities == null || itemQuantities.Length != PlayerInventory.SlotCount)
+                itemQuantities = new TMP_Text[PlayerInventory.SlotCount];
+            if (itemSlotBackgrounds == null || itemSlotBackgrounds.Length != PlayerInventory.SlotCount)
+                itemSlotBackgrounds = new Image[PlayerInventory.SlotCount];
+            if (itemSlotFrames == null || itemSlotFrames.Length != PlayerInventory.SlotCount)
+                itemSlotFrames = new Outline[PlayerInventory.SlotCount];
+        }
+
+        private void ConfigureSlotText(TMP_Text text, Vector2 position, Vector2 size,
+            float fontSize, float minimumFontSize, Color color)
+        {
+            RectTransform rect = text.rectTransform;
+            rect.anchorMin = rect.anchorMax = Vector2.up;
+            rect.pivot = Vector2.up;
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
+            text.font = koreanFont != null ? koreanFont : TMP_Settings.defaultFontAsset;
+            text.fontSize = fontSize;
+            text.enableAutoSizing = true;
+            text.fontSizeMin = minimumFontSize;
+            text.fontSizeMax = fontSize;
+            text.alignment = TextAlignmentOptions.Center;
+            text.textWrappingMode = TextWrappingModes.NoWrap;
+            text.overflowMode = TextOverflowModes.Ellipsis;
+            text.color = color;
+            text.raycastTarget = false;
+        }
+
+        private static void ConfigureSlotImageRect(RectTransform rect, Vector2 anchor,
+            Vector2 position, Vector2 size)
+        {
+            rect.anchorMin = rect.anchorMax = anchor;
+            rect.pivot = anchor;
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
+        }
+
+        private CanvasGroup EnsureStabilityThresholdWarning()
+        {
+            if (hudRoot == null) return null;
+            Transform existing = hudRoot.Find("StabilityThresholdWarning");
+            if (existing != null)
+            {
+                CanvasGroup existingGroup = existing.GetComponent<CanvasGroup>();
+                if (existingGroup == null) existingGroup = existing.gameObject.AddComponent<CanvasGroup>();
+                existingGroup.interactable = false;
+                existingGroup.blocksRaycasts = false;
+                existingGroup.alpha = 0f;
+                existing.SetAsFirstSibling();
+                return existingGroup;
+            }
+
+            GameObject root = new GameObject("StabilityThresholdWarning",
+                typeof(RectTransform), typeof(CanvasGroup));
+            root.transform.SetParent(hudRoot, false);
+            RectTransform rootRect = root.GetComponent<RectTransform>();
+            rootRect.anchorMin = Vector2.zero;
+            rootRect.anchorMax = Vector2.one;
+            rootRect.offsetMin = rootRect.offsetMax = Vector2.zero;
+            root.transform.SetAsFirstSibling();
+
+            CanvasGroup group = root.GetComponent<CanvasGroup>();
+            group.alpha = 0f;
+            group.interactable = false;
+            group.blocksRaycasts = false;
+            Color edgeColor = new Color32(172, 42, 27, 46);
+            Color cornerColor = new Color32(195, 61, 32, 42);
+            AddStabilityWarningEdge(root.transform, "TopEdge", new Vector2(0f, 1f),
+                new Vector2(1f, 1f), new Vector2(0.5f, 1f), Vector2.zero,
+                new Vector2(0f, 178f), edgeColor);
+            AddStabilityWarningEdge(root.transform, "BottomEdge", Vector2.zero,
+                new Vector2(1f, 0f), new Vector2(0.5f, 0f), Vector2.zero,
+                new Vector2(0f, 178f), edgeColor);
+            AddStabilityWarningEdge(root.transform, "LeftEdge", Vector2.zero,
+                Vector2.up, new Vector2(0f, 0.5f), Vector2.zero,
+                new Vector2(126f, 0f), edgeColor);
+            AddStabilityWarningEdge(root.transform, "RightEdge", new Vector2(1f, 0f),
+                Vector2.one, new Vector2(1f, 0.5f), Vector2.zero,
+                new Vector2(126f, 0f), edgeColor);
+            AddStabilityWarningEdge(root.transform, "TopLeftCorner", new Vector2(0f, 1f),
+                new Vector2(0f, 1f), new Vector2(0f, 1f), Vector2.zero,
+                new Vector2(188f, 172f), cornerColor);
+            AddStabilityWarningEdge(root.transform, "TopRightCorner", Vector2.one,
+                Vector2.one, Vector2.one, Vector2.zero,
+                new Vector2(188f, 172f), cornerColor);
+            AddStabilityWarningEdge(root.transform, "BottomLeftCorner", Vector2.zero,
+                Vector2.zero, Vector2.zero, Vector2.zero,
+                new Vector2(188f, 172f), cornerColor);
+            AddStabilityWarningEdge(root.transform, "BottomRightCorner", new Vector2(1f, 0f),
+                new Vector2(1f, 0f), new Vector2(1f, 0f), Vector2.zero,
+                new Vector2(188f, 172f), cornerColor);
+            return group;
+        }
+
+        private static void AddStabilityWarningEdge(Transform parent, string name,
+            Vector2 anchorMin, Vector2 anchorMax, Vector2 pivot,
+            Vector2 position, Vector2 size, Color color)
+        {
+            GameObject edge = new GameObject(name,
+                typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            edge.transform.SetParent(parent, false);
+            RectTransform rect = edge.GetComponent<RectTransform>();
+            rect.anchorMin = anchorMin;
+            rect.anchorMax = anchorMax;
+            rect.pivot = pivot;
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
+            Image image = edge.GetComponent<Image>();
+            image.color = color;
+            image.raycastTarget = false;
+        }
+
         private void LateUpdate()
         {
             if (dayFlow == null || hudRoot == null) return;
@@ -353,11 +585,24 @@ namespace WardShift
             {
                 ItemType item = inventory.GetItem(i);
                 int count = inventory.GetQuantity(i);
-                itemLabels[i].text = count <= 0 ? "빈 칸" : item == ItemType.PurificationPotion
-                    ? "정화약\nx" + count : "비상 수리\n키트 x" + count;
-                itemLabels[i].color = count > 0 ? Color.white : Muted;
-                itemAccents[i].color = count <= 0 ? new Color(0.24f, 0.27f, 0.31f)
-                    : item == ItemType.PurificationPotion ? ContaminationColor : StabilityColor;
+                if (lastDisplayedItemCounts[i] == count && lastDisplayedItems[i] == item) continue;
+                lastDisplayedItemCounts[i] = count;
+                lastDisplayedItems[i] = item;
+
+                bool potion = count > 0 && item == ItemType.PurificationPotion;
+                bool repairKit = count > 0 && item == ItemType.EmergencyRepairKit;
+                bool hasItem = potion || repairKit;
+                itemLabels[i].text = potion ? "정화약" : repairKit ? "비상 수리 키트" : string.Empty;
+                itemLabels[i].color = hasItem ? RecordTitleColor : Muted;
+                itemQuantities[i].text = hasItem ? "x" + count : string.Empty;
+                itemQuantities[i].color = hasItem ? Gold : Muted;
+                itemIcons[i].sprite = potion ? purificationPotionIcon : repairKit ? emergencyRepairKitIcon : null;
+                itemIcons[i].enabled = hasItem && itemIcons[i].sprite != null;
+                itemSlotBackgrounds[i].color = hasItem ? RecordCardColor : new Color32(13, 28, 34, 245);
+                itemSlotFrames[i].effectColor = hasItem ? RecordFrameColor : new Color32(82, 100, 96, 135);
+                itemAccents[i].color = potion ? new Color32(103, 203, 190, 235)
+                    : repairKit ? new Color32(203, 171, 111, 235)
+                    : new Color32(82, 100, 96, 90);
             }
         }
 

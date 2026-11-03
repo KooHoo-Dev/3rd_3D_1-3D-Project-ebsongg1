@@ -56,11 +56,7 @@ namespace WardShift
             if (reward >= 0 && cleanupRewardCaps.TryGetValue(id, out int cap) && cap >= 0)
                 reward = Mathf.Min(reward, cap);
             if (reward < 0)
-            {
-                int min = Mathf.Max(0, manager.MinimumAnomalyReward);
-                int max = Mathf.Max(min, manager.MaximumAnomalyReward);
-                reward = UnityEngine.Random.Range(min, max + 1);
-            }
+                reward = 1;
             int awarded = Mathf.Max(0, reward);
             inventory.AddManaCrystals(awarded);
             anomaly.ResolutionCompleted -= RewardResolution;

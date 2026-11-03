@@ -200,7 +200,7 @@ namespace WardShift.Editor
                     case 4:
                         if (targetRift != null && !targetRift.IsEnded) return;
                         float elapsed = Time.time - travelStartedAt;
-                        int expectedReward = Mathf.Clamp(rewardAtResolution, 0, 3);
+                        int expectedReward = 1;
                         if (inventory.ManaCrystals != crystalBaseline + expectedReward)
                         {
                             Finish(false, $"{targetPoint.name} 도착 후 {elapsed:F2}초에 진압했으나 DAY 보상 오류: 결정 {inventory.ManaCrystals - crystalBaseline}개, 예상 {expectedReward}개");

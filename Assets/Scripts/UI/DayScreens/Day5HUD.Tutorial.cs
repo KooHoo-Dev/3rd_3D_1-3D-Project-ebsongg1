@@ -32,9 +32,9 @@ namespace WardShift
             [TextArea(2, 3)] public string firstClear = "진압으로 얻은 마력 결정으로 강화를 구매하세요. 강화는 하루에 한 번만 구매할 수 있습니다.";
             [TextArea(2, 3)] public string inventory = "B로 인벤토리를 열고 필요한 아이템을 클릭해 사용하세요.";
             [TextArea(2, 3)] public string map = "TAB으로 시설 지도를 열어 이상현상 위치를 확인하세요. 지도는 간이도이며 이동 경로의 축척과 다릅니다.";
-            [InspectorName("성장 기본 규칙"), TextArea(2, 3)] public string growthOverview = "이상현상은 시간이 지나면 최대 3단계까지 성장합니다. 늦게 진압할수록 결정 보상은 늘지만, 2단계부터 시설 안정도가 감소합니다.";
-            [InspectorName("첫 2단계 알림"), TextArea(2, 3)] public string stageTwo = "이상현상이 2단계로 성장해 시설 안정도가 감소하기 시작합니다. 정상 진압 기본 보상은 결정 2개입니다.";
-            [InspectorName("첫 3단계 알림"), TextArea(2, 3)] public string stageThree = "이상현상이 3단계로 성장해 시설 안정도가 더 빠르게 감소합니다. 정상 진압 기본 보상은 결정 3개입니다.";
+            [InspectorName("성장 기본 규칙"), TextArea(2, 3)] public string growthOverview = "이상현상은 시간이 지나면 최대 3단계까지 성장합니다. 진압 보상은 위험 단계와 관계없이 마력 조각 1개이며, 2단계부터 시설 안정도가 감소합니다.";
+            [InspectorName("첫 2단계 알림"), TextArea(2, 3)] public string stageTwo = "이상현상이 2단계로 성장해 시설 안정도가 감소하기 시작합니다. 진압 보상은 마력 조각 1개입니다.";
+            [InspectorName("첫 3단계 알림"), TextArea(2, 3)] public string stageThree = "이상현상이 3단계로 성장해 시설 안정도가 더 빠르게 감소합니다. 진압 보상은 마력 조각 1개입니다.";
             [InspectorName("첫 파열 알림"), TextArea(2, 3)] public string rupture = "이상현상이 파열되어 시설에 큰 피해를 주고 사라졌습니다. 파열된 이상현상에는 진압 보상이 없습니다.";
         }
 

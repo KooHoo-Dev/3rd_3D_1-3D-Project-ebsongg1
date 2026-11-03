@@ -186,7 +186,7 @@ namespace WardShift.Editor
                         crystalBaseline = inventory.ManaCrystals;
                         resolutionEvents = 0;
                         currentRift.ResolutionCompleted += OnResolutionCompleted;
-                        if (currentRift.DangerStage != 2 || currentRift.ResolutionReward != 2
+                        if (currentRift.DangerStage != 2 || currentRift.ResolutionReward != 1
                             || !ResolveFirstSealOnly(currentRift) || !currentRift.IsHazardActive
                             || currentRift.CompletedSealCount != 1 || resolutionEvents != 0
                             || inventory.ManaCrystals != crystalBaseline)
@@ -201,7 +201,7 @@ namespace WardShift.Editor
 
                     case 2:
                         if (currentRift != null && !currentRift.IsEnded) return;
-                        if (resolutionEvents != 1 || inventory.ManaCrystals != crystalBaseline + 2)
+                        if (resolutionEvents != 1 || inventory.ManaCrystals != crystalBaseline + 1)
                         {
                             Finish(false, $"2단계 보상 중복 또는 누락: 이벤트 {resolutionEvents}회, 결정 {inventory.ManaCrystals - crystalBaseline}개");
                             return;
@@ -213,7 +213,7 @@ namespace WardShift.Editor
                         crystalBaseline = inventory.ManaCrystals;
                         resolutionEvents = 0;
                         currentRift.ResolutionCompleted += OnResolutionCompleted;
-                        if (currentRift.DangerStage != 3 || currentRift.ResolutionReward != 3
+                        if (currentRift.DangerStage != 3 || currentRift.ResolutionReward != 1
                             || !Resolve(currentRift))
                         {
                             Finish(false, "3단계 이상현상 진압 또는 보상 검사 실패");
@@ -225,7 +225,7 @@ namespace WardShift.Editor
 
                     case 3:
                         if (currentRift != null && !currentRift.IsEnded) return;
-                        if (resolutionEvents != 1 || inventory.ManaCrystals != crystalBaseline + 3)
+                        if (resolutionEvents != 1 || inventory.ManaCrystals != crystalBaseline + 1)
                         {
                             Finish(false, $"3단계 보상 중복 또는 누락: 이벤트 {resolutionEvents}회, 결정 {inventory.ManaCrystals - crystalBaseline}개");
                             return;

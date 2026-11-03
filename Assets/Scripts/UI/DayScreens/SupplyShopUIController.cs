@@ -116,10 +116,10 @@ namespace WardShift
 
             RefreshOption(potionCard, ItemType.PurificationPotion, "정화약",
                 $"오염도 {dayFlow.NextDayPotionRecoveryAmount:F0} 회복",
-                "마력 오염을 씻어내는 응급 정화약입니다.", dayFlow.PurificationPotionPrice);
+                "마력 오염도를 낮춰주는 정화약입니다.", dayFlow.PurificationPotionPrice);
             RefreshOption(repairCard, ItemType.EmergencyRepairKit, "비상 수리 키트",
                 $"시설 안정도 {PlayerInventory.RepairKitRecovery:F0} 회복",
-                "균열난 마도 설비를 현장에서 복구하는 도구입니다.", dayFlow.EmergencyRepairKitPrice);
+                "시설 안정도를 높여주는 도구입니다.", dayFlow.EmergencyRepairKitPrice);
 
             continueLabel.text = dayFlow.SupplyPurchasesThisShop == 0
                 ? "나중에 선택하고 계속" : "다음 DAY 시작";

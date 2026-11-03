@@ -177,7 +177,7 @@ namespace WardShift.Editor
                 Assert(GetPrivateField<GameObject>(dayHud, "endingPanel").activeSelf,
                     "DAY 7 ending panel was not shown.");
                 AssertNoConditionUi();
-                Finish(true, "DAY 1–7 stayed condition-free; no passive recovery, potion and 1/2/3 rewards passed; upgrade, shop, retry, and DAY 7 ending passed.");
+                Finish(true, "DAY 1–7 stayed condition-free; no passive recovery, potion, and fixed one-crystal anomaly rewards passed; upgrade, shop, retry, and DAY 7 ending passed.");
                 return;
             }
 
@@ -311,8 +311,8 @@ namespace WardShift.Editor
                     for (int stage = 1; stage <= 3; stage++)
                     {
                         SetPrivateField(anomaly, "dangerStage", stage);
-                        Assert(anomaly.ResolutionReward == stage,
-                            $"{anomaly.GetType().Name} stage {stage} base reward is not {stage}.");
+                        Assert(anomaly.ResolutionReward == 1,
+                            $"{anomaly.GetType().Name} stage {stage} reward is not fixed at one crystal.");
                     }
                 }
             }
@@ -331,8 +331,8 @@ namespace WardShift.Editor
                 Invoke(day, "OnAnomalySpawned", probe);
                 Invoke(day, "OnAnomalyResolved", probe);
                 Invoke(day, "OnAnomalyResolved", probe);
-                Assert(inventory.CrystalsEarnedToday - before == stage,
-                    $"Stage {stage} resolution paid more or less than its {stage}-crystal base reward.");
+                Assert(inventory.CrystalsEarnedToday - before == 1,
+                    $"Stage {stage} resolution did not pay exactly one crystal.");
                 UnityEngine.Object.Destroy(probeObject);
             }
         }

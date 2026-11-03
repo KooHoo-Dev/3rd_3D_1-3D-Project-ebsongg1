@@ -93,7 +93,7 @@ namespace WardShift
             }
         }
         public override bool HasOverloaded => hasRuptured;
-        public override int ResolutionReward => dangerStage;
+        public override int ResolutionReward => 1;
         public override AnomalySpawnPoint.SurfaceType SpawnSurface => AnomalySpawnPoint.SurfaceType.Device;
         public override bool IsHazardActive => isActiveAndEnabled && configured && !isResolved
             && !hasRuptured && !HasEnded;
